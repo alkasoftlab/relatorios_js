@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Eleven · Pastas | Valores</title>
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<style>
+#fill{display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<div class="card login-card center" id="login">
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <p class="subtitle">Acessar Relatório: Pastas | Valores</p>
+    <form id="loginForm" style="width:100%">
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input type="text" id="email" class="form-control" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <div class="password-wrap">
+          <input type="password" id="senha" class="form-control" required autocomplete="current-password">
+          <button type="button" class="password-toggle" id="toggleSenha" aria-label="Mostrar senha" title="Mostrar senha">
+            <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn">Entrar</button>
+    </form>
+    <div id="resultado" class="subtitle" style="margin-top:10px"></div>
+</div>
+
+<div class="card login-card center" id="relatorio" style="display:none">
+  <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+  <h1>Pastas e Valores</h1>
+
+  <div class="field">
+    <label for="arquivada">📁 Situação da Pasta</label>
+    <select id="arquivada" class="form-control">
+      <option value="NAO_ARQUIVADAS">Não arquivadas</option>
+      <option value="ARQUIVADAS">Arquivadas</option>
+      <option value="TODAS">Todas</option>
+    </select>
+  </div>
+
+  <button id="btnGerar" class="btn">Gerar Relatório</button>
+
+  <div class="progress-wrap" id="bar" style="display:none">
+    <div class="progress"><div id="fill" class="fill">0%</div></div>
+  </div>
+
+  <div id="status"></div>
+</div>
+
+</div>
+
+<script>
+
+/* ========== Mostrar/ocultar senha ========== */
+(function(){
+    const toggleSenhaBtn = document.getElementById('toggleSenha');
+    const senhaInput = document.getElementById('senha');
+    const eyeIcon = document.getElementById('eyeIcon');
+    const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+    const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.4 18.4 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/>';
+    if(toggleSenhaBtn){
+        toggleSenhaBtn.addEventListener('click',()=>{
+            const showing = senhaInput.type === 'text';
+            senhaInput.type = showing ? 'password' : 'text';
+            eyeIcon.innerHTML = showing ? EYE_OPEN : EYE_OFF;
+            toggleSenhaBtn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+            toggleSenhaBtn.title = showing ? 'Mostrar senha' : 'Ocultar senha';
+        });
+    }
+})();
+
+const el = id => document.getElementById(id);
+
+let TOKEN=null;
+
+const LOGIN_URL='https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum';
+const BUSCA_PASTAS_URL='https://busca-avancada-api-prod.alkasoft.com.br/api/v1/pastas';
+const BUSCA_PROC_JUD_URL='https://busca-avancada-api-prod.alkasoft.com.br/api/v1/processos-judiciais';
+const APP_URL='https://app-api-prod.alkasoft.com.br/api/v1';
+
+function auth(){
+  return {Authorization:'Bearer '+TOKEN,'Content-Type':'application/json'};
+}
+
+function progresso(p){
+  el('bar').style.display='block';
+  el('fill').style.width=p+'%';
+  el('fill').textContent=p+'%';
+}
+
+/* LOGIN */
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const email = el('email').value.trim().toLowerCase();
+  const senha = el('senha').value.trim();
+
+  if(!email || !senha){
+    el('resultado').innerHTML='<span style="color:red">Informe e-mail e senha</span>';
+    return;
+  }
+
+  try{
+    const r=await fetch(LOGIN_URL,{
+      headers:{Authorization:'Basic '+btoa(email+':'+senha)}
+    });
+
+    if(!r.ok) throw 'Erro login';
+
+    TOKEN=(r.headers.get('authorization')||'').replace('Bearer ','');
+
+    el('login').style.display='none';
+    el('relatorio').style.display='block';
+
+  }catch(e){
+    el('resultado').innerHTML='<span style="color:red">'+e+'</span>';
+  }
+});
+
+/* UTIL */
+function formatarData(v){
+  if(!v) return '';
+  const m=v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m?`${m[3]}/${m[2]}/${m[1]}`:v;
+}
+
+function formatarDataHora(v){
+  if(!v) return '';
+  const m=v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m?`${m[3]}/${m[2]}/${m[1]}`:v;
+}
+
+function formatarValor(v){
+  if(v===null||v===undefined||v==='') return '';
+  const n=Number(v);
+  if(isNaN(n)) return '';
+  return n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function vNulo(v){
+  return (v===null||v===undefined)?'':String(v);
+}
+
+const MAPA_EXTRAS={
+  8481:'Adv_RECTE_Pasta',
+  14517:'Admissao_Pasta',
+  14518:'Demissao_Pasta',
+  14519:'Funcao_Pasta',
+  14523:'Valor_execucao_atualizado_Pasta'
+};
+
+/* BUSCA PAGINADA DE PASTAS */
+async function buscarPastas(arquivada){
+
+  const qtd=200;
+  let todos=[];
+
+  const body={arquivada:arquivada};
+
+  const r0=await fetch(`${BUSCA_PASTAS_URL}?ordenacao=ULTIMA_MODIFICACAO_DESC&inicio=0&quantidade=${qtd}`,{
+    method:'POST',headers:auth(),body:JSON.stringify(body)
+  });
+
+  const j0=await r0.json();
+  const total=j0.quantidadeTotal||0;
+  todos=todos.concat(j0.itens||[]);
+
+  const paginas=Math.ceil(total/qtd);
+
+  for(let i=1;i<paginas;i++){
+
+    const r=await fetch(`${BUSCA_PASTAS_URL}?ordenacao=ULTIMA_MODIFICACAO_DESC&inicio=${i*qtd}&quantidade=${qtd}`,{
+      method:'POST',headers:auth(),body:JSON.stringify(body)
+    });
+
+    const j=await r.json();
+    todos=todos.concat(j.itens||[]);
+
+    progresso(Math.round(((i+1)/paginas)*50));
+  }
+
+  return todos;
+}
+
+/* PROCESSAR UMA PASTA (uma linha do relatório) */
+async function processarItem(item){
+
+  const linha={
+    Categoria:vNulo(item.categoria?.descricao),
+    Cliente_Principal:vNulo(item.clientePrincipal?.descricao),
+    Outros_Clientes:'',
+    Data_Cadastro:formatarDataHora(item.dataCadastro),
+    Etapa:vNulo(item.etapa),
+    Assunto:vNulo(item.prefixo?.descricao),
+    CNJ:'',
+    Parte_contraria:vNulo(item.parteContrariaPrincipal?.descricao),
+    Outras_Partes_Contrarias:'',
+    Situacao:vNulo(item.situacao?.descricao),
+    Anotacoes:vNulo(item.anotacoes),
+    Adv_RECTE_Pasta:'',
+    Admissao_Pasta:'',
+    Demissao_Pasta:'',
+    Funcao_Pasta:'',
+    Valor_execucao_atualizado_Pasta:'',
+    Data_Conclusao_Pasta:'',
+    Prognostico_valores_Valor_da_causa:''
+  };
+
+  for(const campo of item.valoresCamposExtras||[]){
+    const idCampo=campo.idCampoExtra;
+    const valor=campo.valor;
+
+    if(MAPA_EXTRAS[idCampo]){
+      if(idCampo===14517||idCampo===14518){
+        linha[MAPA_EXTRAS[idCampo]]=formatarData(valor);
+      }else if(idCampo===14523){
+        linha[MAPA_EXTRAS[idCampo]]=formatarValor(valor);
+      }else{
+        linha[MAPA_EXTRAS[idCampo]]=vNulo(valor);
+      }
+    }
+  }
+
+  const idPasta=item.id;
+
+  /* Detalhe da pasta: conclusão, clientes, partes contrárias */
+  const pasta=await (await fetch(`${APP_URL}/pastasprocessuais/${idPasta}?marcarAcessada=false`,{headers:auth()})).json();
+
+  linha.Data_Conclusao_Pasta=formatarData(pasta.conclusao?.dataConclusao);
+
+  linha.Outros_Clientes=(pasta.clientes||[])
+    .map(c=>c.descricao).join('; ');
+
+  linha.Outras_Partes_Contrarias=(pasta.partesContrarias||[])
+    .map(c=>c.descricao).join('; ');
+
+  /* CNJ via processos judiciais vinculados */
+  const procBusca=await (await fetch(`${BUSCA_PROC_JUD_URL}?inicio=0&quantidade=100`,{
+    method:'POST',headers:auth(),
+    body:JSON.stringify({idsPastasProcessuais:[idPasta]})
+  })).json();
+
+  if(procBusca.itens && procBusca.itens.length>0){
+    linha.CNJ=procBusca.itens.map(p=>vNulo(p.numeroCNJ)).join('; ');
+  }else if(item.assunto && /[0-9]/.test(item.assunto)){
+    linha.CNJ=item.assunto;
+  }
+
+  /* Prognóstico de valores */
+  const prognostico=await (await fetch(`${APP_URL}/pastasprocessuais/${idPasta}/prognosticoevalores`,{headers:auth()})).json();
+
+  if(prognostico && prognostico.valorCausa!=null){
+    linha.Prognostico_valores_Valor_da_causa=formatarValor(prognostico.valorCausa);
+  }
+
+  return linha;
+}
+
+/* GERAR */
+el('btnGerar').onclick = async () => {
+
+  el('btnGerar').disabled=true;
+  el('status').textContent='Buscando pastas...';
+  progresso(2);
+
+  const arquivada=el('arquivada').value;
+
+  const itens=await buscarPastas(arquivada);
+
+  let linhas=[];
+
+  for(let i=0;i<itens.length;i++){
+    el('status').textContent=`Processando pasta ${i+1} de ${itens.length}...`;
+    linhas.push(await processarItem(itens[i]));
+    progresso(50+Math.round(((i+1)/itens.length)*50));
+  }
+
+  el('status').textContent='Concluído!';
+  el('btnGerar').disabled=false;
+
+  abrirRelatorio(linhas);
+};
+
+/* RELATORIO */
+function abrirRelatorio(linhas){
+
+const colunas=[
+  {key:"Categoria",label:"Categoria",width:95},
+  {key:"Cliente_Principal",label:"Cliente Principal",width:140},
+  {key:"Outros_Clientes",label:"Outros Clientes",width:160},
+  {key:"Data_Cadastro",label:"Data Cadastro",width:90},
+  {key:"Etapa",label:"Etapa",width:90},
+  {key:"Assunto",label:"Assunto",width:110},
+  {key:"CNJ",label:"CNJ",width:150},
+  {key:"Parte_contraria",label:"Parte Contrária",width:140},
+  {key:"Outras_Partes_Contrarias",label:"Outras Partes Contrárias",width:160},
+  {key:"Situacao",label:"Situação",width:95},
+  {key:"Anotacoes",label:"Anotações",width:220},
+  {key:"Adv_RECTE_Pasta",label:"Adv. RECTE",width:120},
+  {key:"Admissao_Pasta",label:"Admissão",width:90},
+  {key:"Demissao_Pasta",label:"Demissão",width:90},
+  {key:"Funcao_Pasta",label:"Função",width:100},
+  {key:"Valor_execucao_atualizado_Pasta",label:"Valor Execução Atualizado",width:130},
+  {key:"Data_Conclusao_Pasta",label:"Data Conclusão",width:100},
+  {key:"Prognostico_valores_Valor_da_causa",label:"Valor da Causa",width:120}
+];
+
+const dataAtual=new Date().toLocaleDateString('pt-BR');
+const horaAtual=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+const w=window.open('', '_blank');
+
+const html=`
+<html><head>
+<meta charset="UTF-8">
+<title>Pastas e Valores</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"><\/script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Arial,Helvetica,sans-serif;background:#f8f9fa;margin:0;padding:24px;color:#343a40}
+.topo{text-align:center;margin-bottom:20px}
+.topo h2{margin:0 0 4px 0;color:#343a40;font-size:22px}
+.topo .sub{color:#6c757d;font-size:13px}
+.botoes{text-align:center;margin-bottom:18px}
+button{margin:0 5px;padding:10px 18px;border:none;border-radius:6px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px}
+.tabela-wrap{background:#fff;border-radius:10px;box-shadow:0 8px 25px rgba(0,0,0,.08);overflow-x:auto;padding:4px}
+table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:11.5px}
+th{background:#667eea;color:#fff;padding:10px 8px;text-align:left;font-weight:600;position:sticky;top:0}
+th:first-child{border-top-left-radius:8px}
+th:last-child{border-top-right-radius:8px}
+td{padding:8px;border-bottom:1px solid #eee;text-align:left;vertical-align:top;word-wrap:break-word;white-space:normal;line-height:1.4}
+tbody tr:nth-child(even){background:#f9fafc}
+tbody tr:hover{background:#f0f2fb}
+.rodape{text-align:center;color:#6c757d;font-size:12px;margin-top:14px}
+@media print{
+  @page{size:A4 landscape;margin:12mm}
+  .botoes{display:none}
+  body{background:#fff;padding:0}
+  .tabela-wrap{box-shadow:none;border-radius:0;overflow:visible}
+  table{font-size:9px}
+  th{position:static}
+  thead{display:table-header-group}
+  tr{page-break-inside:avoid}
+}
+</style>
+</head><body>
+
+<div class="topo">
+<h2>📋 Pastas e Valores</h2>
+<div class="sub">Gerado em ${dataAtual} às ${horaAtual} &nbsp;•&nbsp; ${linhas.length} pasta(s)</div>
+</div>
+
+<div class="botoes">
+<button style="background:#667eea" onclick="baixar()">⬇️ Baixar XLSX</button>
+<button style="background:#6c757d" onclick="print()">🖨️ Imprimir / PDF</button>
+</div>
+
+<div class="tabela-wrap">
+<table>
+<colgroup>${colunas.map(c=>`<col style="width:${c.width}px">`).join('')}</colgroup>
+<thead>
+<tr>${colunas.map(c=>`<th>${c.label}</th>`).join('')}</tr>
+</thead>
+<tbody>
+${linhas.map(l=>`<tr>${colunas.map(c=>`<td>${(l[c.key]||'').toString().replace(/</g,'&lt;')}</td>`).join('')}</tr>`).join('')}
+</tbody>
+</table>
+</div>
+
+<div class="rodape">Relatório de Pastas e Valores</div>
+
+<script>
+function baixar(){
+const colunas=${JSON.stringify(colunas.map(c=>c.key))};
+const labels=${JSON.stringify(colunas.map(c=>c.label))};
+const linhas=${JSON.stringify(linhas)};
+const dados=linhas.map(l=>{
+  const obj={};
+  colunas.forEach((k,i)=>obj[labels[i]]=l[k]||'');
+  return obj;
+});
+const ws=XLSX.utils.json_to_sheet(dados,{header:labels});
+const wb=XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb,ws,"Pastas e Valores");
+XLSX.writeFile(wb,"Pastas_e_Valores_${dataAtual.replace(/\//g,'-')}.xlsx");
+}
+<\/script>
+
+</body></html>`;
+
+w.document.write(html);
+w.document.close();
+}
+
+</script>
+
+</body>
+</html>

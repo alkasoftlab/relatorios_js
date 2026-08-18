@@ -1,0 +1,1622 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Eleven · Tarefas e Subtarefas</title>
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+
+</head>
+<body>
+<div class="app">
+  <div id="loginScreen" class="card login-card center" style="position:relative">
+    <div class="brand-mark">
+      <span class="word">Lawyer Eleven</span>
+    </div>
+    <p class="subtitle">Acessar Relatório: Tarefas e Subtarefas</p>
+    <form id="loginForm" style="width:100%">
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input type="text" id="email" class="form-control" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <div class="password-wrap">
+          <input type="password" id="senha" class="form-control" required autocomplete="current-password">
+          <button type="button" class="password-toggle" id="toggleSenha" aria-label="Mostrar senha" title="Mostrar senha">
+            <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn" style="margin-top:6px">Entrar</button>
+    </form>
+    <div id="resultado" class="subtitle" style="margin-top:10px"></div>
+  </div>
+
+  <div id="dateScreen" class="card login-card filter-card center" style="display:none">
+    <div class="brand-mark">
+      <span class="word">Lawyer Eleven</span>
+    </div>
+    <h1 class="h1-with-info"><span class="h1-label">Gerar Relatório</span>
+      <button type="button" class="info-icon" id="infoFiltrosBtn" aria-label="Como usar os filtros">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" font-family="Arial, Helvetica, sans-serif" fill="#08111a">i</text></svg>
+      </button>
+    </h1>
+
+    <div class="filter-section">
+      <div class="filter-grid">
+        <div class="field-box">
+          <label class="field-box-label">Data de início</label>
+          <div class="date-inputs-row">
+            <div class="date-subfield" tabindex="0" data-subfield="dataInicioMin" id="dispDataInicioMin">
+              <span class="date-subfield-label">Mín</span>
+              <span class="date-subfield-value placeholder" id="valDataInicioMin">dd/mm/aaaa</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4" stroke-linecap="round"/></svg>
+            </div>
+            <div class="date-subfield" tabindex="0" data-subfield="dataInicioMax" id="dispDataInicioMax">
+              <span class="date-subfield-label">Máx</span>
+              <span class="date-subfield-value placeholder" id="valDataInicioMax">dd/mm/aaaa</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4" stroke-linecap="round"/></svg>
+            </div>
+          </div>
+          <input type="hidden" id="dataInicioMin"><input type="hidden" id="dataInicioMax">
+        </div>
+        <div class="field-box">
+          <label class="field-box-label">Data de vencimento</label>
+          <div class="date-inputs-row">
+            <div class="date-subfield" tabindex="0" data-subfield="dataVencimentoMin" id="dispDataVencimentoMin">
+              <span class="date-subfield-label">Mín</span>
+              <span class="date-subfield-value placeholder" id="valDataVencimentoMin">dd/mm/aaaa</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4" stroke-linecap="round"/></svg>
+            </div>
+            <div class="date-subfield" tabindex="0" data-subfield="dataVencimentoMax" id="dispDataVencimentoMax">
+              <span class="date-subfield-label">Máx</span>
+              <span class="date-subfield-value placeholder" id="valDataVencimentoMax">dd/mm/aaaa</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4" stroke-linecap="round"/></svg>
+            </div>
+          </div>
+          <input type="hidden" id="dataVencimentoMin"><input type="hidden" id="dataVencimentoMax">
+        </div>
+        <div class="field-box">
+          <label class="field-box-label">Data de finalização</label>
+          <div class="date-inputs-row">
+            <div class="date-subfield" tabindex="0" data-subfield="dataFinalizacaoMin" id="dispDataFinalizacaoMin">
+              <span class="date-subfield-label">Mín</span>
+              <span class="date-subfield-value placeholder" id="valDataFinalizacaoMin">dd/mm/aaaa</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4" stroke-linecap="round"/></svg>
+            </div>
+            <div class="date-subfield" tabindex="0" data-subfield="dataFinalizacaoMax" id="dispDataFinalizacaoMax">
+              <span class="date-subfield-label">Máx</span>
+              <span class="date-subfield-value placeholder" id="valDataFinalizacaoMax">dd/mm/aaaa</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4" stroke-linecap="round"/></svg>
+            </div>
+          </div>
+          <input type="hidden" id="dataFinalizacaoMin"><input type="hidden" id="dataFinalizacaoMax">
+        </div>
+        <div class="field-box">
+          <label class="field-box-label">Situações <span class="required-mark">*</span></label>
+          <div class="ms-wrapper" id="msSituacoes">
+            <div tabindex="0" class="ms-control" id="msControl" role="combobox" aria-haspopup="listbox" aria-expanded="false">
+              <div class="ms-chips-scroll" id="msScroll"></div>
+              <button class="ms-toggle" id="msToggle" title="Abrir opções" aria-label="Abrir opções">▾</button>
+            </div>
+            <div class="ms-dropdown" id="msDropdown" role="listbox" aria-label="Opções de situações">
+              <div class="ms-actions">
+                <button class="ms-clear" id="msClear">Limpar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="field-box">
+          <label class="field-box-label">Encarregados</label>
+          <div class="ms-wrapper" id="msEncarregados">
+            <div tabindex="0" class="ms-control" id="encControl" role="combobox" aria-haspopup="listbox" aria-expanded="false">
+              <div class="ms-chips-scroll" id="encScroll"></div>
+              <button class="ms-toggle" id="encToggle" title="Abrir busca" aria-label="Abrir busca">▾</button>
+            </div>
+            <div class="ms-dropdown" id="encDropdown" role="listbox" aria-label="Resultados de busca de encarregados">
+              <div class="small-muted" style="padding:6px 8px">Digite ao menos 2 letras para buscar (colaboradores)...</div>
+            </div>
+          </div>
+        </div>
+        <div class="field-box">
+          <label class="field-box-label">Solicitantes</label>
+          <div class="ms-wrapper" id="msSolicitantes">
+            <div tabindex="0" class="ms-control" id="solControl" role="combobox" aria-haspopup="listbox" aria-expanded="false">
+              <div class="ms-chips-scroll" id="solScroll"></div>
+              <button class="ms-toggle" id="solToggle" title="Abrir busca" aria-label="Abrir busca">▾</button>
+            </div>
+            <div class="ms-dropdown" id="solDropdown" role="listbox" aria-label="Resultados de busca de solicitantes">
+              <div class="small-muted" style="padding:6px 8px">Digite ao menos 2 letras para buscar (colaboradores)...</div>
+            </div>
+          </div>
+        </div>
+        <div class="field-box span-2">
+          <label class="field-box-label">Convidados</label>
+          <div class="ms-wrapper" id="msConvidados">
+            <div tabindex="0" class="ms-control" id="convControl" role="combobox" aria-haspopup="listbox" aria-expanded="false">
+              <div class="ms-chips-scroll" id="convScroll"></div>
+              <button class="ms-toggle" id="convToggle" title="Abrir busca" aria-label="Abrir busca">▾</button>
+            </div>
+            <div class="ms-dropdown" id="convDropdown" role="listbox" aria-label="Resultados de busca de convidados">
+              <div class="small-muted" style="padding:6px 8px">Digite ao menos 2 letras para buscar (cliente/contato ou colaborador)...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal-box" role="dialog" aria-modal="true">
+        <button class="modal-close" id="modalCloseBtn" type="button" aria-label="Fechar">✕</button>
+        <div class="modal-icon" id="modalIcon"></div>
+        <h2 class="modal-title" id="modalTitle"></h2>
+        <div class="modal-body" id="modalBody"></div>
+        <div class="modal-actions"><button class="btn-confirm" id="modalOkBtn" type="button">Entendi</button></div>
+      </div>
+    </div>
+
+    <div class="date-popover" id="datePopover">
+      <div class="date-popover-presets" id="datePopoverPresets"></div>
+      <div class="date-popover-body">
+        <div class="date-popover-calendars">
+          <div class="date-cal">
+            <div class="date-cal-header">
+              <button class="date-cal-nav" id="calPrev" aria-label="Mês anterior">‹</button>
+              <span class="date-cal-title" id="calTitleLeft">—</span>
+              <button class="date-cal-nav spacer">‹</button>
+            </div>
+            <div class="date-cal-grid" id="calGridLeft"></div>
+          </div>
+          <div class="date-cal">
+            <div class="date-cal-header">
+              <button class="date-cal-nav spacer">›</button>
+              <span class="date-cal-title" id="calTitleRight">—</span>
+              <button class="date-cal-nav" id="calNext" aria-label="Próximo mês">›</button>
+            </div>
+            <div class="date-cal-grid" id="calGridRight"></div>
+          </div>
+        </div>
+        <div class="date-popover-footer">
+          <button class="btn-link muted" id="dateClearBtn" type="button">Limpar</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn-link" id="dateCancelBtn" type="button">Cancelar</button>
+            <button class="btn-confirm" id="dateConfirmBtn" type="button">Confirmar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button id="btnGenerate" class="btn btn-financeiro">Gerar Relatório</button>
+    <button class="btn btn-danger" onclick="location.reload()">Sair</button>
+    <div class="progress-wrap" id="progressBar">
+      <div class="progress"><div class="fill" id="progressFill"></div></div>
+      <div class="progress-text" id="progressLabel">0%</div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;text-align:center">
+      <div id="status">Aguardando ação.</div>
+      <button type="button" class="info-icon" id="infoRelatorioBtn" aria-label="Sobre a geração do relatório">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" font-family="Arial, Helvetica, sans-serif" fill="#08111a">i</text></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="reportScreen" class="card" style="display:none">
+    <div class="report-header">
+      <div>
+        <h1>Relatório pronto</h1>
+        <div id="reportMeta" class="report-meta">Período: —</div>
+      </div>
+      <div class="report-actions">
+        <button id="btnPrint" class="btn-icon" style="background:#313b52;color:#e7eaf1;margin-bottom:0">
+          <span class="btn-icon-badge"><svg viewBox="0 0 24 24"><path d="M6 9V2h12v7" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" stroke-linecap="round" stroke-linejoin="round"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg></span>
+          Imprimir
+        </button>
+        <button id="btnBack" class="back">← Voltar</button>
+      </div>
+    </div>
+    <div id="reportContainer" class="report-container"></div>
+    <div id="empty" class="empty" style="display:none">Nenhum registro</div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/xlsx-populate/browser/xlsx-populate.min.js"></script>
+<script>
+/* ========== Config / URLs ========== */
+const LOGIN_URL="https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum";
+const BUSCA_TAREFAS_URL='https://busca-avancada-api-prod.alkasoft.com.br/api/v1/tarefas?inicio={INICIO}&ordenacao=DATA_FINALIZACAO_DESC&quantidade=100';
+const DETALHE_TAREFA_URL='https://app-api-prod.alkasoft.com.br/api/v1/tarefas/{ID}';
+const PROCESSOS_POR_PASTA='https://busca-avancada-api-prod.alkasoft.com.br/api/v1/processos-judiciais?inicio=0&ordenacao=DATA_ENTRADA_DESC&quantidade=10';
+const CONTATOS_URL='https://busca-avancada-api-prod.alkasoft.com.br/api/v1/contatos?inicio={INICIO}&ordenacao=NOME_ASC&quantidade={QTD}';
+const COLABORADORES_URL='https://busca-avancada-api-prod.alkasoft.com.br/api/v1/colaboradores?inicio={INICIO}&ordenacao=NOME_ASC&quantidade={QTD}';
+
+let BEARER_TOKEN=null;
+let dadosExport={superiores:[],subtarefas:[]};
+let relatorioWindow = null; // Referência para a janela do relatório
+
+/* ========== Utilitários ========== */
+function setResultado(msg){document.getElementById('resultado').innerHTML=msg}
+function setStatus(msg){document.getElementById('status').textContent=msg}
+function progressShow(p,txt){
+  const wrap=document.getElementById('progressBar');wrap.style.display='block';
+  const pct=Math.max(0,Math.min(100,Math.round(p)));
+  const f=document.getElementById('progressFill');f.style.width=pct+'%';
+  const label=document.getElementById('progressLabel');
+  label.textContent=txt?`${txt} — ${pct}%`:pct+'%';
+}
+function progressHide(){document.getElementById('progressBar').style.display='none'}
+function extrairCNJFromObj(obj){
+  if(!obj) return '';
+  try{
+    const s=String(obj.descricao||obj);
+    const m=s.match(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/);
+    return m?m[0]:'';
+  }catch(e){return ''}
+}
+function formatBR(dt){
+  if(!dt) return '';
+  const d=new Date(dt);
+  if(isNaN(d)) return dt;
+  const data=d.toLocaleDateString('pt-BR');
+  const hora=d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',hour12:false});
+  return `${data} - ${hora}`;
+}
+function isoToBR(iso){
+  if(!iso) return '';
+  const [yyyy,mm,dd]=iso.split('-');
+  return `${dd}/${mm}/${yyyy}`;
+}
+function intervaloLabel(min,max){
+  if(min && max) return `${isoToBR(min)} → ${isoToBR(max)}`;
+  if(min) return `A partir de ${isoToBR(min)}`;
+  if(max) return `Até ${isoToBR(max)}`;
+  return '';
+}
+function periodoLabel(filtrosData){
+  const partes=[];
+  const inicio=intervaloLabel(filtrosData.dataInicioMin,filtrosData.dataInicioMax);
+  const venc=intervaloLabel(filtrosData.dataVencimentoMin,filtrosData.dataVencimentoMax);
+  const fin=intervaloLabel(filtrosData.dataFinalizacaoMin,filtrosData.dataFinalizacaoMax);
+  if(inicio) partes.push(`Início: ${inicio}`);
+  if(venc) partes.push(`Vencimento: ${venc}`);
+  if(fin) partes.push(`Finalização: ${fin}`);
+  return partes.length ? partes.join(' · ') : 'Todas as datas';
+}
+function formatDateOnly(dt){
+  if(!dt) return '';
+  const d=new Date(dt);
+  if(isNaN(d)) return dt;
+  return d.toLocaleDateString('pt-BR');
+}
+function debounce(fn,delay){
+  let t=null;
+  return function(...args){
+    clearTimeout(t);
+    t=setTimeout(()=>fn.apply(this,args),delay);
+  };
+}
+function badgeHTML(situacao,vencimento){
+  const sit=(situacao?.valor||situacao?.descricao||'').toString().toUpperCase();
+  if(sit.includes('FINAL'))return '<span class="badge green">Finalizada</span>';
+  const v=vencimento?new Date(vencimento):null;
+  if(v&&v<new Date())return '<span class="badge red">Atrasada</span>';
+  return '<span class="badge orange">Pendente</span>';
+}
+function badgeColumnByDescricao(situacao){
+  const txt=(situacao?.descricao||situacao?.valor||'').toString().toLowerCase();
+  if(!txt) return '<span class="badge orange">Pendente</span>';
+  if(txt.includes('andam')||txt.includes('em andamento')||txt.includes('andamento'))return '<span class="badge blue">Em andamento</span>';
+  if(txt.includes('pend')||txt.includes('pendente'))return '<span class="badge orange">Pendente</span>';
+  if(txt.includes('final')||txt.includes('conclu'))return '<span class="badge green">Finalizada</span>';
+  return '<span class="badge orange">Pendente</span>';
+}
+function convidadosTexto(t){
+  const lista=t?.contatosConvidados||[];
+  return lista.map(c=>c.descricao).filter(Boolean).join(', ');
+}
+
+/* ========== Modal central (info e alertas) ========== */
+const modalOverlay=document.getElementById('modalOverlay');
+const modalIcon=document.getElementById('modalIcon');
+const modalTitle=document.getElementById('modalTitle');
+const modalBody=document.getElementById('modalBody');
+
+const ICON_INFO_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ICON_WARN_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" stroke-linejoin="round"/></svg>';
+
+function openModal(title,bodyHtml,type){
+  modalIcon.className='modal-icon '+(type==='warn'?'warn':'info');
+  modalIcon.innerHTML = type==='warn' ? ICON_WARN_SVG : ICON_INFO_SVG;
+  modalTitle.textContent=title;
+  modalBody.innerHTML=bodyHtml;
+  modalOverlay.classList.add('open');
+}
+function closeModal(){ modalOverlay.classList.remove('open'); }
+document.getElementById('modalCloseBtn').addEventListener('click',closeModal);
+document.getElementById('modalOkBtn').addEventListener('click',closeModal);
+modalOverlay.addEventListener('click',(e)=>{ if(e.target===modalOverlay) closeModal(); });
+document.addEventListener('keydown',(e)=>{ if(e.key==='Escape' && modalOverlay.classList.contains('open')) closeModal(); });
+
+document.getElementById('infoFiltrosBtn').addEventListener('click',()=>{
+  openModal('Como usar os filtros',
+    '<ul>'+
+    '<li><strong>Situações *</strong><br>É o único campo obrigatório. Marque pelo menos uma opção (Em andamento, Pendente ou Finalizada) para poder gerar o relatório.</li>'+
+    '<li><strong>Datas (início, vencimento e finalização)</strong><br>São opcionais. Se você não escolher nenhuma data, o relatório trará tarefas de todos os períodos, sem restrição.</li>'+
+    '<li><strong>Encarregados e Solicitantes</strong><br>Também são opcionais. Use para trazer só as tarefas de pessoas específicas — se deixar em branco, o relatório considera todo mundo.</li>'+
+    '<li><strong>Convidados</strong><br>Filtro opcional extra. Mostra apenas as tarefas em que a pessoa escolhida foi adicionada como convidada.</li>'+
+    '</ul>',
+    'info');
+});
+document.getElementById('infoRelatorioBtn').addEventListener('click',()=>{
+  openModal('Sobre a geração do relatório',
+    '<ul>'+
+    '<li>É preciso selecionar pelo menos uma <strong>situação</strong> antes de clicar em "Gerar Relatório".</li>'+
+    '<li>Depois de clicar, o sistema busca as tarefas e monta o relatório — isso pode levar alguns segundos, dependendo da quantidade de tarefas.</li>'+
+    '<li>Quando terminar, o relatório abre automaticamente em uma <strong>nova aba</strong> do navegador.</li>'+
+    '<li>Se a nova aba não abrir, verifique se o navegador não bloqueou o pop-up.</li>'+
+    '</ul>',
+    'info');
+});
+
+/* ========== Mostrar/ocultar senha ========== */
+const toggleSenhaBtn = document.getElementById('toggleSenha');
+const senhaInput = document.getElementById('senha');
+const eyeIcon = document.getElementById('eyeIcon');
+const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.4 18.4 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/>';
+if(toggleSenhaBtn){
+  toggleSenhaBtn.addEventListener('click',()=>{
+    const showing = senhaInput.type === 'text';
+    senhaInput.type = showing ? 'password' : 'text';
+    eyeIcon.innerHTML = showing ? EYE_OPEN : EYE_OFF;
+    toggleSenhaBtn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+    toggleSenhaBtn.title = showing ? 'Mostrar senha' : 'Ocultar senha';
+  });
+}
+
+/* ========== Multiselect (chips) - Situações ========== */
+const MS_OPTIONS = [
+  { label: 'Em andamento', value: 'EM_ANDAMENTO' },
+  { label: 'Pendente', value: 'PENDENTE' },
+  { label: 'Finalizada', value: 'TAREFA_FINALIZADA' }
+];
+const msState = {
+  selected: new Set(MS_OPTIONS.map(o=>o.value)), // pré-selecionar tudo
+  open: false
+};
+const msControl = document.getElementById('msControl');
+const msDropdown = document.getElementById('msDropdown');
+const msWrapper = document.getElementById('msSituacoes');
+const msToggle = document.getElementById('msToggle');
+const msClear = document.getElementById('msClear');
+
+const msScroll = document.getElementById('msScroll');
+
+function renderMs(){
+  msScroll.innerHTML='';
+  if(msState.selected.size === 0){
+    const ph = document.createElement('div');
+    ph.className='ms-placeholder';
+    ph.textContent='Selecione as situações...';
+    msScroll.appendChild(ph);
+  } else {
+    MS_OPTIONS.forEach(opt=>{
+      if(msState.selected.has(opt.value)){
+        const chip = document.createElement('div');
+        chip.className='ms-chip';
+        chip.textContent = opt.label;
+        const rem = document.createElement('span');
+        rem.className='remove';
+        rem.setAttribute('role','button');
+        rem.setAttribute('aria-label','Remover '+opt.label);
+        rem.textContent='✕';
+        rem.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          msState.selected.delete(opt.value);
+          renderMs();
+        });
+        chip.appendChild(rem);
+        msScroll.appendChild(chip);
+      }
+    });
+  }
+  const input = document.createElement('input');
+  input.className='ms-input';
+  input.setAttribute('aria-label','Adicionar situação');
+  input.placeholder='';
+  input.style.minWidth='6px';
+  input.style.width='6px';
+  input.style.flex='0 0 6px';
+  input.style.padding='6px 0';
+  input.addEventListener('keydown',(e)=>{
+    if(e.key==='ArrowDown'){ openMs(); focusFirstItem(); e.preventDefault(); }
+    if(e.key==='Backspace' && input.value==='' && msState.selected.size>0){
+      const last = Array.from(msState.selected).pop();
+      if(last){ msState.selected.delete(last); renderMs(); }
+    }
+  });
+  msScroll.appendChild(input);
+
+  msDropdown.innerHTML = '';
+  MS_OPTIONS.forEach(opt=>{
+    const it = document.createElement('div');
+    it.className='ms-item';
+    if(msState.selected.has(opt.value)) it.classList.add('checked');
+    it.setAttribute('role','option');
+    it.setAttribute('data-value',opt.value);
+    it.textContent = opt.label;
+    it.addEventListener('click', ()=>{
+      if(msState.selected.has(opt.value)) msState.selected.delete(opt.value);
+      else msState.selected.add(opt.value);
+      renderMs();
+      updateDropdownVisual();
+      msControl.focus();
+    });
+    msDropdown.appendChild(it);
+  });
+  const actions = document.createElement('div');
+  actions.className='ms-actions';
+  const clearBtn = document.createElement('button');
+  clearBtn.className='ms-clear';
+  clearBtn.textContent='Limpar';
+  clearBtn.addEventListener('click',(e)=>{
+    e.stopPropagation();
+    msState.selected.clear();
+    renderMs();
+    updateDropdownVisual();
+  });
+  actions.appendChild(clearBtn);
+  msDropdown.appendChild(actions);
+  updateDropdownVisual();
+}
+
+function updateDropdownVisual(){
+  const items = msDropdown.querySelectorAll('.ms-item');
+  items.forEach(it=>{
+    const v = it.getAttribute('data-value');
+    if(msState.selected.has(v)) it.classList.add('checked'); else it.classList.remove('checked');
+  });
+}
+
+function openMs(){
+  msState.open = true;
+  msDropdown.style.display='block';
+  msControl.classList.add('focus');
+  msControl.setAttribute('aria-expanded','true');
+}
+function closeMs(){
+  msState.open = false;
+  msDropdown.style.display='none';
+  msControl.classList.remove('focus');
+  msControl.setAttribute('aria-expanded','false');
+}
+function toggleMs(){
+  if(msState.open) closeMs(); else openMs();
+}
+function focusFirstItem(){
+  const first = msDropdown.querySelector('.ms-item');
+  if(first) first.focus();
+}
+
+msControl.addEventListener('click',(e)=>{
+  if(e.target!==msToggle && e.target.classList.contains('remove')) return;
+  toggleMs();
+});
+msToggle.addEventListener('click',(e)=>{ e.stopPropagation(); toggleMs(); });
+msClear.addEventListener('click',(e)=>{ e.stopPropagation(); msState.selected.clear(); renderMs(); updateDropdownVisual(); });
+
+document.addEventListener('click',(e)=>{
+  if(!msWrapper.contains(e.target)) closeMs();
+});
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='Escape') closeMs();
+});
+
+renderMs();
+
+/* ========== Multiselect assíncrono (chips) - Convidados ========== */
+const convState = {
+  selected: new Map(),
+  open: false,
+  cache: new Map(),
+  abortController: null,
+  lastQuery: ''
+};
+const convControl = document.getElementById('convControl');
+const convDropdown = document.getElementById('convDropdown');
+const convWrapper = document.getElementById('msConvidados');
+const convToggle = document.getElementById('convToggle');
+
+function convKey(tipo,id){ return `${tipo}:${id}`; }
+
+async function buscarConvidados(query){
+  const cacheKey = query.trim().toLowerCase();
+  if(convState.cache.has(cacheKey)) return convState.cache.get(cacheKey);
+
+  if(convState.abortController) convState.abortController.abort();
+  const controller = new AbortController();
+  convState.abortController = controller;
+
+  const headers={'Content-Type':'application/json'};
+  if(BEARER_TOKEN) headers['Authorization']='Bearer '+BEARER_TOKEN;
+
+  const QTD=15;
+
+  const bodyContatos={
+    cnpj:null,cpf:null,email:null,filtrosCamposExtras:[],nome:query,nomeMae:null,nomePai:null,rg:null,telefone:null,
+    ano:{},dataCadastro:null,dia:{},discriminador:'TODOS',idsEstadoCivil:[],idsProfissao:[],tipo:'TODOS'
+  };
+  const bodyColaboradores={
+    cnpj:null,cpf:null,email:null,filtrosCamposExtras:[],nome:query,nomeMae:null,nomePai:null,rg:null,telefone:null,
+    ano:{},dataCadastro:null,dia:{},discriminador:'COLABORADOR',idsEstadoCivil:[],idsProfissao:[],tipo:'PESSOA',
+    acessoSistema:null,idsCargos:[],idsGrupos:[],status:[]
+  };
+
+  const urlContatos = CONTATOS_URL.replace('{INICIO}','0').replace('{QTD}',QTD);
+  const urlColaboradores = COLABORADORES_URL.replace('{INICIO}','0').replace('{QTD}',QTD);
+
+  try{
+    const [rC,rCol] = await Promise.all([
+      fetch(urlContatos,{method:'POST',headers,body:JSON.stringify(bodyContatos),signal:controller.signal}),
+      fetch(urlColaboradores,{method:'POST',headers,body:JSON.stringify(bodyColaboradores),signal:controller.signal})
+    ]);
+    const [jC,jCol] = await Promise.all([
+      rC.ok?rC.json():{itens:[]},
+      rCol.ok?rCol.json():{itens:[]}
+    ]);
+    const resultados = [
+      ...(jC.itens||[]).map(c=>({id:c.id,nome:c.nome,tipo:c.discriminador||'CLIENTE'})),
+      ...(jCol.itens||[]).map(c=>({id:c.id,nome:c.nome,tipo:'COLABORADOR'}))
+    ];
+    convState.cache.set(cacheKey,resultados);
+    return resultados;
+  }catch(e){
+    if(e.name==='AbortError') return null;
+    console.error('Erro ao buscar convidados',e);
+    return [];
+  }
+}
+
+function tipoLabel(tipo){
+  if(tipo==='COLABORADOR') return 'Colaborador';
+  if(tipo==='CLIENTE') return 'Cliente';
+  if(tipo==='CONTATO') return 'Contato';
+  return tipo||'';
+}
+
+const convScroll = document.getElementById('convScroll');
+
+function renderConvChips(){
+  convScroll.innerHTML='';
+  if(convState.selected.size===0){
+    const ph=document.createElement('div');
+    ph.className='ms-placeholder';
+    ph.textContent='Buscar convidado por nome...';
+    convScroll.appendChild(ph);
+  }else{
+    convState.selected.forEach((val,key)=>{
+      const chip=document.createElement('div');
+      chip.className='ms-chip';
+      chip.textContent=`${val.nome} (${tipoLabel(val.tipo)})`;
+      const rem=document.createElement('span');
+      rem.className='remove';
+      rem.setAttribute('role','button');
+      rem.setAttribute('aria-label','Remover '+val.nome);
+      rem.textContent='✕';
+      rem.addEventListener('click',(e)=>{
+        e.stopPropagation();
+        convState.selected.delete(key);
+        renderConvChips();
+        renderConvResults(convState.lastResults||[],convState.lastQuery);
+      });
+      chip.appendChild(rem);
+      convScroll.appendChild(chip);
+    });
+  }
+
+  const input=document.createElement('input');
+  input.className='ms-input';
+  input.id='convInput';
+  input.autocomplete='off';
+  input.placeholder=convState.selected.size?'':'';
+  input.addEventListener('input',debounce(async ()=>{
+    const q=input.value.trim();
+    convState.lastQuery=q;
+    if(q.length<2){
+      renderConvHint(q.length===0?'Digite ao menos 2 letras para buscar...':'Digite mais 1 letra...');
+      return;
+    }
+    renderConvLoading();
+    const resultados=await buscarConvidados(q);
+    if(resultados===null) return;
+    if(q!==input.value.trim()) return;
+    convState.lastResults=resultados;
+    renderConvResults(resultados,q);
+  },350));
+  input.addEventListener('focus',openConv);
+  input.addEventListener('keydown',(e)=>{
+    if(e.key==='Escape') closeConv();
+    if(e.key==='Backspace' && input.value==='' && convState.selected.size>0){
+      const lastKey=Array.from(convState.selected.keys()).pop();
+      convState.selected.delete(lastKey);
+      renderConvChips();
+    }
+  });
+  convScroll.appendChild(input);
+}
+
+function renderConvHint(msg){
+  convDropdown.innerHTML=`<div class="small-muted" style="padding:6px 8px">${escapeHtml(msg)}</div>`;
+}
+function renderConvLoading(){
+  convDropdown.innerHTML=`<div class="ms-loading"><span class="ms-spinner"></span> Buscando...</div>`;
+}
+function renderConvResults(resultados,query){
+  convDropdown.innerHTML='';
+  if(!resultados || !resultados.length){
+    renderConvHint(`Nenhum resultado para "${query}"`);
+    return;
+  }
+  resultados.forEach(r=>{
+    const key=convKey(r.tipo,r.id);
+    const it=document.createElement('div');
+    it.className='ms-item';
+    if(convState.selected.has(key)) it.classList.add('checked');
+    it.setAttribute('role','option');
+    it.setAttribute('data-key',key);
+
+    const nome=document.createElement('span');
+    nome.textContent=r.nome||'—';
+    const tag=document.createElement('span');
+    tag.className='ms-item-tag'+(r.tipo==='COLABORADOR'?' colab':'');
+    tag.textContent=tipoLabel(r.tipo);
+
+    it.appendChild(nome);
+    it.appendChild(tag);
+    it.addEventListener('click',()=>{
+      if(convState.selected.has(key)) convState.selected.delete(key);
+      else convState.selected.set(key,r);
+      renderConvChips();
+      renderConvResults(resultados,query);
+      const input=document.getElementById('convInput');
+      if(input) input.focus();
+    });
+    convDropdown.appendChild(it);
+  });
+}
+
+function openConv(){
+  convState.open=true;
+  convDropdown.style.display='block';
+  convControl.classList.add('focus');
+  convControl.setAttribute('aria-expanded','true');
+}
+function closeConv(){
+  convState.open=false;
+  convDropdown.style.display='none';
+  convControl.classList.remove('focus');
+  convControl.setAttribute('aria-expanded','false');
+}
+function toggleConv(){
+  if(convState.open) closeConv(); else { openConv(); const i=document.getElementById('convInput'); if(i) i.focus(); }
+}
+
+convControl.addEventListener('click',(e)=>{
+  if(e.target.classList.contains('remove')) return;
+  if(e.target.id==='convInput') { openConv(); return; }
+  toggleConv();
+});
+convToggle.addEventListener('click',(e)=>{ e.stopPropagation(); toggleConv(); });
+document.addEventListener('click',(e)=>{
+  if(!convWrapper.contains(e.target)) closeConv();
+});
+
+renderConvChips();
+
+/* ========== Multiselect assíncrono (chips) - apenas Colaboradores (Encarregados / Solicitantes) ========== */
+async function buscarColaboradores(query){
+  const headers={'Content-Type':'application/json'};
+  if(BEARER_TOKEN) headers['Authorization']='Bearer '+BEARER_TOKEN;
+  const QTD=15;
+  const bodyColaboradores={
+    cnpj:null,cpf:null,email:null,filtrosCamposExtras:[],nome:query,nomeMae:null,nomePai:null,rg:null,telefone:null,
+    ano:{},dataCadastro:null,dia:{},discriminador:'COLABORADOR',idsEstadoCivil:[],idsProfissao:[],tipo:'PESSOA',
+    acessoSistema:null,idsCargos:[],idsGrupos:[],status:[]
+  };
+  const url = COLABORADORES_URL.replace('{INICIO}','0').replace('{QTD}',QTD);
+  try{
+    const r = await fetch(url,{method:'POST',headers,body:JSON.stringify(bodyColaboradores)});
+    if(!r.ok) return [];
+    const j = await r.json();
+    return (j.itens||[]).map(c=>({id:c.id,nome:c.nome}));
+  }catch(e){
+    console.error('Erro ao buscar colaboradores',e);
+    return [];
+  }
+}
+
+function criarMultiselectColaboradores({state,control,dropdown,wrapper,toggle,inputId,placeholder,scroll}){
+  function render(){
+    scroll.innerHTML='';
+    if(state.selected.size===0){
+      const ph=document.createElement('div');
+      ph.className='ms-placeholder';
+      ph.textContent=placeholder;
+      scroll.appendChild(ph);
+    }else{
+      state.selected.forEach((nome,id)=>{
+        const chip=document.createElement('div');
+        chip.className='ms-chip';
+        chip.textContent=nome;
+        const rem=document.createElement('span');
+        rem.className='remove';
+        rem.setAttribute('role','button');
+        rem.setAttribute('aria-label','Remover '+nome);
+        rem.textContent='✕';
+        rem.addEventListener('click',(e)=>{
+          e.stopPropagation();
+          state.selected.delete(id);
+          render();
+          renderResults(state.lastResults||[],state.lastQuery||'');
+        });
+        chip.appendChild(rem);
+        scroll.appendChild(chip);
+      });
+    }
+    const input=document.createElement('input');
+    input.className='ms-input';
+    input.id=inputId;
+    input.autocomplete='off';
+    input.addEventListener('input',debounce(async ()=>{
+      const q=input.value.trim();
+      state.lastQuery=q;
+      if(q.length<2){
+        renderHint(q.length===0?'Digite ao menos 2 letras para buscar...':'Digite mais 1 letra...');
+        return;
+      }
+      renderLoading();
+      const resultados=await buscarColaboradores(q);
+      if(q!==input.value.trim()) return;
+      state.lastResults=resultados;
+      renderResults(resultados,q);
+    },350));
+    input.addEventListener('focus',open);
+    input.addEventListener('keydown',(e)=>{
+      if(e.key==='Escape') close();
+      if(e.key==='Backspace' && input.value==='' && state.selected.size>0){
+        const lastKey=Array.from(state.selected.keys()).pop();
+        state.selected.delete(lastKey);
+        render();
+      }
+    });
+    scroll.appendChild(input);
+  }
+  function renderHint(msg){
+    dropdown.innerHTML=`<div class="small-muted" style="padding:6px 8px">${escapeHtml(msg)}</div>`;
+  }
+  function renderLoading(){
+    dropdown.innerHTML=`<div class="ms-loading"><span class="ms-spinner"></span> Buscando...</div>`;
+  }
+  function renderResults(resultados,query){
+    dropdown.innerHTML='';
+    if(!resultados || !resultados.length){
+      renderHint(`Nenhum resultado para "${query}"`);
+      return;
+    }
+    resultados.forEach(r=>{
+      const it=document.createElement('div');
+      it.className='ms-item';
+      if(state.selected.has(r.id)) it.classList.add('checked');
+      it.setAttribute('role','option');
+      it.setAttribute('data-id',r.id);
+      const nome=document.createElement('span');
+      nome.textContent=r.nome||'—';
+      const tag=document.createElement('span');
+      tag.className='ms-item-tag colab';
+      tag.textContent='Colaborador';
+      it.appendChild(nome);
+      it.appendChild(tag);
+      it.addEventListener('click',()=>{
+        if(state.selected.has(r.id)) state.selected.delete(r.id);
+        else state.selected.set(r.id,r.nome);
+        render();
+        renderResults(resultados,query);
+        const input=document.getElementById(inputId);
+        if(input) input.focus();
+      });
+      dropdown.appendChild(it);
+    });
+  }
+  function open(){
+    state.open=true;
+    dropdown.style.display='block';
+    control.classList.add('focus');
+    control.setAttribute('aria-expanded','true');
+  }
+  function close(){
+    state.open=false;
+    dropdown.style.display='none';
+    control.classList.remove('focus');
+    control.setAttribute('aria-expanded','false');
+  }
+  function toggleOpen(){
+    if(state.open) close(); else { open(); const i=document.getElementById(inputId); if(i) i.focus(); }
+  }
+  control.addEventListener('click',(e)=>{
+    if(e.target.classList.contains('remove')) return;
+    if(e.target.id===inputId){ open(); return; }
+    toggleOpen();
+  });
+  toggle.addEventListener('click',(e)=>{ e.stopPropagation(); toggleOpen(); });
+  document.addEventListener('click',(e)=>{
+    if(!wrapper.contains(e.target)) close();
+  });
+  render();
+}
+
+const encState = { selected: new Map(), open: false, lastResults: [], lastQuery: '' };
+criarMultiselectColaboradores({
+  state: encState,
+  control: document.getElementById('encControl'),
+  dropdown: document.getElementById('encDropdown'),
+  wrapper: document.getElementById('msEncarregados'),
+  toggle: document.getElementById('encToggle'),
+  scroll: document.getElementById('encScroll'),
+  inputId: 'encInput',
+  placeholder: 'Buscar encarregado por nome...'
+});
+
+const solState = { selected: new Map(), open: false, lastResults: [], lastQuery: '' };
+criarMultiselectColaboradores({
+  state: solState,
+  control: document.getElementById('solControl'),
+  dropdown: document.getElementById('solDropdown'),
+  wrapper: document.getElementById('msSolicitantes'),
+  toggle: document.getElementById('solToggle'),
+  scroll: document.getElementById('solScroll'),
+  inputId: 'solInput',
+  placeholder: 'Buscar solicitante por nome...'
+});
+
+/* ========== Date Range Picker (estilo do sistema, dois campos Min/Max) ========== */
+const DOW_LABELS=['DOM','SEG','TER','QUA','QUI','SEX','SAB'];
+const MONTH_LABELS=['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+
+function stripTime(d){ return new Date(d.getFullYear(),d.getMonth(),d.getDate()); }
+function addDays(d,n){ const r=new Date(d); r.setDate(r.getDate()+n); return r; }
+function addMonths(d,n){ return new Date(d.getFullYear(),d.getMonth()+n,1); }
+function isoFromDate(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function dateFromISO(iso){
+  if(!iso) return null;
+  const [y,m,d]=iso.split('-').map(Number);
+  return new Date(y,m-1,d);
+}
+function brFromDate(d){
+  if(!d) return '';
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
+function sameDay(a,b){ return a&&b&&a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate(); }
+
+const DATE_PRESETS=[
+  { label:'Hoje', fn:()=>{ const t=stripTime(new Date()); return [t,t]; } },
+  { label:'Ontem', fn:()=>{ const t=addDays(stripTime(new Date()),-1); return [t,t]; } },
+  { label:'Amanhã', fn:()=>{ const t=addDays(stripTime(new Date()),1); return [t,t]; } },
+  { label:'Esta semana', fn:()=>{ const t=stripTime(new Date()); const s=addDays(t,-t.getDay()); return [s,addDays(s,6)]; } },
+  { label:'Última semana', fn:()=>{ const t=stripTime(new Date()); const s=addDays(t,-t.getDay()-7); return [s,addDays(s,6)]; } },
+  { label:'Próxima semana', fn:()=>{ const t=stripTime(new Date()); const s=addDays(t,-t.getDay()+7); return [s,addDays(s,6)]; } },
+  { label:'Este mês', fn:()=>{ const t=new Date(); const s=new Date(t.getFullYear(),t.getMonth(),1); const e=new Date(t.getFullYear(),t.getMonth()+1,0); return [s,e]; } },
+  { label:'Último mês', fn:()=>{ const t=new Date(); const s=new Date(t.getFullYear(),t.getMonth()-1,1); const e=new Date(t.getFullYear(),t.getMonth(),0); return [s,e]; } },
+  { label:'Próximo mês', fn:()=>{ const t=new Date(); const s=new Date(t.getFullYear(),t.getMonth()+1,1); const e=new Date(t.getFullYear(),t.getMonth()+2,0); return [s,e]; } },
+  { label:'Últimos 7 dias', fn:()=>{ const t=stripTime(new Date()); return [addDays(t,-6),t]; } },
+  { label:'Próximos 7 dias', fn:()=>{ const t=stripTime(new Date()); return [t,addDays(t,6)]; } },
+  { label:'Últimos 15 dias', fn:()=>{ const t=stripTime(new Date()); return [addDays(t,-14),t]; } },
+  { label:'Próximos 15 dias', fn:()=>{ const t=stripTime(new Date()); return [t,addDays(t,14)]; } },
+  { label:'Últimos 30 dias', fn:()=>{ const t=stripTime(new Date()); return [addDays(t,-29),t]; } },
+  { label:'Próximos 30 dias', fn:()=>{ const t=stripTime(new Date()); return [t,addDays(t,29)]; } }
+];
+
+/* Cada subcampo controla um único valor (Min OU Max) de um input escondido */
+const SUBFIELDS={
+  dataInicioMin:{hidden:'dataInicioMin',valueEl:'valDataInicioMin',bound:'min'},
+  dataInicioMax:{hidden:'dataInicioMax',valueEl:'valDataInicioMax',bound:'max'},
+  dataVencimentoMin:{hidden:'dataVencimentoMin',valueEl:'valDataVencimentoMin',bound:'min'},
+  dataVencimentoMax:{hidden:'dataVencimentoMax',valueEl:'valDataVencimentoMax',bound:'max'},
+  dataFinalizacaoMin:{hidden:'dataFinalizacaoMin',valueEl:'valDataFinalizacaoMin',bound:'min'},
+  dataFinalizacaoMax:{hidden:'dataFinalizacaoMax',valueEl:'valDataFinalizacaoMax',bound:'max'}
+};
+
+const dateRangeState={ activeKey:null, tempDate:null, viewMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1) };
+
+const datePopover=document.getElementById('datePopover');
+const datePopoverPresets=document.getElementById('datePopoverPresets');
+
+function renderDatePresets(){
+  datePopoverPresets.innerHTML='';
+  DATE_PRESETS.forEach(p=>{
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='date-popover-preset-btn';
+    btn.textContent=p.label;
+    btn.addEventListener('click',()=>{
+      const [s,e]=p.fn();
+      const cfg=SUBFIELDS[dateRangeState.activeKey];
+      dateRangeState.tempDate = cfg && cfg.bound==='max' ? e : s;
+      applySubfieldDate();
+      closeDatePopover();
+    });
+    datePopoverPresets.appendChild(btn);
+  });
+}
+renderDatePresets();
+
+function renderCalGrid(gridEl,titleEl,monthDate){
+  titleEl.textContent=`${MONTH_LABELS[monthDate.getMonth()]} ${monthDate.getFullYear()}`;
+  gridEl.innerHTML='';
+  DOW_LABELS.forEach(dow=>{
+    const el=document.createElement('div');
+    el.className='date-cal-dow';
+    el.textContent=dow;
+    gridEl.appendChild(el);
+  });
+  const firstOfMonth=new Date(monthDate.getFullYear(),monthDate.getMonth(),1);
+  const startOffset=firstOfMonth.getDay();
+  const gridStart=addDays(firstOfMonth,-startOffset);
+  for(let i=0;i<42;i++){
+    const day=addDays(gridStart,i);
+    const el=document.createElement('div');
+    el.className='date-cal-day';
+    el.textContent=day.getDate();
+    const inMonth=day.getMonth()===monthDate.getMonth();
+    if(!inMonth) el.classList.add('muted');
+    if(dateRangeState.tempDate && sameDay(day,dateRangeState.tempDate)) el.classList.add('selected');
+    if(inMonth){
+      el.addEventListener('click',()=>{
+        dateRangeState.tempDate=day;
+        renderCalendars();
+      });
+    }
+    gridEl.appendChild(el);
+  }
+}
+
+function renderCalendars(){
+  renderCalGrid(document.getElementById('calGridLeft'),document.getElementById('calTitleLeft'),dateRangeState.viewMonth);
+  renderCalGrid(document.getElementById('calGridRight'),document.getElementById('calTitleRight'),addMonths(dateRangeState.viewMonth,1));
+}
+
+document.getElementById('calPrev').addEventListener('click',()=>{ dateRangeState.viewMonth=addMonths(dateRangeState.viewMonth,-1); renderCalendars(); });
+document.getElementById('calNext').addEventListener('click',()=>{ dateRangeState.viewMonth=addMonths(dateRangeState.viewMonth,1); renderCalendars(); });
+
+function updateSubfieldDisplay(key){
+  const cfg=SUBFIELDS[key];
+  const val=document.getElementById(cfg.hidden).value;
+  const el=document.getElementById(cfg.valueEl);
+  if(!val){
+    el.textContent='dd/mm/aaaa';
+    el.classList.add('placeholder');
+    return;
+  }
+  el.classList.remove('placeholder');
+  el.textContent=brFromDate(dateFromISO(val));
+}
+
+function applySubfieldDate(){
+  const key=dateRangeState.activeKey;
+  if(!key) return;
+  const cfg=SUBFIELDS[key];
+  document.getElementById(cfg.hidden).value = dateRangeState.tempDate ? isoFromDate(dateRangeState.tempDate) : '';
+  updateSubfieldDisplay(key);
+}
+
+function openDatePopover(key,anchorEl){
+  dateRangeState.activeKey=key;
+  const cfg=SUBFIELDS[key];
+  const val=document.getElementById(cfg.hidden).value;
+  dateRangeState.tempDate = val ? dateFromISO(val) : null;
+  dateRangeState.viewMonth = dateRangeState.tempDate ? new Date(dateRangeState.tempDate.getFullYear(),dateRangeState.tempDate.getMonth(),1) : new Date(new Date().getFullYear(),new Date().getMonth(),1);
+  renderCalendars();
+
+  datePopover.classList.add('open');
+  const rect=anchorEl.getBoundingClientRect();
+  const popW=datePopover.offsetWidth || 560;
+  let left=rect.left;
+  if(left+popW>window.innerWidth-12) left=Math.max(12,window.innerWidth-popW-12);
+  let top=rect.bottom+6;
+  const popH=datePopover.offsetHeight || 420;
+  if(top+popH>window.innerHeight-12) top=Math.max(12,rect.top-popH-6);
+  datePopover.style.left=left+'px';
+  datePopover.style.top=top+'px';
+}
+
+function closeDatePopover(){
+  datePopover.classList.remove('open');
+  dateRangeState.activeKey=null;
+}
+
+Object.keys(SUBFIELDS).forEach(key=>{
+  const el=document.getElementById('disp'+key.charAt(0).toUpperCase()+key.slice(1));
+  if(!el) return;
+  el.addEventListener('click',(e)=>{ e.stopPropagation(); openDatePopover(key,el); });
+  el.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openDatePopover(key,el); } });
+});
+
+document.getElementById('dateConfirmBtn').addEventListener('click',()=>{
+  applySubfieldDate();
+  closeDatePopover();
+});
+document.getElementById('dateClearBtn').addEventListener('click',()=>{
+  dateRangeState.tempDate=null;
+  applySubfieldDate();
+  closeDatePopover();
+});
+document.getElementById('dateCancelBtn').addEventListener('click',()=>{
+  closeDatePopover();
+});
+document.addEventListener('click',(e)=>{
+  if(datePopover.classList.contains('open') && !datePopover.contains(e.target)) closeDatePopover();
+});
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='Escape' && datePopover.classList.contains('open')) closeDatePopover();
+});
+
+
+/* ========== API / Busca / Render ========== */
+
+function construirIntervaloData(dataIniISO,dataFimISO){
+  if(!dataIniISO && !dataFimISO) return null;
+  const intervalo={};
+  if(dataIniISO) intervalo.valorMinimo=dataIniISO;
+  if(dataFimISO) intervalo.valorMaximo=dataFimISO;
+  return intervalo;
+}
+
+async function carregarPagina(inicio,filtros){
+  const url=BUSCA_TAREFAS_URL.replace('{INICIO}',inicio);
+  const body={
+    dataFinalizacao:construirIntervaloData(filtros.dataFinalizacaoMinISO,filtros.dataFinalizacaoMaxISO),
+    dataInicio:construirIntervaloData(filtros.dataInicioMinISO,filtros.dataInicioMaxISO),
+    dataTermino:construirIntervaloData(filtros.dataVencimentoMinISO,filtros.dataVencimentoMaxISO),
+    descricao:null,
+    idsCategorias:[],
+    idsClientes:[],
+    idsColaboradores:[],
+    idsEncarregados: filtros.idsEncarregados||[],
+    idsPastas:[],
+    idsProcessosExtrajudiciais:[],
+    idsProcessosJudiciais:[],
+    idsSolicitantes: filtros.idsSolicitantes||[],
+    idsTarefasPai:[],
+    situacoes: Array.isArray(filtros.situacoes)?filtros.situacoes:[]
+  };
+  const headers={'Content-Type':'application/json'};
+  if(BEARER_TOKEN) headers['Authorization']='Bearer '+BEARER_TOKEN;
+  const r = await fetch(url,{method:'POST',headers,body:JSON.stringify(body)});
+  if(!r.ok) throw new Error('Erro na página: '+r.status);
+  return await r.json();
+}
+
+async function carregarTodas(filtros){
+  const acc=[];
+  const q=100;
+  let inicio=0;
+  let total=null;
+  do{
+    setStatus('Buscando tarefas — início '+inicio);
+    const resp=await carregarPagina(inicio,filtros);
+    const itens=resp.itens||[];
+    acc.push(...itens);
+    total=resp.quantidadeTotal??(total===null?itens.length:total);
+    inicio+=q;
+    progressShow(Math.min(40,(acc.length/Math.max(1,total))*40),`Buscando tarefas ${acc.length}/${total||'?'}`);
+    if(itens.length===0) break;
+  }while(acc.length<(total||0));
+  return {itens:acc,total};
+}
+
+async function detalheTarefa(id){
+  const url=DETALHE_TAREFA_URL.replace('{ID}',id);
+  const headers={};
+  if(BEARER_TOKEN) headers['Authorization']='Bearer '+BEARER_TOKEN;
+  const r=await fetch(url,{headers});
+  if(!r.ok){ console.warn('erro detalhe',id,r.status); return {id,descricao:`Erro detalhe (${r.status})`} }
+  return await r.json();
+}
+
+async function buscarProcessosPorPasta(pastaId){
+  try{
+    const body={idsPastasProcessuais:[pastaId]};
+    const headers={'Content-Type':'application/json'};
+    if(BEARER_TOKEN) headers['Authorization']='Bearer '+BEARER_TOKEN;
+    const r=await fetch(PROCESSOS_POR_PASTA,{method:'POST',headers,body:JSON.stringify(body)});
+    if(!r.ok) return [];
+    const j=await r.json();
+    return j.itens||[];
+  }catch(e){return []}
+}
+
+function montarHierarquia(lista){
+  const mapa=new Map();
+  lista.forEach(t=>mapa.set(t.id,{...t,subtarefas:[]}));
+  const raiz=[];
+  lista.forEach(t=>{
+    if(t.tarefaPai&&t.tarefaPai.id){
+      const pai=mapa.get(t.tarefaPai.id);
+      if(pai) pai.subtarefas.push(mapa.get(t.id));
+      else raiz.push(mapa.get(t.id));
+    } else raiz.push(mapa.get(t.id));
+  });
+  return raiz;
+}
+
+function sortByInicioDesc(a,b){
+  const da = a && a.dataHoraInicio ? Date.parse(a.dataHoraInicio) : -Infinity;
+  const db = b && b.dataHoraInicio ? Date.parse(b.dataHoraInicio) : -Infinity;
+  if(da === db) return 0;
+  if(da === -Infinity) return 1;
+  if(db === -Infinity) return -1;
+  return db - da;
+}
+
+function ordenarHierarquiaRec(hier){
+  hier.sort(sortByInicioDesc);
+  hier.forEach(item=>{
+    if(Array.isArray(item.subtarefas) && item.subtarefas.length){
+      item.subtarefas.sort(sortByInicioDesc);
+      ordenarHierarquiaRec(item.subtarefas);
+    }
+  });
+}
+
+function tarefaTemConvidado(t,selectedKeys){
+  const convidados=t.contatosConvidados||[];
+  return convidados.some(c=>selectedKeys.has(convKey(c.tipoDoCadastro,c.id)));
+}
+function hierarquiaTemConvidadoRec(t,selectedKeys){
+  if(tarefaTemConvidado(t,selectedKeys)) return true;
+  if(Array.isArray(t.subtarefas)) return t.subtarefas.some(s=>hierarquiaTemConvidadoRec(s,selectedKeys));
+  return false;
+}
+function filtrarPorConvidados(hier,selectedKeys){
+  if(!selectedKeys || selectedKeys.size===0) return hier;
+  return hier.filter(t=>hierarquiaTemConvidadoRec(t,selectedKeys));
+}
+
+/* ========== Eventos UI: Login + Geração ========== */
+document.getElementById('loginForm').addEventListener('submit',async(e)=>{
+  e.preventDefault();
+  const email=document.getElementById('email').value.trim();
+  const senha=document.getElementById('senha').value.trim();
+  if(!email||!senha){ setResultado('<span style="color:red">Informe e-mail e senha</span>'); return; }
+  try{
+    const r=await fetch(LOGIN_URL,{method:'GET',headers:{'Authorization':'Basic '+btoa(email+':'+senha)}});
+    if(!r.ok) throw new Error('Falha no login: '+r.status);
+    const auth=r.headers.get('authorization')||r.headers.get('Authorization')||'';
+    if(auth) BEARER_TOKEN=auth.replace(/^Bearer\s+/i,'');
+    else{
+      const j=await r.json().catch(()=>({}));
+      BEARER_TOKEN=j?.token||j?.accessToken||j?.authorization||j?.tokenAcesso||'';
+    }
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('dateScreen').style.display='block';
+  }catch(err){
+    console.error(err);
+    setResultado('<span style="color:red">E-mail ou senha inválidos</span>');
+  }
+});
+
+document.getElementById('btnGenerate').addEventListener('click',async()=>{
+  const dataInicioMin=document.getElementById('dataInicioMin').value, dataInicioMax=document.getElementById('dataInicioMax').value;
+  const dataVencimentoMin=document.getElementById('dataVencimentoMin').value, dataVencimentoMax=document.getElementById('dataVencimentoMax').value;
+  const dataFinalizacaoMin=document.getElementById('dataFinalizacaoMin').value, dataFinalizacaoMax=document.getElementById('dataFinalizacaoMax').value;
+  const selecionadas = Array.from(msState.selected);
+  if(!selecionadas.length){
+    setStatus('Selecione ao menos uma situação para gerar o relatório.');
+    openModal('Situação obrigatória','Selecione ao menos uma opção em <strong>Situações</strong> antes de gerar o relatório.','warn');
+    return;
+  }
+
+  const toISOMin=v=>v?v+'T00:00:00.000Z':null;
+  const toISOMax=v=>v?v+'T23:59:59.999Z':null;
+
+  const filtrosData={
+    dataInicioMin,dataInicioMax,
+    dataVencimentoMin,dataVencimentoMax,
+    dataFinalizacaoMin,dataFinalizacaoMax
+  };
+
+  const filtros={
+    dataInicioMinISO:toISOMin(dataInicioMin), dataInicioMaxISO:toISOMax(dataInicioMax),
+    dataVencimentoMinISO:toISOMin(dataVencimentoMin), dataVencimentoMaxISO:toISOMax(dataVencimentoMax),
+    dataFinalizacaoMinISO:toISOMin(dataFinalizacaoMin), dataFinalizacaoMaxISO:toISOMax(dataFinalizacaoMax),
+    situacoes:selecionadas,
+    idsEncarregados:Array.from(encState.selected.keys()),
+    idsSolicitantes:Array.from(solState.selected.keys())
+  };
+
+  setStatus('Carregando tarefas...'); progressShow(2,'Iniciando');
+  try{
+    const {itens,total} = await carregarTodas(filtros);
+    setStatus(`Foram encontradas ${itens.length} tarefas. Carregando detalhes...`);
+    const detalhes=[];
+    const batch=12;
+    for(let i=0;i<itens.length;i+=batch){
+      const grupo=itens.slice(i,i+batch);
+      const chamadas=grupo.map(it=>detalheTarefa(it.id).catch(()=>it));
+      const res=await Promise.all(chamadas);
+      detalhes.push(...res);
+      progressShow(40+Math.min(50,((i+grupo.length)/itens.length)*50),`Carregando detalhes ${Math.min(i+grupo.length,itens.length)}/${itens.length}`);
+    }
+
+    progressShow(92,'Resolvendo processos vinculados...');
+    const pastasLookup=new Set();
+    detalhes.forEach(d=>{ if(d.pastaProcessual && !d.processo) pastasLookup.add(d.pastaProcessual.id) });
+    const pastaCNJMap=new Map();
+    for(const pid of Array.from(pastasLookup)){
+      const procs=await buscarProcessosPorPasta(pid).catch(()=>[]);
+      if(procs&&procs.length) pastaCNJMap.set(pid,procs[0]);
+    }
+    detalhes.forEach(d=>{
+      if(!d.processo && d.pastaProcessual && pastaCNJMap.has(d.pastaProcessual.id)) d.processo = pastaCNJMap.get(d.pastaProcessual.id);
+    });
+
+    progressShow(98,'Montando relatório...');
+    const hier = montarHierarquia(detalhes);
+    ordenarHierarquiaRec(hier);
+
+    const selectedConvKeys = new Set(convState.selected.keys());
+    const hierFiltrado = filtrarPorConvidados(hier,selectedConvKeys);
+
+    progressShow(100,'Concluído');
+    if(selectedConvKeys.size && !hierFiltrado.length){
+      setStatus('Nenhuma tarefa encontrada para os convidados selecionados neste período.');
+    }else{
+      setStatus('Relatório gerado');
+    }
+
+    renderReport(hierFiltrado,filtrosData,selectedConvKeys.size);
+  }catch(err){
+    console.error(err);
+    setStatus('Erro: '+(err.message||err));
+  }finally{
+    progressHide();
+  }
+});
+
+/* ========== Lógica de Exportação para XLSX (na página principal) ========== */
+async function exportToXLSX(dados, di, df){
+  try{
+    if(!dados || (!dados.superiores.length && !dados.subtarefas.length)){
+      alert('Dados de relatório vazios. Impossível gerar arquivo.');
+      return;
+    }
+
+    const unidos = [];
+
+    dados.superiores.forEach(t => {
+      unidos.push({
+        tipo: "TAREFA SUPERIOR",
+        tarefaPai: "",
+        id: t.id,
+        descricao: t.descricao,
+        inicio: t.inicio,
+        vencimento: t.vencimento,
+        categoria: t.categoria,
+        encarregado: t.encarregado,
+        situacao: t.situacao,
+        cliente: t.cliente,
+        processo: t.processo,
+        CNJ: t.CNJ,
+        convidados: t.convidados
+      });
+    });
+
+    dados.subtarefas.forEach(s => {
+      unidos.push({
+        tipo: "SUBTAREFA",
+        tarefaPai: s.tarefaPai,
+        id: s.id,
+        descricao: s.descricao,
+        inicio: s.inicio,
+        vencimento: s.vencimento,
+        categoria: s.categoria,
+        encarregado: s.encarregado,
+        situacao: s.situacao,
+        cliente: s.cliente,
+        processo: "",
+        CNJ: s.CNJ,
+        convidados: s.convidados
+      });
+    });
+
+    const wb = await XlsxPopulate.fromBlankAsync();
+    const ws = wb.sheet(0).name("Relatório Completo");
+
+    if(unidos.length){
+      const cols = Object.keys(unidos[0]);
+
+      cols.forEach((col,i)=>{
+        ws.cell(1, i+1).value(col).style({ bold: true });
+      });
+
+      unidos.forEach((linha, r)=>{
+        cols.forEach((col, c)=>{
+          const val = linha[col] ?? "";
+
+          if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}/.test(val)) {
+            const dt = new Date(val);
+            if (!isNaN(dt)) {
+              ws.cell(r+2, c+1)
+                .value(dt)
+                .style("numberFormat", "dd/mm/yyyy hh:mm:ss");
+              return;
+            }
+          }
+
+          ws.cell(r+2, c+1).value(val);
+        });
+      });
+
+      cols.forEach((_, i)=> ws.column(i+1).width(25));
+    }
+
+    const arrayBuffer = await wb.outputAsync();
+    const blob = new Blob([arrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio_tarefas_${di||'inicio'}_a_${df||'fim'}.xlsx`;
+
+    a.click();
+    URL.revokeObjectURL(url);
+
+  }catch(err){
+    console.error('Erro ao exportar:', err);
+    alert('Erro ao exportar: ' + (err.message || err));
+  }
+}
+
+window.addEventListener('message', async (event) => {
+    if (event.data && event.data.tipo === 'solicitarDownloadXLS') {
+        await exportToXLSX(dadosExport, event.data.payload.di, event.data.payload.df);
+    }
+});
+
+
+/* ========== Render do relatório (mantive seu template) ========== */
+function renderReport(hier,filtrosData,qtdConvidadosFiltro){
+  dadosExport={superiores:[],subtarefas:[]};
+  const container=document.getElementById('reportContainer');
+  container.innerHTML='';
+  const sufixoConvidados = qtdConvidadosFiltro ? ` — filtrado por ${qtdConvidadosFiltro} convidado(s)` : '';
+  const periodo=periodoLabel(filtrosData);
+  if(!hier||!hier.length){
+    document.getElementById('empty').style.display='block';
+    document.getElementById('reportMeta').textContent=`Período: ${periodo} — 0 tarefas superiores${sufixoConvidados}`;
+    const emptyHtml=`<html><head><meta charset="utf-8"><title>Relatório - vazio</title></head><body><h2>Sem registros para o período ${periodo}</h2><p style="text-align:center;color:var(--muted)">Clique no ❌ Fechar para voltar</p></body></html>`;
+    relatorioWindow=window.open('','_blank');
+    if(relatorioWindow){ relatorioWindow.document.write(emptyHtml); relatorioWindow.document.close(); }
+    return;
+  }
+  document.getElementById('empty').style.display='none';
+  document.getElementById('reportMeta').textContent=`Período: ${periodo} — ${hier.length} tarefas superiores${sufixoConvidados}`;
+
+  const reportFragments=[];
+
+  hier.forEach((t,idx)=>{
+    const cnjPai = extrairCNJFromObj(t.processo) || extrairCNJFromObj(t.pastaProcessual) || '';
+    const convidadosPai = convidadosTexto(t);
+    dadosExport.superiores.push({
+      id:t.id,
+      descricao:t.descricao||'',
+      inicio:t.dataHoraInicio||'',
+      vencimento:t.dataHoraTermino||'',
+      categoria:t.categoria?.nome||t.categoria?.descricao||'',
+      encarregado:t.encarregado?.descricao||'',
+      situacao:t.situacao?.descricao||t.situacao?.valor||'',
+      cliente:t.cliente?.descricao||'',
+      processo:t.processo?.descricao||'',
+      CNJ:cnjPai,
+      convidados:convidadosPai
+    });
+
+    const block=document.createElement('div');block.className='task-block';
+    const header=document.createElement('div');header.className='task-header';
+    const left=document.createElement('div');
+    const title=document.createElement('div');title.className='task-title';title.textContent=t.descricao||'—';
+    const meta=document.createElement('div');meta.className='task-meta';
+    meta.innerHTML=`Início: ${t.dataHoraInicio?formatDateOnly(t.dataHoraInicio):'—'} • Vencimento: ${t.dataHoraTermino?formatDateOnly(t.dataHoraTermino):'—'} • ${badgeHTML(t.situacao,t.dataHoraTermino)}`;
+    left.appendChild(title);left.appendChild(meta);
+
+    const right=document.createElement('div');right.style.textAlign='right';
+    const clienteLine=document.createElement('div');clienteLine.className='small';
+    clienteLine.innerHTML=`Cliente: <strong>${escapeHtml(t.cliente?.descricao||'—')}</strong>`;
+    const procLine=document.createElement('div');procLine.className='small';
+    procLine.innerHTML=`Processo: <strong>${escapeHtml(t.processo?.descricao||'—')}</strong>`;
+    const linkLine=document.createElement('div');
+    linkLine.innerHTML=`<a class="link-small" target="_blank" rel="noopener" href="https://eleven.alkasoft.com.br/auth/tarefas/${t.id}/detalhamento">Abrir tarefa</a>`;
+    right.appendChild(clienteLine);right.appendChild(procLine);right.appendChild(linkLine);
+
+    header.appendChild(left);header.appendChild(right);
+    block.appendChild(header);
+
+    const table=document.createElement('table');table.className='table';
+    const thead=document.createElement('thead');
+    const trh=document.createElement('tr');
+    ['Tarefa Superior','Descrição','Início','Vencimento','Categoria','Encarregado','Situação','Cliente','CNJ','Convidados'].forEach(hd=>{
+      const th=document.createElement('th');th.textContent=hd;trh.appendChild(th);
+    });
+    thead.appendChild(trh);table.appendChild(thead);
+
+    const tbody=document.createElement('tbody');
+
+    const trPai=document.createElement('tr');trPai.className='tarefa-pai-row';
+    const paiCells=[
+      t.descricao||'',
+      t.descricao||'',
+      t.dataHoraInicio?formatBR(t.dataHoraInicio):'',
+      t.dataHoraTermino?formatBR(t.dataHoraTermino):'',
+      t.categoria?.nome||t.categoria?.descricao||'',
+      t.encarregado?.descricao||'',
+      t.situacao?.descricao||t.situacao?.valor||'',
+      t.cliente?.descricao||'',
+      cnjPai,
+      convidadosPai
+    ];
+    paiCells.forEach((c,ci)=>{
+      const td=document.createElement('td');
+      if(ci===1){
+        const a=document.createElement('a');
+        a.className='link-small';
+        a.target='_blank';
+        a.rel='noopener';
+        a.href=`https://eleven.alkasoft.com.br/auth/tarefas/${t.id}/detalhamento`;
+        a.textContent=c||'—';
+        td.appendChild(a);
+      }else if(ci===6){
+        td.innerHTML=badgeColumnByDescricao({descricao:c});
+      }else{
+        td.textContent=c;
+      }
+      trPai.appendChild(td);
+    });
+    tbody.appendChild(trPai);
+
+    const subt=t.subtarefas||[];
+    subt.forEach(s=>{
+      const cnjSub = extrairCNJFromObj(s.processo)||extrairCNJFromObj(s.pastaProcessual)||cnjPai||'';
+      const convidadosSub = convidadosTexto(s);
+      dadosExport.subtarefas.push({
+        tarefaPai:t.descricao||'',
+        id:s.id,
+        descricao:s.descricao||'',
+        inicio:s.dataHoraInicio||'',
+        vencimento:s.dataHoraTermino||'',
+        categoria:s.categoria?.nome||s.categoria?.descricao||'',
+        encarregado:s.encarregado?.descricao||'',
+        situacao:s.situacao?.descricao||s.situacao?.valor||'',
+        cliente:s.cliente?.descricao||'',
+        CNJ:cnjSub,
+        convidados:convidadosSub
+      });
+
+      const tr=document.createElement('tr');
+      const cells=[
+        t.descricao||'',
+        s.descricao||'',
+        s.dataHoraInicio?formatBR(s.dataHoraInicio):'',
+        s.dataHoraTermino?formatBR(s.dataHoraTermino):'',
+        s.categoria?.nome||s.categoria?.descricao||'',
+        s.encarregado?.descricao||'',
+        s.situacao?.descricao||s.situacao?.valor||'',
+        s.cliente?.descricao||'',
+        cnjSub,
+        convidadosSub
+      ];
+      cells.forEach((c,ci)=>{
+        const td=document.createElement('td');
+        if(ci===1){
+          const a=document.createElement('a');
+          a.className='link-small';
+          a.target='_blank';
+          a.rel='noopener';
+          a.href=`https://eleven.alkasoft.com.br/auth/tarefas/${s.id}/detalhamento`;
+          a.textContent=c||'—';
+          td.appendChild(a);
+        }else if(ci===6){
+          td.innerHTML=badgeColumnByDescricao({descricao:c});
+        }else{
+          td.textContent=c;
+        }
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    block.appendChild(table);
+
+    const sep=document.createElement('div');sep.className='row-sep';
+    container.appendChild(block);container.appendChild(sep);
+
+    reportFragments.push(block.outerHTML+sep.outerHTML);
+  });
+
+  const styles=document.querySelector('head').innerHTML;
+  const titulo=`Relatório de Tarefas e SubTarefas - ${periodo}`;
+  const di = filtrosData.dataInicioMin || filtrosData.dataVencimentoMin || filtrosData.dataFinalizacaoMin || '';
+  const df = filtrosData.dataInicioMax || filtrosData.dataVencimentoMax || filtrosData.dataFinalizacaoMax || '';
+
+  const html=`<!doctype html><html lang="pt-BR"><head>${styles}<title>${escapeHtml(titulo)}</title></head><body>
+    <div style="padding:20px;max-width:1200px;margin:0 auto;">
+      <h2>${escapeHtml(titulo)}</h2>
+      <div class="small-muted">Gerado em: ${new Date().toLocaleString('pt-BR')}</div>
+      <div style="margin:20px 0;display:flex;gap:10px">
+        <button onclick="window.print()" class="btn-icon" style="background:#313b52;color:#e7eaf1">
+          <span class="btn-icon-badge"><svg viewBox="0 0 24 24"><path d="M6 9V2h12v7" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" stroke-linecap="round" stroke-linejoin="round"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg></span>
+          🖨️ PDF
+        </button>
+        <button id="downloadXLS" class="btn-icon" style="background:#4f8fef;color:#08111a">
+          <span class="btn-icon-badge"><svg viewBox="0 0 24 24"><path d="M12 3v12" stroke-linecap="round" stroke-linejoin="round"/><path d="m7 10 5 5 5-5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 21h14" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          ⬇️ Excel
+        </button>
+        <button onclick="window.close()" class="btn-icon" style="background:#ff5c72;color:#08111a">
+          <span class="btn-icon-badge"><svg viewBox="0 0 24 24"><path d="M18 6 6 18" stroke-linecap="round"/><path d="M6 6l12 12" stroke-linecap="round"/></svg></span>
+          Sair
+        </button>
+      </div>
+      <div id="reportContentArea"></div>
+    </div>
+<script>
+const parentWindow = window.opener || window.parent;
+const di = '${di}';
+const df = '${df}';
+
+document.getElementById('reportContentArea').innerHTML = \`${container.innerHTML.replace(/`/g, '\\`')}\`;
+
+document.getElementById('downloadXLS').addEventListener('click', function(){
+    if (parentWindow) {
+        parentWindow.postMessage(
+            { tipo: 'solicitarDownloadXLS', payload: { di: di, df: df } },
+            "*"
+        );
+    } else {
+        alert('Janela principal/pai não encontrada. O download não pode ser iniciado.');
+    }
+});
+<\/script>
+</body></html>`;
+
+relatorioWindow = window.open("", "_blank");
+
+if(relatorioWindow){
+  relatorioWindow.document.write(html);
+  relatorioWindow.document.close();
+}
+}
+
+/* ========== Helpers finais ========== */
+function escapeHtml(s){
+  if(s==null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+/* ========== Back / Print buttons ========== */
+document.getElementById('btnBack').addEventListener('click',()=>{
+  document.getElementById('reportScreen').style.display='none';
+  document.getElementById('dateScreen').style.display='block';
+  document.getElementById('reportContainer').innerHTML='';
+  dadosExport={superiores:[],subtarefas:[]};
+  setStatus('Retornado ao painel.');
+  if (relatorioWindow && !relatorioWindow.closed) {
+    relatorioWindow.close();
+    relatorioWindow = null;
+  }
+});
+document.getElementById('btnPrint').addEventListener('click',()=>window.print());
+</script>
+</body>
+</html>

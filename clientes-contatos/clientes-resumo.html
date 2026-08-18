@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Eleven · Resumo do Cliente</title>
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+    #resultado, #linkResultado {
+        margin-top: 20px;
+        padding: 10px;
+        border: 1px dashed var(--danger);
+        white-space: pre-wrap;
+        word-break: break-all;
+        text-align: left;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+</style>
+</head>
+<body>
+    <div class="app">
+        <div id="telaLogin" class="card login-card center">
+            <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+            <h1>Entrar no sistema</h1>
+            <p class="subtitle">Preencha os campos abaixo para entrar na sua conta.</p>
+            <form id="loginForm">
+                <div class="field">
+                    <label for="email">E-mail</label>
+                    <input type="text" id="email" name="email" class="form-control" placeholder="E-mail" required>
+                </div>
+                <div class="field">
+                    <label for="senha">Senha</label>
+                    <input type="password" id="senha" name="senha" class="form-control" placeholder="Senha" required>
+                </div>
+                <button type="submit" class="btn">Entrar</button>
+            </form>
+            <div id="resultado">Aguardando login...</div>
+        </div>
+
+        <div id="telaLink" class="card login-card center" style="display:none">
+            <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+            <h2>Login Bem-sucedido!</h2>
+            <p class="subtitle">Insira o Link/URL do cliente para obter o resumo desejado</p>
+            <form id="linkForm">
+                <div class="field">
+                    <label for="inputLink">Link/URL do Cliente</label>
+                    <input type="url" id="inputLink" name="link" class="form-control" placeholder="Ex: https://eleven.alkasoft.com.br/auth/clientes/2099304/detalhamento" required>
+                </div>
+                <button type="submit" class="btn">Obter Resumo e Abrir</button>
+            </form>
+            <div id="linkResultado" style="border-color: var(--success)">Aguardando Link...</div>
+            <button id="logoutButton" class="btn btn-danger">Sair / Novo Login</button>
+        </div>
+    </div>
+
+    <script>
+        let BEARER_TOKEN = null;
+        let CLIENT_ID = null;
+
+        const loginForm = document.getElementById('loginForm');
+        const linkForm = document.getElementById('linkForm');
+        const telaLogin = document.getElementById('telaLogin');
+        const telaLink = document.getElementById('telaLink');
+        const resultadoDiv = document.getElementById('resultado');
+        const linkResultadoDiv = document.getElementById('linkResultado');
+        const logoutButton = document.getElementById('logoutButton');
+
+        const LOGIN_URL = "https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum";
+        const BASE_CLIENTE_API_URL = "https://app-api-prod.alkasoft.com.br/api/v1/clientes/";
+        const SERVICES_API_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/atendimentos?inicio=0&ordenacao=ULTIMA_MODIFICACAO_DESC&quantidade=200";
+        const PROCESSES_API_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/processos-extrajudiciais?inicio=0&ordenacao=DATA_ENTRADA_DESC&quantidade=100";
+        const JUDICIAL_PROCESSES_API_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/processos-judiciais?inicio=0&ordenacao=DATA_ENTRADA_DESC&quantidade=100";
+        const PASTAS_SEARCH_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/pastas?inicio=0&ordenacao=ULTIMA_MODIFICACAO_DESC&quantidade=10";
+        const ELEVEN_BASE_URL = "https://app-api-prod.alkasoft.com.br/api/v1/";
+
+        function showScreen(screenId) {
+            telaLogin.style.display = screenId === 'login' ? 'block' : 'none';
+            telaLink.style.display = screenId === 'link' ? 'block' : 'none';
+        }
+        
+        loginForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const email = document.getElementById('email').value;
+            const senha = document.getElementById('senha').value;
+            
+            if (!email || !senha) {
+                resultadoDiv.innerHTML = '<p style="color: red; font-weight: bold;">Por favor, preencha o e-mail e a senha.</p>';
+                return;
+            }
+
+            const credenciais = email + ':' + senha;
+            const basicEncoded = btoa(credenciais);
+            const authHeader = 'Basic ' + basicEncoded;
+            resultadoDiv.innerHTML = '<p style="color: #007bff;">Enviando requisição de login...</p>';
+            
+            fetch(LOGIN_URL, {
+                method: 'GET',
+                headers: {
+                    'Authorization': authHeader,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                const bearerHeader = response.headers.get('authorization');
+                if (!response.ok) {
+                    return response.text().then(errorText => {
+                         throw new Error(`Login Falhou (Status ${response.status}): ${errorText || 'Erro sem detalhes.'}`);
+                    });
+                }
+                let token = bearerHeader;
+                if (!token) {
+                    return response.json().then(data => {
+                        handleLoginSuccess(token);
+                    });
+                } else {
+                    handleLoginSuccess(token);
+                }
+            })
+            .catch(error => {
+                let errorMessage = error.message;
+                if (errorMessage.includes('Failed to fetch')) {
+                    errorMessage = `ERRO DE REDE/CORS: O navegador bloqueou a requisição.`;
+                }
+                resultadoDiv.innerHTML = `<p style="color: red; font-weight: bold;">ERRO no Login:</p><pre>${errorMessage}</pre>`;
+            });
+        });
+        
+        function handleLoginSuccess(token) {
+            if (token) {
+                BEARER_TOKEN = token.replace(/^(Bearer|Basic)\s/i, '').trim();
+            } else {
+                BEARER_TOKEN = null;
+            }
+            console.log("Token Armazenado:", BEARER_TOKEN);
+            showScreen('link');
+        }
+
+        linkForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const fullUrl = document.getElementById('inputLink').value;
+            const regex = /clientes\/(\d+)\/detalhamento/;
+            const match = fullUrl.match(regex);
+            
+            if (!match || !BEARER_TOKEN) {
+                linkResultadoDiv.innerHTML = `<p style="color: red; font-weight: bold;">ERRO:</p><p>${!BEARER_TOKEN ? 'Token não encontrado.' : 'URL inválida.'}</p>`;
+                return;
+            }
+            
+            CLIENT_ID = match[1];
+            const targetUrl = `${BASE_CLIENTE_API_URL}${CLIENT_ID}?registrarAcesso=true`;
+            linkResultadoDiv.innerHTML = `<p style="color: #007bff;">1/5 - Buscando Cliente (ID ${CLIENT_ID})...</p>`;
+
+            fetch(targetUrl, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${BEARER_TOKEN}`,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error(`API Cliente Falhou (${response.status})`);
+                return response.json();
+            })
+            .then(clientData => {
+                linkResultadoDiv.innerHTML = `<p style="color: #007bff;">2/5 - Cliente OK. Buscando Serviços...</p>`;
+                return fetchClientServices(CLIENT_ID).then(servicesData => ({ clientData, servicesData }));
+            })
+            .then(({ clientData, servicesData }) => {
+                linkResultadoDiv.innerHTML = `<p style="color: #007bff;">3/5 - Serviços OK. Buscando Pastas...</p>`;
+                return fetchClientPastas(CLIENT_ID, clientData, servicesData);
+            })
+            .catch(error => {
+                linkResultadoDiv.innerHTML = `<p style="color: red; font-weight: bold;">ERRO:</p><pre>${error.message}</pre>`;
+                console.error('Erro:', error);
+            });
+        });
+        
+        function fetchClientServices(clienteId) {
+            const bodyPayload = {
+                "dataInicio": null, "descricao": null, "duracao": null,
+                "idsCategorias": [], "idsClientes": [parseInt(clienteId)],
+                "idsEncarregados": [], "idsPastas": []
+            };
+            return fetch(SERVICES_API_URL, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(bodyPayload)
+            })
+            .then(response => response.ok ? response.json() : { itens: [], total: 0 })
+            .catch(() => ({ itens: [], total: 0 }));
+        }
+        
+        function fetchClientPastas(clienteId, clientData, servicesData) {
+            const bodyPayload = {
+                "assunto": null, "dataConclusao": null, "filtrosCamposExtras": [],
+                "valorFinalCausa": null, "dataCadastro": null, "etapas": [],
+                "idsCategorias": [], "idsClientes": [], "idsColaboradores": [],
+                "idsPartesContrarias": [], "idsPrefixos": [], "idsSituacoes": [],
+                "numero": {}, "resultadosConclusao": [],
+                "idsClientesOuPartesContrarias": [parseInt(clienteId)]
+            };
+            return fetch(PASTAS_SEARCH_URL, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(bodyPayload)
+            })
+            .then(response => response.ok ? response.json() : { itens: [], total: 0 })
+            .then(pastasData => {
+                const pastas = pastasData.itens || [];
+                linkResultadoDiv.innerHTML = `<p style="color: #007bff;">4/5 - ${pastas.length} Pasta(s) encontrada(s). Buscando proc. extrajudiciais...</p>`;
+                return fetchClientProcesses(clientData, servicesData);
+            })
+            .catch(() => fetchClientProcesses(clientData, servicesData));
+        }
+        
+        function fetchClientProcesses(clientData, servicesData) {
+            const bodyPayload = {
+                "dataConclusao": null, 
+                "dataEntrada": null, 
+                "filtrosCamposExtras": [],
+                "protocolo": null, 
+                "idsClientes": [parseInt(CLIENT_ID)],
+                "idsEncarregados": [], 
+                "idsInstituicoes": [], 
+                "idsPartes": [],
+                "idsPartesContrarias": [], 
+                "idsPastas": [], 
+                "idsSituacoes": []
+            };
+            
+            return fetch(PROCESSES_API_URL, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(bodyPayload)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    console.warn(`Aviso: API Processos Extrajudiciais Falhou (Status ${response.status}).`);
+                    return { itens: [], total: 0 };
+                }
+                return response.json();
+            })
+            .then(processesData => {
+                const total = processesData.total || 0;
+                linkResultadoDiv.innerHTML = `<p style="color: #007bff;">5/5 - ${total} Proc. extrajud. encontrado(s). Buscando proc. judiciais...</p>`;
+                console.log('Processos Extrajudiciais encontrados:', total, processesData);
+                return fetchJudicialProcesses(clientData, servicesData, processesData);
+            })
+            .catch((error) => {
+                console.error('Erro ao buscar processos extrajudiciais:', error);
+                return fetchJudicialProcesses(clientData, servicesData, { itens: [], total: 0 });
+            });
+        }
+        
+        function fetchJudicialProcesses(clientData, servicesData, extrajudicialProcessesData) {
+            const bodyPayload = {
+                "comarca": null, "dataConclusao": null, "dataEntrada": null,
+                "filtrosCamposExtras": [], "numeroCNJ": null, "tribunal": null,
+                "unidadeJudicial": null, "idsAreas": [],
+                "idsClientesPasta": [parseInt(CLIENT_ID)],
+                "idsEncarregadosPasta": [], "idsJuizes": [], "idsPartes": [],
+                "idsPartesContrariasPasta": [], "idsPastasProcessuais": [],
+                "idsSituacoes": [], "idsTiposAcoes": [], "instancias": [],
+                "tiposVinculacoes": []
+            };
+            return fetch(JUDICIAL_PROCESSES_API_URL, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(bodyPayload)
+            })
+            .then(response => response.ok ? response.json() : { itens: [], total: 0 })
+            .then(judicialProcessesData => {
+                const total = judicialProcessesData.total || 0;
+                linkResultadoDiv.innerHTML = `<p style="color: green; font-weight: bold;">✓ Completo! ${total} Proc. judicial(is). Abrindo resumo...</p>`;
+                console.log('Processos Judiciais encontrados:', total, judicialProcessesData);
+                openResultInNewTab(clientData, servicesData, extrajudicialProcessesData, judicialProcessesData);
+            })
+            .catch(() => openResultInNewTab(clientData, servicesData, extrajudicialProcessesData, { itens: [], total: 0 }));
+        }
+        
+        function openResultInNewTab(clientData, servicesObject, processesObject, judicialProcessesObject) {
+            if (!clientData) return;
+            const html = createResultPage(clientData, servicesObject, processesObject, judicialProcessesObject);
+            const newWindow = window.open('', '_blank');
+            if (newWindow) {
+                newWindow.document.write(html);
+                newWindow.document.close();
+            } else {
+                linkResultadoDiv.innerHTML += `<p style="color: orange;">Aviso: Pop-up bloqueado.</p>`;
+            }
+        }
+        
+        function formatCpfCnpj(doc) {
+            if (!doc) return '--';
+            const cleanDoc = doc.replace(/\D/g, '');
+            if (cleanDoc.length === 11) {
+                return cleanDoc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+            } else if (cleanDoc.length === 14) {
+                return cleanDoc.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+            }
+            return doc;
+        }
+
+        function formatPhone(phone) {
+            if (!phone) return '--';
+            const cleanPhone = phone.replace(/\D/g, '');
+            if (cleanPhone.length >= 10 && cleanPhone.length <= 11) {
+                const ddd = cleanPhone.substring(0, 2);
+                const parte1 = cleanPhone.substring(2, cleanPhone.length - 4);
+                const parte2 = cleanPhone.substring(cleanPhone.length - 4);
+                return `(${ddd}) ${parte1}-${parte2}`;
+            }
+            return phone;
+        }
+        
+        function formatCep(cep) {
+            if (!cep) return '--';
+            const cleanCep = cep.replace(/\D/g, '');
+            if (cleanCep.length === 8) {
+                return cleanCep.replace(/(\d{5})(\d{3})/, '$1-$2');
+            }
+            return cep;
+        }
+
+        function formatNotesForDisplay(text) {
+            if (!text) return '';
+            let formatted = text.replace(/(\r\n|\r|\n){2,}/g, '</p><p>');
+            formatted = formatted.replace(/(\r\n|\r|\n)/g, '<br>');
+            if (formatted.trim() !== '') {
+                formatted = `<p>${formatted}</p>`;
+            }
+            return formatted;
+        }
+
+        function formatDateOnly(dateString) {
+            if (!dateString || dateString === 'N/A' || dateString === '--' || dateString === 'null') return '--';
+            try {
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) return '--';
+                return date.toLocaleDateString('pt-BR', {
+                    day: '2-digit', month: '2-digit', year: 'numeric'
+                });
+            } catch (e) {
+                return '--';
+            }
+        }
+
+        function formatTimeOnly(dateString) {
+            if (!dateString || dateString === 'N/A' || dateString === '--' || dateString === 'null') return '--';
+            try {
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) return '--';
+                return date.toLocaleTimeString('pt-BR', {
+                    hour: '2-digit', minute: '2-digit'
+                });
+            } catch (e) {
+                return '--';
+            }
+        }
+
+        function formatName(fullName) {
+            if (!fullName || fullName.trim() === '' || fullName === 'N/A' || fullName === 'null') return '--';
+            const parts = fullName.trim().split(/\s+/);
+            return parts.slice(0, 2).join(' ');
+        }
+        
+        function safeGet(obj, key) {
+            const value = obj && obj[key] ? obj[key] : null;
+            return value && value !== 'null' && String(value).trim() !== '' ? value : '--';
+        }
+
+        function safeGetNested(obj, key1, key2) {
+            const value = obj && obj[key1] && obj[key1][key2] ? obj[key1][key2] : null;
+            return value && value !== 'null' && String(value).trim() !== '' ? value : '--';
+        }
+
+        function createProcessesTable(processes, totalProcesses) {
+            if (!processes || processes.length === 0) {
+                return `<h3>Processos Extrajudiciais (Total: 0)</h3><p style="color: #dc3545; font-weight: bold;">Nenhum processo extrajudicial encontrado.</p>`;
+            }
+            
+            const tableRows = processes.map(p => {
+                const protocolo = safeGet(p, 'protocolo');
+                const pId = safeGet(p, 'id');
+                const processLink = pId !== '--' ? `${ELEVEN_BASE_URL}processos-extrajudiciais/${pId}/detalhamento` : '#';
+                const instituicaoDesc = safeGetNested(p, 'instituicao', 'descricao');
+                const requerenteDesc = safeGetNested(p, 'requerentePrincipal', 'descricao');
+                const requeridoDesc = safeGetNested(p, 'requeridoPrincipal', 'descricao');
+                const dataEntrada = formatDateOnly(safeGet(p, 'dataEntrada'));
+                const dataConclusaoRaw = safeGet(p, 'dataConclusao');
+                const dataConclusao = (dataConclusaoRaw && dataConclusaoRaw !== '--') ? formatDateOnly(dataConclusaoRaw) : '';
+                const situacaoDesc = safeGetNested(p, 'situacao', 'descricao');
+                const pastaDesc = (p.pasta && p.pasta.identificador && p.pasta.identificador.descricao) ? p.pasta.identificador.descricao : '--';
+                const partes = `${requerenteDesc}<br><small style="color: #6c757d;">${requeridoDesc}</small>`;
+                const anotacoes = safeGet(p, 'anotacoes');
+                
+                return `
+                    <tr>
+                        <td><a href="${processLink}" target="_blank" style="font-weight: 600;">${protocolo}</a><br><small style="color: #6c757d;">${instituicaoDesc}</small></td>
+                        <td>${partes}<br><small style="color: #28a745; font-weight: 500;">Pasta: ${pastaDesc}</small></td>
+                        <td style="text-align: center;"><span style="font-weight: 600;">${dataEntrada}</span>${dataConclusao ? `<br><small style="color: #dc3545; font-weight: 500;">${dataConclusao}</small>` : ''}</td>
+                        <td><span style="font-weight: 500;">${situacaoDesc}</span></td>
+                        <td><div class="process-notes">${formatNotesForDisplay(anotacoes !== '--' ? anotacoes : '') || '--'}</div></td>
+                    </tr>
+                `;
+            }).join('');
+
+            return `
+                <h3>Processos Extrajudiciais (Total: ${totalProcesses})</h3>
+                <table class="processes-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 18%;">Protocolo / Instituição</th>
+                            <th style="width: 22%;">Requerente / Requerido / Pasta</th>
+                            <th style="width: 12%;">Dt. Entrada / Dt. Conclusão</th>
+                            <th style="width: 13%;">Situação</th>
+                            <th style="width: 35%;">Anotações</th>
+                        </tr>
+                    </thead>
+                    <tbody>${tableRows}</tbody>
+                </table>
+            `;
+        }
+
+        function createJudicialProcessesTable(processes, totalProcesses) {
+            if (!processes || processes.length === 0) {
+                return `<h3>Processos Judiciais (Total: 0)</h3><p style="color: #dc3545; font-weight: bold;">Nenhum processo judicial encontrado.</p>`;
+            }
+            
+            const tableRows = processes.map(p => {
+                const numeroCNJ = safeGet(p, 'numeroCNJ');
+                const pId = safeGet(p, 'id');
+                const processLink = pId !== '--' ? `${ELEVEN_BASE_URL}processos-judiciais/${pId}/detalhamento` : '#';
+
+                // tribunal e unidadeJudicial chegam como strings diretas na API
+                const tribunalDesc = safeGet(p, 'tribunal');
+                const unidadeDesc = safeGet(p, 'unidadeJudicial');
+                const comarca = safeGet(p, 'comarca');
+
+                const autorPrincipalDesc = safeGetNested(p, 'autorPrincipal', 'descricao');
+                // advogados usam chaves corretas da API
+                const advAutorDesc = safeGetNested(p, 'advogadoAutorPrincipal', 'descricao');
+                const reuPrincipalDesc = safeGetNested(p, 'reuPrincipal', 'descricao');
+                const advReuDesc = safeGetNested(p, 'advogadoReuPrincipal', 'descricao');
+
+                // tipo de ação usa chave correta da API
+                const tipoAcaoDesc = safeGetNested(p, 'tipoDeAcao', 'descricao');
+                const areaDesc = safeGetNested(p, 'area', 'descricao');
+                const situacaoDesc = safeGetNested(p, 'situacao', 'descricao');
+
+                const dataEntrada = formatDateOnly(safeGet(p, 'dataEntrada'));
+                const dataConclusaoRaw = safeGet(p, 'dataConclusao');
+                const dataConclusao = (dataConclusaoRaw && dataConclusaoRaw !== '--') ? formatDateOnly(dataConclusaoRaw) : '';
+
+                const tribunalInfo = `${tribunalDesc}<br>
+                    <small style="color: #6c757d;">${unidadeDesc}</small><br>
+                    <small style="color: #6c757d;">Comarca: ${comarca}</small>`;
+
+                const partesInfo = `<strong>Autor:</strong> ${autorPrincipalDesc}<br>
+                    <small style="color: #6c757d;">Adv: ${advAutorDesc}</small><br>
+                    <strong>Réu:</strong> ${reuPrincipalDesc}<br>
+                    <small style="color: #6c757d;">Adv: ${advReuDesc}</small>`;
+                
+                return `
+                    <tr>
+                        <td><a href="${processLink}" target="_blank" style="font-weight: 600;">${numeroCNJ}</a><br>${tribunalInfo}</td>
+                        <td>${partesInfo}</td>
+                        <td style="text-align: center;"><span style="font-weight: 600;">${dataEntrada}</span>${dataConclusao ? `<br><small style="color: #dc3545; font-weight: 500;">${dataConclusao}</small>` : ''}</td>
+                        <td><span style="font-weight: 500;">${situacaoDesc}</span><br><small style="color: #6c757d;">${tipoAcaoDesc}</small><br><small style="color: #28a745;">${areaDesc}</small></td>
+                    </tr>
+                `;
+            }).join('');
+
+            return `
+                <h3>Processos Judiciais (Total: ${totalProcesses})</h3>
+                <table class="judicial-processes-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 25%;">Nº CNJ / Tribunal / Unidade / Comarca</th>
+                            <th style="width: 35%;">Autor Principal / Réu Principal</th>
+                            <th style="width: 12%;">Dt. Entrada / Dt. Conclusão</th>
+                            <th style="width: 28%;">Situação / Tipo de Ação / Área</th>
+                        </tr>
+                    </thead>
+                    <tbody>${tableRows}</tbody>
+                </table>
+            `;
+        }
+
+        function createServicesTable(services, totalServices) {
+            let html = `<h3>Histórico de Serviços (Total: ${totalServices}) - Máximo: 200</h3>`;
+            if (!services || services.length === 0) {
+                html += `<p style="color: #dc3545; font-weight: bold;">Nenhum serviço encontrado.</p>`;
+                return html;
+            }
+
+            const tableRows = services.map(service => {
+                const serviceId = safeGet(service, 'id');
+                const serviceLink = serviceId !== '--' ? `${ELEVEN_BASE_URL}servicos/${serviceId}/detalhamento` : '#';
+                const serviceNotesFormatted = formatNotesForDisplay(service.anotacoes || '');
+                const formattedDate = formatDateOnly(service.dataInicio);
+                const formattedTime = formatTimeOnly(service.dataInicio);
+                const encarregadoName = safeGetNested(service, 'encarregado', 'descricao');
+                const formattedEncarregado = formatName(encarregadoName);
+                const descricao = safeGet(service, 'descricao');
+                const categoria = safeGetNested(service, 'categoria', 'descricao');
+
+                return `
+                    <tr>
+                        <td><small style="color: #6c757d; font-weight: bold;">${formattedDate}</small><br>${formattedTime}</td>
+                        <td><a href="${serviceLink}" target="_blank">${descricao}</a><br><small style="color: #6c757d;">(${categoria})</small></td>
+                        <td>${formattedEncarregado}</td>
+                        <td><div class="service-notes">${serviceNotesFormatted || '--'}</div></td>
+                    </tr>
+                `;
+            }).join('');
+            
+            html += `
+                <table class="services-table">
+                    <thead>
+                        <tr>
+                            <th>Data e Hora</th>
+                            <th>Descrição</th>
+                            <th>Encarregado</th>
+                            <th>Anotações</th>
+                        </tr>
+                    </thead>
+                    <tbody>${tableRows}</tbody>
+                </table>
+            `;
+            return html;
+        }
+
+        function createResultPage(data, servicesObject, processesObject, judicialProcessesObject) {
+            const services = servicesObject.itens || [];
+            const totalServices = servicesObject.total || services.length;
+            const processes = processesObject.itens || [];
+            const totalProcesses = processesObject.total || processes.length;
+            const judicialProcesses = judicialProcessesObject.itens || [];
+            const totalJudicialProcesses = judicialProcessesObject.total || judicialProcesses.length;
+            
+            const clienteId = safeGet(data, 'id');
+            const clienteLink = clienteId !== '--' ? `${ELEVEN_BASE_URL}clientes/${clienteId}/detalhamento` : '#';
+            const docNumber = safeGet(data, 'cnpj') || safeGet(data, 'cpf');
+            const phone = safeGet(data, 'telefone') || safeGet(data, 'telefoneMovel');
+            const cep = safeGetNested(data, 'enderecoPrincipal', 'cep');
+            
+            const allData = [
+                ['Nome / Razão Social', safeGet(data, 'nome')],
+                ['Tipo de Contato', safeGetNested(data, 'tipoContato', 'descricao')],
+                ['CPF/CNPJ', formatCpfCnpj(docNumber)],
+                ['E-mail', safeGet(data, 'email') || safeGet(data, 'emailAdicional') || '--'],
+                ['Telefone', formatPhone(phone)],
+                ['Endereço (Texto)', safeGet(data, 'enderecoPrincipalTextual') || '--'],
+                ['Logradouro Principal', safeGetNested(data, 'enderecoPrincipal', 'logradouro') + (safeGetNested(data, 'enderecoPrincipal', 'numero') !== '--' && safeGetNested(data, 'enderecoPrincipal', 'numero') ? ', ' + safeGetNested(data, 'enderecoPrincipal', 'numero') : '')],
+                ['CEP', formatCep(cep)],
+                ['Cidade/UF', safeGetNested(data, 'enderecoPrincipal', 'municipio') + '/' + safeGetNested(data, 'enderecoPrincipal', 'uf')],
+            ];
+
+            const mainData = allData.filter(row => {
+                const valueString = String(row[1]).trim();
+                return valueString !== '--' && valueString !== '/' && valueString !== ',' && valueString !== '';
+            });
+            
+            const anotacoesRaw = safeGet(data, 'anotacoes');
+            const anotacoesFormatted = formatNotesForDisplay(anotacoesRaw);
+            const hasAnotacoes = anotacoesRaw !== '--' && anotacoesRaw.trim() !== '';
+
+            const processesTableHtml = createProcessesTable(processes, totalProcesses);
+            const judicialProcessesTableHtml = createJudicialProcessesTable(judicialProcesses, totalJudicialProcesses);
+            const servicesTableHtml = createServicesTable(services, totalServices);
+
+            return `
+                <html>
+                <head>
+                    <title>Resumo do Cliente: ${safeGet(data, 'nome')}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f8f9fa; }
+                        .header {
+                            margin-bottom: 20px;
+                            border-bottom: 2px solid #667eea;
+                            padding-bottom: 10px;
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                        }
+                        .header h1 { color: #343a40; font-size: 1.8rem; margin: 0;}
+                        .header-content { flex-grow: 1; }
+                        .header p { margin-top: 5px; }
+                        h3 { color: #667eea; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-top: 30px; }
+                        a { color: #667eea; text-decoration: none; }
+                        a:hover { text-decoration: underline; }
+                        .btn-pdf {
+                            background-color: #dc3545;
+                            color: white;
+                            border: none;
+                            padding: 10px 15px;
+                            border-radius: 4px;
+                            font-weight: bold;
+                            cursor: pointer;
+                            transition: background-color 0.3s;
+                        }
+                        .btn-pdf:hover { background-color: #c82333; }
+                        .main-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                        .main-table th, .main-table td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
+                        .main-table th { background-color: #667eea; color: white; font-weight: 600; width: 30%; }
+                        .processes-table { 
+                            width: 100%; 
+                            border-collapse: collapse; 
+                            background-color: white; 
+                            font-size: 0.95em;
+                            margin-bottom: 30px;
+                        }
+                        .processes-table th, .processes-table td { border: 1px solid #dee2e6; padding: 8px; text-align: left; vertical-align: top; }
+                        .processes-table th { background-color: #f1f1f1; color: #343a40; font-weight: 600; }
+                        .processes-table td:nth-child(1) { width: 18%; } 
+                        .processes-table td:nth-child(2) { width: 22%; }
+                        .processes-table td:nth-child(3) { width: 12%; text-align: center; } 
+                        .processes-table td:nth-child(4) { width: 13%; }
+                        .processes-table td:nth-child(5) { width: 35%; max-width: 35%; } 
+                        .judicial-processes-table { 
+                            width: 100%; 
+                            border-collapse: collapse; 
+                            background-color: white; 
+                            font-size: 0.95em;
+                            margin-bottom: 30px;
+                        }
+                        .judicial-processes-table th, .judicial-processes-table td { border: 1px solid #dee2e6; padding: 8px; text-align: left; vertical-align: top; }
+                        .judicial-processes-table th { background-color: #f1f1f1; color: #343a40; font-weight: 600; }
+                        .judicial-processes-table td:nth-child(1) { width: 25%; } 
+                        .judicial-processes-table td:nth-child(2) { width: 35%; }
+                        .judicial-processes-table td:nth-child(3) { width: 12%; text-align: center; } 
+                        .judicial-processes-table td:nth-child(4) { width: 28%; }
+                        .services-table { 
+                            width: 100%; 
+                            border-collapse: collapse; 
+                            background-color: white; 
+                            font-size: 0.95em;
+                        }
+                        .services-table th, .services-table td { border: 1px solid #dee2e6; padding: 8px; text-align: left; vertical-align: top; }
+                        .services-table th { background-color: #f1f1f1; color: #343a40; font-weight: 600; }
+                        .services-table td:nth-child(1) { width: 8%; text-align: center; } 
+                        .services-table td:nth-child(2) { width: 16%; } 
+                        .services-table td:nth-child(3) { width: 6%; }
+                        .services-table td:nth-child(4) { width: 70%; max-width: 70%; }
+                        .anotacoes-box {
+                            border: 1px solid #ced4da;
+                            padding: 15px;
+                            background-color: #fff3cd;
+                            margin-top: 15px;
+                        }
+                        .anotacoes-box p {
+                            margin: 0 0 10px 0;
+                            white-space: normal;
+                        }
+                        .anotacoes-box p:last-child { margin-bottom: 0; }
+                        .service-notes, .process-notes {
+                            max-height: 100px;
+                            overflow-y: auto;
+                            word-break: break-word;
+                            font-size: 0.8em;
+                            background-color: #fafafa;
+                            padding: 5px;
+                            border-radius: 3px;
+                        }
+                        @media print {
+                            .btn-pdf { display: none; }
+                            .anotacoes-box {
+                                background-color: transparent !important;
+                                border: 1px dashed #6c757d;
+                            }
+                            .service-notes, .process-notes {
+                                max-height: none !important;
+                                overflow-y: visible !important;
+                                background-color: transparent !important;
+                                font-size: 0.8em; 
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div class="header-content">
+                            <h1>Resumo do Cliente: ${safeGet(data, 'nome')}</h1>
+                            <p>ID do Cliente: <strong><a href="${clienteLink}" target="_blank">${clienteId}</a></strong></p>
+                        </div>
+                        <button class="btn-pdf" onclick="window.print()">Gerar PDF / Imprimir</button>
+                    </div>
+                    <table class="main-table">
+                        <thead>
+                            <tr><th colspan="2">Dados de Identificação e Contato</th></tr>
+                        </thead>
+                        <tbody>
+                            ${mainData.map(row => `<tr><th>${row[0]}</th><td>${row[1]}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                    ${hasAnotacoes ? `
+                        <h3>Anotações do Cadastro</h3>
+                        <div class="anotacoes-box">${anotacoesFormatted}</div>
+                    ` : ''}
+                    ${processesTableHtml}
+                    ${judicialProcessesTableHtml}
+                    ${servicesTableHtml}
+                </body>
+                </html>
+            `;
+        }
+
+        logoutButton.addEventListener('click', function() {
+            BEARER_TOKEN = null;
+            CLIENT_ID = null;
+            loginForm.reset();
+            linkForm.reset();
+            resultadoDiv.textContent = 'Aguardando login...';
+            linkResultadoDiv.textContent = 'Aguardando Link...';
+            showScreen('login');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Eleven · Resumo Financeiro</title>
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+
+<style>
+/* Abas de origem (Pasta/Cliente) — widget específico deste relatório, sem equivalente no style.css */
+.tabs{display:flex;gap:0;width:100%;margin-bottom:16px;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+.tab{flex:1;padding:12px;border:none;background:var(--input-bg);color:var(--muted);font-weight:700;cursor:pointer;font-size:.92rem;transition:background .2s,color .2s}
+.tab.active{background:var(--brand);color:#fff}
+.tab-panel{display:none;width:100%}
+.tab-panel.active{display:block}
+
+/* Seletor de tipo de movimento — widget específico deste relatório, sem equivalente no style.css */
+.radio-group{display:flex;justify-content:space-around;background:var(--input-bg);border:1px solid var(--border);padding:14px;border-radius:10px;margin-bottom:16px;width:100%}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div id="loginScreen" class="card login-card center">
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <p class="subtitle">Acessar Relatório: Resumo Financeiro</p>
+    <form id="loginForm" style="width:100%">
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input type="text" id="email" class="form-control" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <div class="password-wrap">
+          <input type="password" id="senha" class="form-control" required autocomplete="current-password">
+          <button type="button" class="password-toggle" id="toggleSenha" aria-label="Mostrar senha" title="Mostrar senha">
+            <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn">Entrar Agora</button>
+    </form>
+    <div id="resultado" class="subtitle" style="margin-top:10px"></div>
+  </div>
+
+  <div id="filterScreen" class="card login-card center" style="display:none">
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <h1>Filtros do Relatório</h1>
+
+    <!-- Abas de origem -->
+    <div class="tabs">
+      <button class="tab active" onclick="trocarAba('pasta')">📁 Por Pasta</button>
+      <button class="tab" onclick="trocarAba('cliente')">👤 Por Cliente</button>
+    </div>
+
+    <!-- Painel Pasta -->
+    <div id="panel-pasta" class="tab-panel active">
+      <div class="filter-row">
+        <label class="filter-label">Link da pasta processual</label>
+        <input id="linkPasta" class="form-control" placeholder="https://eleven.alkasoft.com.br/...pastas/12345...">
+      </div>
+    </div>
+
+    <!-- Painel Cliente -->
+    <div id="panel-cliente" class="tab-panel">
+      <div class="filter-row">
+        <label class="filter-label">Link do cliente</label>
+        <input id="linkCliente" class="form-control" placeholder="https://eleven.alkasoft.com.br/...clientes/67890...">
+      </div>
+    </div>
+
+    <!-- Período (comum às duas abas) -->
+    <div class="filter-section">
+      <div class="filter-row">
+        <label class="filter-label">Período (opcional)</label>
+        <div class="date-inputs">
+          <input type="date" id="dataIni" class="form-control">
+          <input type="date" id="dataFim" class="form-control">
+        </div>
+      </div>
+    </div>
+
+    <div class="radio-group">
+      <label><input type="radio" name="tipoMov" value="TODOS" checked> Tudo</label>
+      <label><input type="radio" name="tipoMov" value="DESPESA"> Despesas</label>
+      <label><input type="radio" name="tipoMov" value="RECEITA"> Receitas</label>
+    </div>
+
+    <button class="btn btn-financeiro" onclick="gerarRelatorio()">Gerar Relatório</button>
+    <button class="btn btn-danger" onclick="location.reload()">Sair</button>
+    <div id="statusRel"></div>
+  </div>
+</div>
+
+<script>
+let BEARER_TOKEN = null;
+let DADOS_ATUAIS = [];
+let ABA_ATIVA = 'pasta';
+
+const LOGIN_URL      = "https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum";
+const FUTUROS_URL    = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/movimentos-futuros";
+const REALIZADOS_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/movimentos-realizados";
+
+window.addEventListener('message', (event) => {
+  if (event.data && event.data.tipo === 'exportarExcel') exportarExcelCompleto();
+});
+
+function trocarAba(aba) {
+  ABA_ATIVA = aba;
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && aba === 'pasta') || (i === 1 && aba === 'cliente'));
+  });
+  document.getElementById('panel-pasta').classList.toggle('active', aba === 'pasta');
+  document.getElementById('panel-cliente').classList.toggle('active', aba === 'cliente');
+}
+
+/* ========== Mostrar/ocultar senha ========== */
+(function(){
+    const toggleSenhaBtn = document.getElementById('toggleSenha');
+    const senhaInput = document.getElementById('senha');
+    const eyeIcon = document.getElementById('eyeIcon');
+    const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+    const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.4 18.4 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/>';
+    if(toggleSenhaBtn){
+        toggleSenhaBtn.addEventListener('click',()=>{
+            const showing = senhaInput.type === 'text';
+            senhaInput.type = showing ? 'password' : 'text';
+            eyeIcon.innerHTML = showing ? EYE_OPEN : EYE_OFF;
+            toggleSenhaBtn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+            toggleSenhaBtn.title = showing ? 'Mostrar senha' : 'Ocultar senha';
+        });
+    }
+})();
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const credenciais = btoa(document.getElementById('email').value + ':' + document.getElementById('senha').value);
+  try {
+    const r = await fetch(LOGIN_URL, { headers: { 'Authorization': 'Basic ' + credenciais } });
+    if (!r.ok) throw new Error();
+    BEARER_TOKEN = r.headers.get('authorization').replace(/^(Bearer|Basic)\s/i, '').trim();
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('filterScreen').style.display = 'block';
+  } catch {
+    document.getElementById('resultado').innerHTML = "<span style='color:red'>Erro no login</span>";
+  }
+});
+
+async function buscarPaginado(url, body) {
+  const TAMANHO = 50; // API limita 50 itens por requisição
+  let inicio = 0, todos = [], totalEsperado = null;
+
+  while (true) {
+    const r = await fetch(`${url}?inicio=${inicio}&quantidade=${TAMANHO}&ordenacao=DATA_DE_VENCIMENTO_ASC`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const j = await r.json();
+    const itens = j.itens || [];
+
+    // Captura o total informado pela API na primeira chamada
+    if (totalEsperado === null) {
+      totalEsperado = j.total ?? j.totalItens ?? j.count ?? null;
+    }
+
+    todos.push(...itens);
+
+    // Critério de parada 1: API informou o total e já buscamos tudo
+    if (totalEsperado !== null && todos.length >= totalEsperado) break;
+
+    // Critério de parada 2: lote incompleto = última página
+    if (itens.length < TAMANHO) break;
+
+    // Avança offset para o próximo lote
+    inicio += TAMANHO;
+  }
+
+  return todos;
+}
+
+async function gerarRelatorio() {
+  const dIni = document.getElementById('dataIni').value;
+  const dFim = document.getElementById('dataFim').value;
+
+  // Monta o filtro de acordo com a aba ativa
+  let filtroBase = {};
+  let linkOriginal = '';
+  let tituloRel = '';
+
+  if (ABA_ATIVA === 'pasta') {
+    const linkFull = document.getElementById('linkPasta').value.trim();
+    const match = linkFull.match(/\/pastas(?:-processuais)?\/(\d+)/i);
+    if (!match) return alert('Link da pasta inválido. Verifique a URL.');
+    filtroBase.idsPastasProcessuais = [parseInt(match[1])];
+    linkOriginal = linkFull;
+    tituloRel = `Movimentos da Pasta #${match[1]}`;
+
+  } else {
+    const linkFull = document.getElementById('linkCliente').value.trim();
+    const match = linkFull.match(/\/clientes\/(\d+)/i);
+    if (!match) return alert('Link do cliente inválido. Verifique a URL.');
+    filtroBase.idsClientes = [parseInt(match[1])];
+    linkOriginal = linkFull;
+    tituloRel = `Movimentos do Cliente #${match[1]}`;
+  }
+
+  if (dIni && dFim) filtroBase.dataVencimento = { valorMinimo: dIni, valorMaximo: dFim };
+
+  document.getElementById('statusRel').innerHTML = "⏳ Buscando dados...";
+
+  try {
+    const [fut, real] = await Promise.all([
+      buscarPaginado(FUTUROS_URL, filtroBase),
+      buscarPaginado(REALIZADOS_URL, filtroBase)
+    ]);
+
+    fut.forEach(i => i._statusRel = 'previstas');
+    real.forEach(i => i._statusRel = 'realizadas');
+
+    DADOS_ATUAIS = [...fut, ...real];
+    const tipo = document.querySelector('input[name="tipoMov"]:checked').value;
+    if (tipo === 'DESPESA') DADOS_ATUAIS = DADOS_ATUAIS.filter(m => (m.valor || 0) < 0);
+    if (tipo === 'RECEITA') DADOS_ATUAIS = DADOS_ATUAIS.filter(m => (m.valor || 0) > 0);
+
+    abrirJanelaRelatorio(DADOS_ATUAIS, linkOriginal, tituloRel);
+    document.getElementById('statusRel').innerHTML =
+      `✅ Relatório aberto! (${fut.length} previstos + ${real.length} realizados = ${fut.length + real.length} registros)`;
+  } catch {
+    alert("Erro ao carregar dados.");
+    document.getElementById('statusRel').innerHTML = "";
+  }
+}
+
+function abrirJanelaRelatorio(itens, linkOriginal, tituloRel) {
+  let tDP=0, tRP=0, tDR=0, tRR=0;
+  const formatBRL = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+  const linhas = itens.map(i => {
+    const v = i.valor || 0;
+    const isRec = v >= 0;
+    const slug = isRec ? 'receitas' : 'despesas';
+    if (i._statusRel === 'previstas') { isRec ? tRP += v : tDP += Math.abs(v); }
+    else { isRec ? tRR += v : tDR += Math.abs(v); }
+
+    const urlMov = `https://eleven.alkasoft.com.br/auth/${slug}-${i._statusRel}/${i.id}/detalhamento`;
+
+    return `<tr>
+      <td style="text-align:center;font-size:22px">${isRec ? '<span style="color:#2ecc71">➔</span>' : '<span style="color:#e74c3c">⬅</span>'}</td>
+      <td>${i.dataVencimento ? new Date(i.dataVencimento).toLocaleDateString('pt-BR') : '-'}</td>
+      <td><a href="${urlMov}" target="_blank" class="mov-link">${i.descricao?.descricao || 'Ver Detalhes'}</a></td>
+      <td>${i.cliente?.descricao || '-'}</td>
+      <td>${i.terceiroEnvolvido?.descricao || i.envolvido?.descricao || '-'}</td>
+      <td style="text-align:right">R$ ${formatBRL(i.valorOriginal || 0)}</td>
+      <td style="text-align:right;color:#dc3545">R$ ${formatBRL(i.multa || 0)}</td>
+      <td style="text-align:right;color:#dc3545">R$ ${formatBRL(i.juros || 0)}</td>
+      <td style="text-align:right;color:#28a745">R$ ${formatBRL(i.desconto || 0)}</td>
+      <td style="text-align:right;font-weight:bold;color:${isRec ? '#28a745' : '#dc3545'};font-size:16px">
+        ${isRec ? '' : '-'} R$ ${formatBRL(Math.abs(v))}
+      </td>
+    </tr>`;
+  }).join('');
+
+  const saldoPrev = tRP - tDP;
+  const saldoReal = tRR - tDR;
+
+  const w = window.open('', '_blank');
+  w.document.write(`
+  <html><head><title>Relatório Financeiro Eleven</title><style>
+    body{font-family:sans-serif;padding:40px;background:#f4f7f6;color:#333}
+    .header-card{background:#fff;padding:25px;border-radius:15px;box-shadow:0 4px 15px rgba(0,0,0,.06);margin-bottom:25px;border-left:8px solid #667eea}
+    .btn-bar{display:flex;gap:15px;margin-bottom:30px}
+    .btn{padding:14px 25px;border:none;border-radius:10px;color:#fff;font-weight:700;cursor:pointer;font-size:15px}
+    table{width:100%;border-collapse:collapse;background:#fff;font-size:14px;box-shadow:0 4px 15px rgba(0,0,0,.05)}
+    th{background:#4fa7a0 !important;color:white !important;padding:15px 10px;text-align:left}
+    td{padding:15px 10px;border-bottom:1px solid #f0f2f5}
+    .mov-link{color:#2980b9;text-decoration:none;font-weight:bold}
+    .summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:35px}
+    .total-row{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-top:20px}
+    .box{padding:25px;border-radius:15px;text-align:center;background:#fff;border-bottom:7px solid #ccc;box-shadow:0 4px 12px rgba(0,0,0,.04)}
+    .red{border-color:#dc3545;color:#dc3545}.green{border-color:#28a745;color:#28a745}.blue{border-color:#667eea;color:#667eea}
+    .val{font-size:28px;font-weight:900;display:block;margin-bottom:5px}
+    .label{font-size:11px;color:#777;text-transform:uppercase;font-weight:800;letter-spacing:1px}
+    @media print{.btn-bar{display:none !important} @page{size:A4 landscape;margin:1cm}}
+  </style></head>
+  <body>
+    <div class="header-card">
+      <h1>Financeiro — ${tituloRel}</h1>
+      <p><a href="${linkOriginal}" target="_blank">🔗 Clique para acessar no Eleven</a></p>
+    </div>
+    <div class="btn-bar">
+      <button onclick="window.print()" class="btn" style="background:#6c757d">🖨️ Imprimir PDF</button>
+      <button onclick="window.opener.postMessage({tipo:'exportarExcel'},'*')" class="btn" style="background:#667eea">⬇️ Exportar Excel</button>
+    </div>
+    <table>
+      <thead><tr>
+        <th></th><th>Vencimento</th><th>Descrição (Link)</th><th>Cliente</th><th>Terceiro/Envolvido</th>
+        <th style="text-align:right">Original</th><th style="text-align:right">Multa</th>
+        <th style="text-align:right">Juros</th><th style="text-align:right">Desc.</th>
+        <th style="text-align:right">Valor Final</th>
+      </tr></thead>
+      <tbody>${linhas || '<tr><td colspan="10" style="text-align:center;padding:40px;color:#999">Nenhum movimento encontrado.</td></tr>'}</tbody>
+    </table>
+    <div class="summary-row">
+      <div class="box red"><span class="val">- R$ ${formatBRL(tDP)}</span><span class="label">Despesa Prevista</span></div>
+      <div class="box green"><span class="val">R$ ${formatBRL(tRP)}</span><span class="label">Receita Prevista</span></div>
+      <div class="box red"><span class="val">- R$ ${formatBRL(tDR)}</span><span class="label">Despesa Realizada</span></div>
+      <div class="box green"><span class="val">R$ ${formatBRL(tRR)}</span><span class="label">Receita Realizada</span></div>
+    </div>
+    <div class="total-row">
+      <div class="box blue"><span class="val">${saldoPrev < 0 ? '-' : ''} R$ ${formatBRL(Math.abs(saldoPrev))}</span><span class="label">Saldo Líquido Previsto</span></div>
+      <div class="box blue"><span class="val">${saldoReal < 0 ? '-' : ''} R$ ${formatBRL(Math.abs(saldoReal))}</span><span class="label">Saldo Líquido Realizado</span></div>
+    </div>
+  </body></html>`);
+}
+
+function exportarExcelCompleto() {
+  const planilha = DADOS_ATUAIS.map(i => {
+    const v = i.valor || 0;
+    return {
+      "Tipo": v >= 0 ? "Receita" : "Despesa",
+      "Situação": i._statusRel === 'previstas' ? "Prevista" : "Realizada",
+      "Vencimento": i.dataVencimento ? new Date(i.dataVencimento).toLocaleDateString('pt-BR') : '',
+      "Descrição": i.descricao?.descricao || '',
+      "Cliente": i.cliente?.descricao || '-',
+      "Terceiro/Envolvido": i.terceiroEnvolvido?.descricao || i.envolvido?.descricao || '-',
+      "Original": i.valorOriginal || 0,
+      "Multa": i.multa || 0,
+      "Juros": i.juros || 0,
+      "Desconto": i.desconto || 0,
+      "Valor Final": v
+    };
+  });
+  const ws = XLSX.utils.json_to_sheet(planilha);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Financeiro");
+  XLSX.writeFile(wb, "Relatorio_Eleven_Completo.xlsx");
+}
+</script>
+</body>
+</html>

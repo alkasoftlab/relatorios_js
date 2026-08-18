@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Eleven · Pastas | Contratos-pedidos</title>
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<style>
+/* O JS escreve o texto de porcentagem dentro do próprio elemento .fill
+   (em vez de um .progress-text separado); esta regra só garante que
+   esse texto fique legível sobre o gradiente da barra. */
+#fill{color:#fff;font-weight:700;font-size:.7rem;line-height:14px;text-align:center;white-space:nowrap;overflow:hidden}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<div class="card login-card center" id="login">
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <p class="subtitle">Acessar Relatório: Pastas | Contratos-pedidos</p>
+    <form id="loginForm" style="width:100%">
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input type="text" id="email" class="form-control" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <div class="password-wrap">
+          <input type="password" id="senha" class="form-control" required autocomplete="current-password">
+          <button type="button" class="password-toggle" id="toggleSenha" aria-label="Mostrar senha" title="Mostrar senha">
+            <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn">Entrar</button>
+    </form>
+    <div id="resultado" class="subtitle" style="margin-top:10px"></div>
+</div>
+
+<div class="card login-card center" id="relatorio" style="display:none">
+  <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+  <h1>Relatório de Pastas</h1>
+  <p class="subtitle">Custas, garantias e contratos por cooperativa</p>
+
+  <div class="field">
+    <label for="cooperativa">🏦 Cooperativa</label>
+    <select id="cooperativa" class="form-control"></select>
+  </div>
+
+  <button id="btnGerar" class="btn">Gerar Relatório</button>
+
+  <div class="progress-wrap" id="bar">
+    <div class="progress"><div id="fill" class="fill">0%</div></div>
+  </div>
+
+  <div id="status"></div>
+</div>
+
+</div>
+
+<script>
+
+/* ========== Mostrar/ocultar senha ========== */
+(function(){
+    const toggleSenhaBtn = document.getElementById('toggleSenha');
+    const senhaInput = document.getElementById('senha');
+    const eyeIcon = document.getElementById('eyeIcon');
+    const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+    const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.4 18.4 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/>';
+    if(toggleSenhaBtn){
+        toggleSenhaBtn.addEventListener('click',()=>{
+            const showing = senhaInput.type === 'text';
+            senhaInput.type = showing ? 'password' : 'text';
+            eyeIcon.innerHTML = showing ? EYE_OPEN : EYE_OFF;
+            toggleSenhaBtn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+            toggleSenhaBtn.title = showing ? 'Mostrar senha' : 'Ocultar senha';
+        });
+    }
+})();
+
+const el = id => document.getElementById(id);
+
+/* 🔐 EMAILS PERMITIDOS PARA RELATÓRIO DE CONTRATOS */
+const EMAILS_PERMITIDOS = [
+  'enimar@pizzattoadvogados.com',
+  'consolidacoespizzatto@gmail.com'
+];
+
+let TOKEN = null;
+
+const LOGIN_URL  = 'https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum';
+const APP_URL    = 'https://app-api-prod.alkasoft.com.br/api/v1';
+const BUSCA_URL  = 'https://busca-avancada-api-prod.alkasoft.com.br/api/v1';
+
+/* ────────────────────────────────────────────────────────────
+   CONFIG DAS COOPERATIVAS
+   (mesmos cliente_id e idItemConta usados nos scripts R originais)
+
+   Campos novos adicionados nesta correção, todos derivados de
+   divergências encontradas comparando o script R de cada
+   cooperativa com o HTML:
+
+   - ordenacaoPastas: alguns scripts R usam DATA_CADASTRO_ASC,
+     outros ULTIMA_MODIFICACAO_DESC na paginação de /pastas.
+   - garantiaSep: separador usado no paste() das garantias
+     ("\n" em uns, " | " em outros).
+   - explodeMode: 'unica' = 1 linha por pasta com tudo colapsado
+     por \n (padrão Progresso); 'cartesiano' = replica o
+     duplo for(contrato) x for(processo) do R da Liderança,
+     gerando 1 linha por combinação contrato×CNJ.
+   - tipoDocEstrito: se true, getDocumentoParte só busca quando
+     tipoDoCadastro for exatamente 'CONTATO' ou 'CLIENTE' (senão
+     retorna null, igual ao R da Liderança). Se false, qualquer
+     tipo diferente de 'CONTATO' é tratado como cliente (padrão
+     do R do Progresso).
+   - regexContrato: 'ampla' = regex do Progresso (mais permissiva,
+     aceita separador livre entre blocos); 'estrita' = regex da
+     Liderança ([0-9]{7}-[0-9]{4}\.[0-9]+-[0-9]{1}, split por "|").
+   ──────────────────────────────────────────────────────────── */
+const COOPERATIVAS = {
+  lideranca:    {
+    nome: 'Cresol Liderança', clienteId: 2884967, idItemConta: 68197,
+    descricaoConta: 'CRESOL LIDERANÇA - CUSTAS', arquivo: 'RELATORIO_CRESOL-LIDERANCA',
+    statusMode: 'conclusao',
+    ordenacaoPastas: 'ULTIMA_MODIFICACAO_DESC',
+    garantiaSep: ' | ',
+    explodeMode: 'cartesiano',
+    tipoDocEstrito: true,
+    regexContrato: 'ampla',
+    dedupePastas: false,
+    // itens do campo extra CONTA (15978) que contam como custas desta cooperativa
+    idsItensConta: [68197, 68198] // CRESOL LIDERANÇA - CUSTAS / RELAÇÃO DE CUSTAS
+  },
+  progresso:    {
+    nome: 'Cresol Progresso', clienteId: 2810804, idItemConta: 63870,
+    descricaoConta: 'CRESOL PROGRESSO - CUSTAS', arquivo: 'RELATORIO_CRESOL-PROGRESSO',
+    statusMode: 'conclusao',
+    ordenacaoPastas: 'DATA_CADASTRO_ASC',
+    garantiaSep: '\n',
+    explodeMode: 'unica',
+    tipoDocEstrito: false,
+    regexContrato: 'ampla',
+    dedupePastas: true,
+    temGarantias: true,
+    idsItensConta: [63870, 63864] // CRESOL PROGRESSO - CUSTAS / RELAÇÃO DE CUSTAS
+  },
+  pioneira:     {
+    nome: 'Cresol Pioneira', clienteId: 2810816, idItemConta: 63880,
+    descricaoConta: 'CRESOL PIONEIRA - CUSTAS', arquivo: 'RELATORIO_CRESOL-PIONEIRA',
+    statusMode: 'conclusao',
+    ordenacaoPastas: 'DATA_CADASTRO_ASC',
+    garantiaSep: '\n',
+    explodeMode: 'unica',
+    tipoDocEstrito: false,
+    regexContrato: 'ampla',
+    dedupePastas: true,
+    temGarantias: true,
+    idsItensConta: [63880, 71258] // CRESOL PIONEIRA - CUSTAS / RELAÇÃO DE CUSTAS
+  },
+  vanguarda:    {
+    nome: 'Cresol Vanguarda', clienteId: 3074556, idItemConta: 91020,
+    descricaoConta: 'CRESOL VANGUARDA - CUSTAS', arquivo: 'RELATORIO_CRESOL-VANGUARDA',
+    statusMode: 'situacao',
+    ordenacaoPastas: 'DATA_CADASTRO_ASC',
+    garantiaSep: '\n',
+    explodeMode: 'unica',
+    tipoDocEstrito: false,
+    regexContrato: 'ampla',
+    dedupePastas: true,
+    temGarantias: true,
+    idsItensConta: [91020] // CRESOL VANGUARDA - CUSTAS (sem variante "RELAÇÃO" encontrada na lista)
+  },
+  valeeuropeu:  {
+    nome: 'Cresol Vale Europeu', clienteId: 2967388, idItemConta: 72307,
+    descricaoConta: 'CRESOL VALE EUROPEU - CUSTAS', arquivo: 'RELATORIO_CRESOL-VALEEUROPEU',
+    statusMode: 'comentario',
+    ordenacaoPastas: 'DATA_CADASTRO_ASC',
+    garantiaSep: '\n',
+    explodeMode: 'unica',
+    tipoDocEstrito: false,
+    regexContrato: 'ampla',
+    dedupePastas: true,
+    temGarantias: true,
+    idsItensConta: [72307] // CRESOL VALE EUROPEU - CUSTAS (sem variante "RELAÇÃO" encontrada na lista)
+  },
+  integracao:   {
+    nome: 'Cresol Integração', clienteId: 2810811, idItemConta: 63872,
+    descricaoConta: 'CRESOL INTEGRAÇÃO - CUSTAS', arquivo: 'RELATORIO_CRESOL-INTEGRACAO',
+    statusMode: 'conclusao',
+    ordenacaoPastas: 'DATA_CADASTRO_ASC',
+    garantiaSep: '\n',
+    explodeMode: 'unica',
+    tipoDocEstrito: false,
+    regexContrato: 'ampla',
+    dedupePastas: true,
+    temGarantias: true,
+    idsItensConta: [63872, 63868] // CRESOL INTEGRAÇÃO - CUSTAS / RELAÇÃO CUSTAS
+  },
+  tradicao:     {
+    nome: 'Cresol Tradição', clienteId: 2810845, idItemConta: 63873,
+    descricaoConta: 'CRESOL TRADIÇÃO - CUSTAS', arquivo: 'RELATORIO_CRESOL-TRADICAO',
+    statusMode: 'conclusao',
+    ordenacaoPastas: 'ULTIMA_MODIFICACAO_DESC',
+    garantiaSep: '\n',
+    explodeMode: 'porProcesso',
+    tipoDocEstrito: false,
+    regexContrato: 'ampla',
+    dedupePastas: false,
+    idsItensConta: [63873] // CRESOL TRADIÇÃO - CUSTAS (sem variante "RELAÇÃO" encontrada na lista)
+  },
+};
+
+function auth(){
+  return { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' };
+}
+
+function progresso(p, texto){
+  el('bar').style.display = 'block';
+  el('fill').style.width = p + '%';
+  el('fill').textContent = p + '%';
+  if (texto) el('status').textContent = texto;
+}
+
+async function parseResposta(r, url){
+  const texto = await r.text();
+  try {
+    return JSON.parse(texto);
+  } catch(e) {
+    throw new Error(`Resposta inválida de ${url} (status ${r.status}): ${texto.slice(0, 300)}`);
+  }
+}
+
+async function setGet(url){
+  const r = await fetch(url, { headers: auth() });
+  return parseResposta(r, url);
+}
+
+async function setPost(url, body){
+  const r = await fetch(url, { method: 'POST', headers: auth(), body: JSON.stringify(body) });
+  return parseResposta(r, url);
+}
+
+/* LOGIN */
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const email = el('email').value.trim().toLowerCase();
+  const senha = el('senha').value.trim();
+
+  if(!EMAILS_PERMITIDOS.includes(email)){
+    el('resultado').innerHTML = '<span style="color:#dc3545">Acesso não autorizado</span>';
+    return;
+  }
+
+  try{
+    const r = await fetch(LOGIN_URL, {
+      headers: { Authorization: 'Basic ' + btoa(email + ':' + senha) }
+    });
+
+    if(!r.ok) throw 'Erro login';
+
+    TOKEN = (r.headers.get('authorization') || '').replace('Bearer ', '');
+
+    el('login').style.display = 'none';
+    el('relatorio').style.display = 'block';
+
+    carregarCooperativas();
+
+  }catch(e){
+    el('resultado').innerHTML = '<span style="color:#dc3545">' + e + '</span>';
+  }
+});
+
+function carregarCooperativas(){
+  el('cooperativa').innerHTML = '';
+  for(const chave in COOPERATIVAS){
+    const op = document.createElement('option');
+    op.value = chave;
+    op.textContent = COOPERATIVAS[chave].nome;
+    el('cooperativa').appendChild(op);
+  }
+}
+
+function numSafe(x){
+  if(x === null || x === undefined || x === '') return 0;
+  const n = parseFloat(x);
+  return isNaN(n) ? 0 : n;
+}
+
+function formatarMoeda(x){
+  if(x === null || x === undefined || isNaN(x) || x === 0) return null;
+  return 'R$ ' + Number(x).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatarData(v){
+  if(!v) return null;
+  const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : null;
+}
+
+function formatarCPF(cpf){
+  const d = String(cpf).replace(/\D/g, '').padStart(11, '0');
+  if(d.length !== 11) return cpf;
+  return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+}
+
+function formatarCNPJ(cnpj){
+  const d = String(cnpj).replace(/\D/g, '').padStart(14, '0');
+  if(d.length !== 14) return cnpj;
+  return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+}
+
+const REGRA_PRINCIPAL_SRC    = '[0-9]{7}[ .-]{0,2}(?:19|20)[0-9]{2}[ .-]{0,2}[0-9]{3,8}(?:[ -]{1,2}[0-9]{1,2})?';
+const REGRA_ALTERNATIVA_SRC  = '[0-9]{2,4}-(?:19|20)[0-9]{2}-[0-9]{4,8}';
+const REGEX_CONTRATO_AMPLA = new RegExp(`(?:${REGRA_PRINCIPAL_SRC})|(?:${REGRA_ALTERNATIVA_SRC})`, 'g');
+
+const REGEX_CONTRATO_ESTRITA = /[0-9]{7}-[0-9]{4}\.[0-9]+-[0-9]/;
+
+function limparContrato(desc, modo){
+  if(!desc) return null;
+
+  if(modo === 'estrita'){
+    const partes = desc.split('|');
+    const resultados = [];
+    for(const p of partes){
+      const m = p.match(REGEX_CONTRATO_ESTRITA);
+      if(m && m[0] !== '') resultados.push(m[0]);
+    }
+    if(resultados.length === 0) return null;
+    return [...new Set(resultados)];
+  }
+
+  const matches = desc.match(REGEX_CONTRATO_AMPLA);
+  if(!matches) return null;
+  return [...new Set(matches.map(m => m.trim()))];
+}
+
+async function buscarPastas(clienteId, ordenacao, dedupePastas){
+
+  const qtd = 100;
+  let inicio = 0;
+  let todos = [];
+
+  while(true){
+    const url = `${BUSCA_URL}/pastas?inicio=${inicio}&quantidade=${qtd}&ordenacao=${ordenacao}`;
+    const res = await setPost(url, { idsClientes: [clienteId] });
+    const itens = res.itens || res.registros || [];
+
+    if(itens.length === 0) break;
+
+    todos = todos.concat(itens);
+
+    if(itens.length < qtd) break;
+    inicio += qtd;
+  }
+
+  if(dedupePastas === false){
+    return todos;
+  }
+
+  const vistos = new Set();
+  const dedupe = [];
+  let duplicadas = 0;
+
+  for(const it of todos){
+    if(vistos.has(it.id)){
+      duplicadas++;
+      continue;
+    }
+    vistos.add(it.id);
+    dedupe.push(it);
+  }
+
+  if(duplicadas > 0){
+    console.warn(`Atenção: ${duplicadas} pasta(s) duplicada(s) durante a paginação (possível mudança de posição durante a busca).`);
+  }
+
+  return dedupe;
+}
+
+/* ────────────────────────────────────────────────────────────
+   CORREÇÃO #2 — CUSTAS
+   O campo extra CONTA (id 15978) é uma LISTA DE ITENS fixos, e
+   cada cooperativa tem mais de um item que representa custas
+   (ex.: "CRESOL LIDERANÇA - CUSTAS" e "CRESOL LIDERANÇA -
+   RELAÇÃO DE CUSTAS" são itens diferentes, com IDs diferentes).
+   O filtro antigo só aceitava UM idItemConta por cooperativa,
+   então lançamentos feitos sob a variante "RELAÇÃO DE CUSTAS"
+   ficavam de fora — mesmo pertencendo à pasta certa e sendo,
+   na prática, a mesma coisa.
+
+   Agora cada cooperativa tem uma lista `idsItensConta` com
+   todos os IDs de item que devem contar como custas dela
+   (ver COOPERATIVAS acima). A busca filtra pelo ID do item
+   (mais confiável que comparar texto) e soma qualquer
+   movimento cujo item de CONTA esteja nessa lista.
+
+   Também loga um aviso se aparecer um item de CONTA com
+   "CUSTAS" no nome que não está na lista mapeada — sinal de
+   que pode existir mais uma variante para adicionar depois.
+   ──────────────────────────────────────────────────────────── */
+async function calcularCustas(pastaId, coop){
+
+  const idsPermitidos = new Set(coop.idsItensConta || []);
+
+  async function buscarValor(url, tipoMovimento){
+
+    const body = {
+      clientesOuEnvolvidos: [], descricao: '',
+      dataPagamento: null, dataVencimento: null,
+      desconto: null, idsClientes: [], idsContas: [], idsEnvolvidos: [],
+      idsPastasProcessuais: [pastaId], idsPlanosDeContas: [],
+      juros: null, multa: null, tipo: tipoMovimento,
+      valor: null, valorOriginal: null, idsClientesOuEnvolvidos: []
+    };
+
+    const resp = await setPost(`${url}?inicio=0&ordenacao=DATA_DE_VENCIMENTO_DESC&quantidade=100`, body);
+
+    let total = 0;
+    if(resp?.itens?.length > 0){
+      for(const item of resp.itens){
+
+        const campoConta = (item.valoresCamposExtras || item.camposExtras || [])
+          .find(ce => String(ce?.idCampoExtra) === '15978');
+
+        const idItemConta = campoConta?.itemDoCampoExtra?.id ?? null;
+        const descContaItem = campoConta?.itemDoCampoExtra?.descricao ?? null;
+
+        if(idItemConta !== null && idsPermitidos.has(idItemConta)){
+          total += numSafe(item.valor);
+        } else if(descContaItem && /custas/i.test(descContaItem)){
+          // parece ser custas, mas não está mapeado para esta cooperativa -> avisa para revisão
+          console.warn(
+            `Pasta ${pastaId}: movimento ${item.id ?? '(sem id)'} tem CONTA "${descContaItem}" (id ${idItemConta}), que parece custas mas não está em idsItensConta de ${coop.nome}. Não somado. Valor: ${item.valor}`
+          );
+        }
+      }
+    }
+    return total;
+  }
+
+  const receitasFuturas    = await buscarValor(`${BUSCA_URL}/movimentos-futuros`, 'RECEITA_FUTURA');
+  const despesasFuturas    = await buscarValor(`${BUSCA_URL}/movimentos-futuros`, 'DESPESA_FUTURA');
+  const receitasRealizadas = await buscarValor(`${BUSCA_URL}/movimentos-realizados`, 'RECEITA_REALIZADA');
+  const despesasRealizadas = await buscarValor(`${BUSCA_URL}/movimentos-realizados`, 'DESPESA_REALIZADA');
+
+  return Math.abs(receitasFuturas + despesasFuturas + receitasRealizadas + despesasRealizadas);
+}
+
+async function processarPasta(pastaBase, coop){
+
+  const pasta = await setGet(`${APP_URL}/pastasprocessuais/${pastaBase.id}/?marcarAcessada=false`);
+
+  const nomePc = pasta.parteContrariaPrincipal?.descricao || null;
+  const tipoPc = pasta.parteContrariaPrincipal?.tipoDoCadastro;
+  const idPc   = pasta.parteContrariaPrincipal?.id;
+
+  let cpfPc = null;
+  if(idPc){
+    if(coop.tipoDocEstrito){
+      if(tipoPc === 'CONTATO' || tipoPc === 'CLIENTE'){
+        const urlDoc = tipoPc === 'CONTATO' ? `${APP_URL}/contatos/${idPc}` : `${APP_URL}/clientes/${idPc}`;
+        const resp = await setGet(urlDoc);
+        if(resp?.cpf) cpfPc = formatarCPF(resp.cpf);
+        else if(resp?.cnpj) cpfPc = formatarCNPJ(resp.cnpj);
+      }
+    } else {
+      const urlDoc = tipoPc === 'CONTATO' ? `${APP_URL}/contatos/${idPc}` : `${APP_URL}/clientes/${idPc}`;
+      const resp = await setGet(urlDoc);
+      if(resp?.cpf) cpfPc = formatarCPF(resp.cpf);
+      else if(resp?.cnpj) cpfPc = formatarCNPJ(resp.cnpj);
+    }
+  }
+
+  const tipoAcao = pasta.assunto || null;
+
+  let agencia = null, probRecebimento = null, acordo = null,
+      dataAcordo = null, valorAcordoRaw = null, acordoDescumprido = null;
+
+  for(const extra of pasta.valoresCamposExtras || []){
+    switch(String(extra.idCampoExtra)){
+      case '15764': agencia = extra.valor; break;
+      case '25256': probRecebimento = extra.valor; break;
+      case '16135': acordo = extra.valor; break;
+      case '15800': dataAcordo = formatarData(extra.valor); break;
+      case '15792': valorAcordoRaw = numSafe(extra.valor); break;
+      case '19172': acordoDescumprido = extra.valor; break;
+    }
+  }
+
+  const valorAcordo = (valorAcordoRaw && valorAcordoRaw !== 0) ? formatarMoeda(valorAcordoRaw) : null;
+
+  let status = null, dataConclusao = null, arquivado = null;
+
+  if(pasta.conclusao){
+    dataConclusao = formatarData(pasta.conclusao.dataConclusao);
+    arquivado = (pasta.conclusao.arquivada === null || pasta.conclusao.arquivada === undefined)
+      ? null : pasta.conclusao.arquivada;
+  }
+
+  if(coop.statusMode === 'conclusao'){
+    status = pasta.conclusao?.resultadoConclusao?.descricao || null;
+  } else if(coop.statusMode === 'situacao'){
+    status = pasta.situacao?.descricao || null;
+  }
+
+  let comentario = null;
+  const coment = await setGet(`${APP_URL}/pastasprocessuais/${pasta.id}/comentarios`);
+  if(coment && coment.quantidadeTotal > 0){
+    comentario = coment.itens[0].conteudo || null;
+  }
+
+  if(coop.statusMode === 'comentario'){
+    status = comentario;
+  }
+
+  const progn = await setGet(`${APP_URL}/pastasprocessuais/${pasta.id}/prognosticoevalores`);
+  const valorCausaRaw = numSafe(progn?.valorCausa);
+  const valorCausa = formatarMoeda(valorCausaRaw);
+
+  /* ────────────────────────────────────────────────────────────
+     CORREÇÃO #1 — PEDIDOS/CONTRATOS
+     Antes, um pedido só entrava no relatório se o texto batesse
+     com o regex de número de contrato. Pedidos com formatação
+     diferente (sem CCB, sem hífen, com espaço) ou descrições
+     totalmente diferentes (ex.: "Cheque Especial") não geravam
+     nenhum match e o pedido inteiro sumia da planilha.
+
+     Agora, quando o regex não encontra número nenhum, a
+     descrição original do pedido é usada como valor de
+     "contrato" — garantindo que nenhum pedido cadastrado no
+     Lawyer deixe de aparecer, mesmo sem um número "limpo".
+
+     CORREÇÃO #3 — ENDPOINT DE PEDIDOS
+     O endpoint antigo (GET /pastasprocessuais/{id}/pedidos, no
+     APP_URL) não retorna os pedidos reais cadastrados na pasta.
+     O endpoint correto é o de busca avançada, com idsPastas no
+     corpo da requisição — confirmado testando diretamente a API:
+
+       POST {BUSCA_URL}/pedidos?inicio=0&ordenacao=CATEGORIA_ASC&quantidade=100
+       body: { idsPastas: [pastaId] }
+     ──────────────────────────────────────────────────────────── */
+  let contratosArr = [];
+  const pedidos = await setPost(
+    `${BUSCA_URL}/pedidos?inicio=0&ordenacao=CATEGORIA_ASC&quantidade=100`,
+    { idsPastas: [pasta.id] }
+  );
+  if(pedidos?.itens){
+    let contratosRaw = [];
+    for(const p of pedidos.itens){
+      const c = limparContrato(p.descricao, coop.regexContrato);
+      if(c && c.length > 0){
+        contratosRaw = contratosRaw.concat(c);
+      } else if(p.descricao && p.descricao.trim() !== ''){
+        // fallback: sem número reconhecido -> usa a descrição crua
+        contratosRaw.push(p.descricao.trim());
+      }
+    }
+    contratosArr = [...new Set(contratosRaw)];
+  }
+
+  /* ────────────────────────────────────────────────────────────
+     CORREÇÃO #4 — ENDPOINT DE GARANTIAS
+     Mesmo problema do endpoint de pedidos: o endpoint antigo
+     (GET /pastasprocessuais/{id}/garantias, no APP_URL) não
+     retornava nada. O endpoint correto também é o de busca
+     avançada, confirmado testando diretamente a API:
+
+       POST {BUSCA_URL}/garantias?inicio=0&ordenacao=DATA_FINALIZACAO_ASC&quantidade=100
+       body: { idsPastas: [pastaId] }
+     ──────────────────────────────────────────────────────────── */
+  let garantiasTxt = null;
+  if(coop.temGarantias !== false){
+    const garantias = await setPost(
+      `${BUSCA_URL}/garantias?inicio=0&ordenacao=DATA_FINALIZACAO_ASC&quantidade=100`,
+      { idsPastas: [pasta.id] }
+    );
+    if(garantias?.itens?.length > 0){
+      garantiasTxt = garantias.itens.map(g => g.descricao || '').join(coop.garantiaSep);
+    }
+  }
+
+  const custas = await calcularCustas(pasta.id, coop);
+
+  let cnjsArr = [], comarcasArr = [], varasArr = [], datasArr = [];
+  const procBusca = await setPost(`${BUSCA_URL}/processos-judiciais?inicio=0&quantidade=100`, { idsPastasProcessuais: [pasta.id] });
+
+  if(procBusca?.itens?.length > 0){
+    const seen = new Set();
+    for(const p of procBusca.itens){
+      const cnj = `${p.numeroCNJ || ''} - ${p.instancia || ''} - ${p.tribunal || ''}`;
+      if(!seen.has(cnj)){
+        seen.add(cnj);
+        cnjsArr.push(cnj);
+        comarcasArr.push(p.comarca || null);
+        varasArr.push(p.unidadeJudicial || null);
+        datasArr.push(formatarData(p.dataEntrada));
+      }
+    }
+  }
+
+  const camposComuns = {
+    cliente: pasta.clientePrincipal?.descricao || null,
+    associado: nomePc,
+    cpf_cnpj: cpfPc,
+    agencia,
+    tipo_acao: tipoAcao,
+    status,
+    comentario,
+    custas: formatarMoeda(custas),
+    valor_causa: valorCausa,
+    data_conclusao: dataConclusao,
+    data_cadastro: formatarData(pasta.dataCadastro),
+    probabilidade_recebimento: probRecebimento,
+    arquivado,
+    acordo,
+    data_acordo: dataAcordo,
+    valor_acordo: valorAcordo,
+    acordo_descumprido: acordoDescumprido
+  };
+
+  const linhas = [];
+
+  if(coop.explodeMode === 'cartesiano'){
+    const contratosL = contratosArr.length > 0 ? contratosArr : [null];
+    const cnjsL       = cnjsArr.length > 0 ? cnjsArr : [null];
+
+    for(const contrato of contratosL){
+      for(let pi = 0; pi < cnjsL.length; pi++){
+        linhas.push({
+          ...camposComuns,
+          contrato,
+          garantia: garantiasTxt,
+          data_ajuizamento: datasArr[pi] ?? null,
+          cnj: cnjsL[pi],
+          comarca: comarcasArr[pi] ?? null,
+          vara: varasArr[pi] ?? null
+        });
+      }
+    }
+  } else if(coop.explodeMode === 'porProcesso'){
+    const contratoTxt = contratosArr.length > 0 ? contratosArr.join('\n') : null;
+    const cnjsL = cnjsArr.length > 0 ? cnjsArr : [null];
+
+    for(let pi = 0; pi < cnjsL.length; pi++){
+      linhas.push({
+        ...camposComuns,
+        contrato: contratoTxt,
+        garantia: garantiasTxt,
+        data_ajuizamento: datasArr[pi] ?? null,
+        cnj: cnjsL[pi],
+        comarca: comarcasArr[pi] ?? null,
+        vara: varasArr[pi] ?? null
+      });
+    }
+  } else {
+    linhas.push({
+      ...camposComuns,
+      contrato: contratosArr.length > 0 ? contratosArr.join('\n') : null,
+      garantia: garantiasTxt,
+      data_ajuizamento: datasArr.length > 0 ? datasArr.join('\n') : null,
+      cnj: cnjsArr.length > 0 ? cnjsArr.join('\n') : null,
+      comarca: comarcasArr.length > 0 ? comarcasArr.join('\n') : null,
+      vara: varasArr.length > 0 ? varasArr.join('\n') : null
+    });
+  }
+
+  return linhas;
+}
+
+el('btnGerar').onclick = async () => {
+
+  const chaveCoop = el('cooperativa').value;
+  const coop = COOPERATIVAS[chaveCoop];
+
+  const w = window.open('', '_blank');
+
+  if(!w){
+    alert('O navegador bloqueou o popup. Permita pop-ups para este site e tente novamente.');
+    return;
+  }
+
+  w.document.write('<html><body style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Arial,sans-serif;padding:30px"><h3>Gerando relatório, aguarde...</h3></body></html>');
+  w.document.close();
+
+  el('status').textContent = '';
+  progresso(2, 'Buscando pastas...');
+
+  const pastas = await buscarPastas(coop.clienteId, coop.ordenacaoPastas, coop.dedupePastas);
+
+  progresso(5, `${pastas.length} pasta(s) encontrada(s). Processando...`);
+
+  const linhas = [];
+  const erros = [];
+
+  for(let i = 0; i < pastas.length; i++){
+
+    try {
+      const linhasPasta = await processarPasta(pastas[i], coop);
+      linhas.push(...linhasPasta);
+    } catch(err) {
+      console.error(`Erro ao processar pasta ${pastas[i].id}:`, err);
+      erros.push({ id: pastas[i].id, erro: String(err) });
+    }
+
+    progresso(
+      Math.round(((i + 1) / pastas.length) * 100),
+      `Processando ${i + 1}/${pastas.length}...`
+    );
+  }
+
+  if(erros.length > 0){
+    console.warn(`${erros.length} pasta(s) falharam e foram puladas:`, erros);
+  }
+
+  progresso(100, 'Concluído!' + (erros.length > 0 ? ` (${erros.length} pasta(s) com erro - ver console)` : ''));
+
+  abrirRelatorio(linhas, coop, w, erros);
+};
+
+function escapeHtml(v){
+  if(v === null || v === undefined) return '';
+  return String(v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+}
+
+function abrirRelatorio(linhas, coop, w, erros){
+
+  const colunas = [
+    'cliente','associado','cpf_cnpj','agencia','tipo_acao','status','comentario',
+    'contrato','garantia','custas','valor_causa','data_ajuizamento','data_conclusao',
+    'data_cadastro','cnj','comarca','vara','probabilidade_recebimento','arquivado',
+    'acordo','data_acordo','valor_acordo','acordo_descumprido'
+  ];
+
+  const ativos = linhas.filter(l => l.arquivado !== true);
+  const arquivados = linhas.filter(l => l.arquivado === true);
+
+  function renderTabela(lista){
+    const header = '<tr>' + colunas.map(c => '<th>' + escapeHtml(c) + '</th>').join('') + '</tr>';
+    const linhasHtml = lista.map(l =>
+      '<tr>' + colunas.map(c => '<td>' + escapeHtml(l[c]) + '</td>').join('') + '</tr>'
+    ).join('');
+    return '<table>' + header + linhasHtml + '</table>';
+  }
+
+  const shell = `
+<html><head>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#f8f9fa;padding:20px;color:#222}
+table{border-collapse:collapse;width:100%;background:#fff;margin-bottom:30px;font-size:12px;border-radius:8px;overflow:hidden}
+th{background:#667eea;color:#fff;padding:8px;position:sticky;top:0}
+td{padding:6px;border-bottom:1px solid #eee;vertical-align:top}
+h2,h3{text-align:center}
+.botoes{text-align:center}
+button{margin:5px;padding:10px 16px;border:none;border-radius:8px;color:#fff;font-weight:700;cursor:pointer}
+</style>
+</head><body>
+
+<h2>Relatório de Pastas - ${escapeHtml(coop.nome)}</h2>
+
+${(erros && erros.length > 0) ? `<p style="text-align:center;color:#dc3545;font-weight:bold">⚠️ ${erros.length} pasta(s) não puderam ser processadas e foram puladas (IDs: ${erros.map(e => e.id).join(', ')}). Veja o console (F12) para detalhes.</p>` : ''}
+
+<div class="botoes">
+  <button id="btnBaixar" style="background:#667eea">⬇️ XLSX</button>
+  <button id="btnImprimir" style="background:#6c757d">🖨️ Imprimir</button>
+</div>
+
+<h3>ATIVOS (${ativos.length})</h3>
+${renderTabela(ativos)}
+
+<h3>ARQUIVADOS (${arquivados.length})</h3>
+${renderTabela(arquivados)}
+
+</body></html>`;
+
+  w.document.open();
+  w.document.write(shell);
+  w.document.close();
+
+  w.document.getElementById('btnBaixar').addEventListener('click', () => {
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ativos), 'ATIVOS');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(arquivados), 'ARQUIVADOS');
+    XLSX.writeFile(wb, coop.arquivo + '.xlsx');
+  });
+
+  w.document.getElementById('btnImprimir').addEventListener('click', () => {
+    w.print();
+  });
+}
+ 
+</script>
+
+</body>
+</html>

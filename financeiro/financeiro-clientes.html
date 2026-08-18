@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Eleven · Resumo Financeiro | Clientes</title>
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+
+<style>
+    .radio-group{display:flex;justify-content:space-around;background:var(--input-bg);padding:15px;border-radius:10px;margin-bottom:20px;width:100%}
+
+    .progress-detail{font-size:.75rem;color:var(--muted);margin-top:2px}
+    .fill.indeterminado{width:35% !important;animation:progresso-indeterminado 1.2s infinite ease-in-out}
+    @keyframes progresso-indeterminado{0%{margin-left:-35%}50%{margin-left:65%}100%{margin-left:-35%}}
+
+    /* Tela de resultados */
+    .results-card{max-width:760px;text-align:left;margin:0 auto}
+    .results-list{width:100%;display:flex;flex-direction:column;gap:10px;margin-top:10px}
+    .section-title{font-size:.85rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:22px 0 10px}
+    .adv-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:1px solid var(--border);border-radius:12px;background:var(--card-2)}
+    .adv-item.geral{background:linear-gradient(90deg,rgba(55,214,168,.12),var(--card-2));border-color:var(--brand)}
+    .adv-info{display:flex;flex-direction:column;gap:4px}
+    .adv-nome{font-weight:800;font-size:1.05rem}
+    .adv-badges{display:flex;gap:8px;flex-wrap:wrap}
+    .b-total{background:var(--muted);color:#fff}
+    .b-rec{background:var(--success);color:#fff}
+    .b-desp{background:var(--danger);color:#fff}
+    .b-saldo{background:var(--brand);color:#fff}
+    .adv-actions{display:flex;gap:8px;flex-shrink:0}
+    .btn-sm{width:auto;padding:10px 16px;font-size:.9rem;margin-bottom:0;white-space:nowrap}
+    .btn-outline{background:transparent;color:var(--brand);border:2px solid var(--brand)}
+    .top-actions{display:flex;gap:10px;margin-top:18px}
+    .top-actions .btn{margin-bottom:0}
+    .empty-msg{color:var(--muted);text-align:center;padding:20px}
+
+    .sem-lanc-card{border:1px dashed var(--border);border-radius:12px;padding:16px 18px;background:var(--card-2)}
+    .sem-lanc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+    .sem-lanc-header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<div class="app">
+    <div id="loginScreen" class="card login-card center">
+        <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+        <p class="subtitle">Acessar Relatório: Resumo Financeiro | Clientes</p>
+        <form id="loginForm" style="width:100%">
+            <div class="field">
+                <label for="email">E-mail</label>
+                <input type="text" id="email" class="form-control" required autocomplete="username">
+            </div>
+            <div class="field">
+                <label for="senha">Senha</label>
+                <div class="password-wrap">
+                    <input type="password" id="senha" class="form-control" required autocomplete="current-password">
+                    <button type="button" class="password-toggle" id="toggleSenha" aria-label="Mostrar senha" title="Mostrar senha">
+                        <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                </div>
+            </div>
+            <button type="submit" class="btn">Entrar Agora</button>
+        </form>
+        <div id="resultado" class="subtitle" style="margin-top:10px"></div>
+    </div>
+
+    <div id="filterScreen" class="card login-card center" style="display:none">
+        <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+        <h1>Relatório Financeiro Mensal</h1>
+        <p class="subtitle" style="margin-bottom:8px">Gera um relatório geral e um relatório individual por cliente</p>
+        <div class="filter-info">ℹ️ O período é <strong>opcional</strong>. Selecione o mês de referência (ou um período específico). Se nada for selecionado, o relatório trará <strong>todos os lançamentos</strong> e <strong>todos os clientes</strong> cadastrados, sem restrição de data.</div>
+
+        <div class="filter-section">
+            <div class="filter-row">
+                <label class="filter-label">🗓️ Mês de Referência (opcional)</label>
+                <input type="month" id="mesRef" class="form-control" style="margin-bottom:0">
+            </div>
+            <div class="divider"></div>
+            <div class="filter-row">
+                <label class="filter-label">📅 Ou um período específico (opcional, tem prioridade sobre o mês)</label>
+                <div class="date-inputs">
+                    <input type="date" id="dataIni" class="form-control">
+                    <input type="date" id="dataFim" class="form-control">
+                </div>
+            </div>
+        </div>
+
+        <div class="radio-group">
+            <label><input type="radio" name="tipoMov" value="TODOS" checked> Tudo</label>
+            <label><input type="radio" name="tipoMov" value="DESPESA"> Despesas</label>
+            <label><input type="radio" name="tipoMov" value="RECEITA"> Receitas</label>
+        </div>
+
+        <label class="filter-label">👥 Exibir Clientes</label>
+        <div class="radio-group" style="margin-top:8px">
+            <label><input type="radio" name="tipoClientes" value="TODOS" checked> Todos</label>
+            <label><input type="radio" name="tipoClientes" value="COM"> Com movimentos</label>
+            <label><input type="radio" name="tipoClientes" value="SEM"> Sem movimentos</label>
+        </div>
+
+        <button id="btnGerar" class="btn btn-financeiro" onclick="gerarRelatorio()">Gerar Relatórios</button>
+        <button class="btn btn-danger" onclick="location.reload()">Sair</button>
+        <div id="progressWrap" class="progress-wrap">
+            <div class="progress"><div id="barraProgresso" class="fill"></div></div>
+            <div id="textoProgresso" class="progress-text">Preparando busca...</div>
+            <div id="detalheProgresso" class="progress-detail"></div>
+        </div>
+        <div id="statusRel"></div>
+    </div>
+
+    <div id="resultsScreen" class="card results-card" style="display:none">
+        <h1>Relatórios Gerados</h1>
+        <p class="subtitle" style="margin-bottom:6px">Escolha um relatório para visualizar em nova aba ou baixar o arquivo HTML</p>
+        <div id="resultsList" class="results-list"></div>
+        <div class="top-actions">
+            <button class="btn btn-danger btn-sm" style="width:100%" onclick="voltarFiltros()">⬅️ Nova Busca</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let BEARER_TOKEN = null;
+let DADOS_ALL = [];              // todos os movimentos (já filtrados por tipo Tudo/Despesa/Receita)
+let CLIENTES_MAP = {};           // id -> { nome, itens: [] }  (clientes COM lançamento, seja como cliente ou envolvido)
+let CLIENTES_SEM_LANCAMENTO = []; // [{id, nome}] clientes cadastrados sem nenhum lançamento no período
+let TIPO_CLIENTES = 'TODOS';      // TODOS | COM | SEM - qual grupo de clientes exibir nos resultados
+
+const PROGRESSO_LABELS = { futuros: 'Movimentos futuros', realizados: 'Movimentos realizados', contatos: 'Clientes cadastrados' };
+let PROGRESSO = {};
+
+const LOGIN_URL      = "https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum";
+const FUTUROS_URL    = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/movimentos-futuros";
+const REALIZADOS_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/movimentos-realizados";
+const CONTATOS_URL   = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/contatos";
+
+/* ========== Mostrar/ocultar senha ========== */
+(function(){
+    const toggleSenhaBtn = document.getElementById('toggleSenha');
+    const senhaInput = document.getElementById('senha');
+    const eyeIcon = document.getElementById('eyeIcon');
+    const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+    const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.4 18.4 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/>';
+    if(toggleSenhaBtn){
+        toggleSenhaBtn.addEventListener('click',()=>{
+            const showing = senhaInput.type === 'text';
+            senhaInput.type = showing ? 'password' : 'text';
+            eyeIcon.innerHTML = showing ? EYE_OPEN : EYE_OFF;
+            toggleSenhaBtn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+            toggleSenhaBtn.title = showing ? 'Mostrar senha' : 'Ocultar senha';
+        });
+    }
+})();
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const creds = btoa(document.getElementById('email').value + ':' + document.getElementById('senha').value);
+    try {
+        const r = await fetch(LOGIN_URL, { headers: { 'Authorization': 'Basic ' + creds } });
+        if (!r.ok) throw new Error();
+        BEARER_TOKEN = r.headers.get('authorization').replace(/^(Bearer|Basic)\s/i, '').trim();
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('filterScreen').style.display = 'block';
+    } catch {
+        document.getElementById('resultado').innerHTML = "<span style='color:red'>Erro no login</span>";
+    }
+});
+
+async function buscarPaginado(url, body, quantidade, ordenacao, chaveProgresso) {
+    let inicio = 0, todos = [], totalEsperado = null;
+    while (true) {
+        const r = await fetch(`${url}?inicio=${inicio}&quantidade=${quantidade}&ordenacao=${ordenacao}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const j = await r.json();
+        const itens = j.itens || [];
+        if (totalEsperado === null) totalEsperado = j.total ?? j.totalItens ?? j.count ?? null;
+        todos.push(...itens);
+
+        if (chaveProgresso) {
+            PROGRESSO[chaveProgresso] = { atual: todos.length, total: totalEsperado };
+            atualizarProgresso();
+        }
+
+        if (totalEsperado !== null && todos.length >= totalEsperado) break;
+        if (itens.length < quantidade) break;
+        inicio += quantidade;
+    }
+    return todos;
+}
+
+function atualizarProgresso() {
+    const partes = Object.values(PROGRESSO);
+    if (!partes.length) return;
+
+    const barra = document.getElementById('barraProgresso');
+    const texto = document.getElementById('textoProgresso');
+    const detalhe = document.getElementById('detalheProgresso');
+
+    const todosComTotal = partes.every(p => p.total !== null);
+    if (todosComTotal) {
+        const totalGeral = partes.reduce((a, p) => a + p.total, 0);
+        const atualGeral = partes.reduce((a, p) => a + p.atual, 0);
+        const percentual = totalGeral > 0 ? Math.min(100, Math.round((atualGeral / totalGeral) * 100)) : 100;
+        barra.classList.remove('indeterminado');
+        barra.style.width = percentual + '%';
+        texto.innerText = `⏳ Carregando dados... ${percentual}%`;
+    } else {
+        // API não informou o total ainda (ou nunca informa) - progresso indeterminado
+        barra.classList.add('indeterminado');
+        texto.innerText = `⏳ Carregando dados...`;
+    }
+
+    detalhe.innerHTML = Object.entries(PROGRESSO)
+        .map(([chave, p]) => `${PROGRESSO_LABELS[chave] || chave}: ${p.atual}${p.total !== null ? ' / ' + p.total : ''}`)
+        .join(' &nbsp;•&nbsp; ');
+}
+
+function formatBRL(v) {
+    return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+}
+
+function urlCadastroEleven(id, tipoDoCadastro) {
+    const tipo = tipoDoCadastro === 'CONTATO' ? 'contatos' : 'clientes';
+    return `https://eleven.alkasoft.com.br/auth/${tipo}/${id}/detalhamento`;
+}
+
+function calcResumoFinanceiro(itens) {
+    let receita = 0, despesa = 0;
+    itens.forEach(i => {
+        const v = i.valor || 0;
+        if (v < 0) despesa += Math.abs(v); else receita += v;
+    });
+    return { total: itens.length, receita, despesa, saldo: receita - despesa };
+}
+
+function calcularPeriodo() {
+    const dIniManual = document.getElementById('dataIni').value;
+    const dFimManual = document.getElementById('dataFim').value;
+    if (dIniManual && dFimManual) return { valorMinimo: dIniManual, valorMaximo: dFimManual };
+
+    const mes = document.getElementById('mesRef').value; // formato "AAAA-MM"
+    if (mes) {
+        const [ano, mesNum] = mes.split('-').map(Number);
+        const primeiroDia = `${mes}-01`;
+        const ultimoDia = new Date(ano, mesNum, 0).getDate();
+        const ultimoDiaStr = `${mes}-${String(ultimoDia).padStart(2, '0')}`;
+        return { valorMinimo: primeiroDia, valorMaximo: ultimoDiaStr };
+    }
+    return null;
+}
+
+async function gerarRelatorio() {
+    const btn = document.getElementById('btnGerar');
+    btn.disabled = true;
+    btn.innerText = "⏳ Buscando dados...";
+    document.getElementById('statusRel').innerHTML = "";
+
+    PROGRESSO = { futuros: { atual: 0, total: null }, realizados: { atual: 0, total: null }, contatos: { atual: 0, total: null } };
+    const progressWrap = document.getElementById('progressWrap');
+    document.getElementById('barraProgresso').style.width = '0%';
+    document.getElementById('barraProgresso').classList.remove('indeterminado');
+    document.getElementById('textoProgresso').innerText = 'Preparando busca...';
+    document.getElementById('detalheProgresso').innerHTML = '';
+    progressWrap.style.display = 'block';
+    // Força o navegador a pintar a barra antes de disparar as requisições (evita "sumir" em respostas muito rápidas)
+    void progressWrap.offsetHeight;
+    await new Promise(resolve => requestAnimationFrame(resolve));
+
+    const dataVencimento = calcularPeriodo();
+    const bodyMovimentos = {
+        "clientesOuEnvolvidos": [],
+        "descricao": null,
+        "filtrosCamposExtras": [],
+        "dataVencimento": dataVencimento,
+        "idsClientes": [],
+        "idsEnvolvidos": [],
+        "idsPastasProcessuais": [],
+        "idsPlanosDeContas": [],
+        "valor": {}
+    };
+    const bodyContatos = {
+        "cnpj": null, "cpf": null, "email": null, "filtrosCamposExtras": [],
+        "nome": null, "nomeMae": null, "nomePai": null, "rg": null, "telefone": null,
+        "ano": {}, "dataCadastro": null, "dia": {},
+        "discriminador": "CLIENTE", "idsEstadoCivil": [], "idsProfissao": [], "tipo": "TODOS"
+    };
+
+    try {
+        const [fut, real, todosClientes] = await Promise.all([
+            buscarPaginado(FUTUROS_URL, bodyMovimentos, 50, 'DATA_DE_VENCIMENTO_ASC', 'futuros'),
+            buscarPaginado(REALIZADOS_URL, bodyMovimentos, 50, 'DATA_DE_VENCIMENTO_ASC', 'realizados'),
+            buscarPaginado(CONTATOS_URL, bodyContatos, 100, 'NOME_ASC', 'contatos')
+        ]);
+
+        fut.forEach(i => i._statusRel = 'previstas');
+        real.forEach(i => i._statusRel = 'realizadas');
+        let dados = [...fut, ...real];
+
+        const tipo = document.querySelector('input[name="tipoMov"]:checked').value;
+        if (tipo === 'DESPESA') dados = dados.filter(m => (m.valor || 0) < 0);
+        if (tipo === 'RECEITA') dados = dados.filter(m => (m.valor || 0) > 0);
+        DADOS_ALL = dados;
+
+        TIPO_CLIENTES = document.querySelector('input[name="tipoClientes"]:checked').value;
+
+        // Agrupa por cliente, considerando tanto o campo "cliente" quanto "envolvido"
+        CLIENTES_MAP = {};
+        DADOS_ALL.forEach(item => {
+            const cli = item.cliente;
+            const env = item.envolvido;
+            if (cli && cli.id) {
+                if (!CLIENTES_MAP[cli.id]) CLIENTES_MAP[cli.id] = { nome: cli.descricao, tipoDoCadastro: cli.tipoDoCadastro, itens: [] };
+                CLIENTES_MAP[cli.id].itens.push(item);
+            }
+            if (env && env.id && (!cli || env.id !== cli.id)) {
+                if (!CLIENTES_MAP[env.id]) CLIENTES_MAP[env.id] = { nome: env.descricao, tipoDoCadastro: env.tipoDoCadastro, itens: [] };
+                CLIENTES_MAP[env.id].itens.push(item);
+            }
+        });
+
+        // Clientes cadastrados que não apareceram em nenhum lançamento
+        CLIENTES_SEM_LANCAMENTO = todosClientes
+            .filter(c => !CLIENTES_MAP[c.id])
+            .map(c => ({ id: c.id, nome: c.nome, tipoDoCadastro: 'CLIENTE' }))
+            .sort((a, b) => a.nome.localeCompare(b.nome));
+
+        renderizarResultados();
+        progressWrap.style.display = 'none';
+        document.getElementById('filterScreen').style.display = 'none';
+        document.getElementById('resultsScreen').style.display = 'block';
+        btn.disabled = false;
+        btn.innerText = "Gerar Relatórios";
+    } catch (e) {
+        alert("Erro ao carregar dados.");
+        progressWrap.style.display = 'none';
+        btn.disabled = false;
+        btn.innerText = "Gerar Relatórios";
+    }
+}
+
+function voltarFiltros() {
+    document.getElementById('resultsScreen').style.display = 'none';
+    document.getElementById('filterScreen').style.display = 'block';
+}
+
+function renderizarResultados() {
+    const lista = document.getElementById('resultsList');
+    const mostrarCom = TIPO_CLIENTES === 'TODOS' || TIPO_CLIENTES === 'COM';
+    const mostrarSem = TIPO_CLIENTES === 'TODOS' || TIPO_CLIENTES === 'SEM';
+    let html = '';
+
+    if (mostrarCom) {
+        // Card Geral
+        const sGeral = calcResumoFinanceiro(DADOS_ALL);
+        html += montarItemHtml('__GERAL__', '📋 Relatório Geral', sGeral, true, null, null);
+
+        // Clientes com lançamento
+        const idsComLancamento = Object.keys(CLIENTES_MAP).sort((a, b) => CLIENTES_MAP[a].nome.localeCompare(CLIENTES_MAP[b].nome));
+        if (idsComLancamento.length) {
+            html += `<div class="section-title">Clientes com lançamento (${idsComLancamento.length})</div>`;
+            idsComLancamento.forEach(id => {
+                const s = calcResumoFinanceiro(CLIENTES_MAP[id].itens);
+                html += montarItemHtml(id, CLIENTES_MAP[id].nome, s, false, id, CLIENTES_MAP[id].tipoDoCadastro);
+            });
+        }
+    }
+
+    lista.innerHTML = html || '<div class="empty-msg">Nenhum lançamento encontrado para os filtros selecionados.</div>';
+
+    // Clientes sem lançamento
+    if (mostrarSem && CLIENTES_SEM_LANCAMENTO.length) {
+        const chips = CLIENTES_SEM_LANCAMENTO.map(c => `<a class="chip" href="${urlCadastroEleven(c.id, c.tipoDoCadastro)}" target="_blank">${c.nome}</a>`).join('');
+        lista.innerHTML += `
+        <div class="section-title">Clientes sem lançamento (${CLIENTES_SEM_LANCAMENTO.length})</div>
+        <div class="sem-lanc-card">
+            <div class="sem-lanc-header">
+                <span style="font-size:.85rem;color:var(--muted)">Nenhum lançamento (previsto ou realizado) encontrado no período para estes clientes.</span>
+                <button class="btn btn-sm btn-outline" onclick="baixarListaSemLancamento()">⬇️ Baixar lista</button>
+            </div>
+            <div class="sem-lanc-chips">${chips}</div>
+        </div>`;
+    } else if (mostrarSem && !CLIENTES_SEM_LANCAMENTO.length && !mostrarCom) {
+        lista.innerHTML = '<div class="empty-msg">Todos os clientes possuem ao menos um lançamento no período selecionado.</div>';
+    }
+}
+
+function montarItemHtml(chave, nomeExibicao, s, geral, clienteId, tipoDoCadastro) {
+    const chaveAttr = encodeURIComponent(chave);
+    const nomeHtml = (!geral && clienteId)
+        ? `<a href="${urlCadastroEleven(clienteId, tipoDoCadastro)}" target="_blank" style="color:inherit;text-decoration:underline;text-decoration-style:dotted">${nomeExibicao}</a>`
+        : nomeExibicao;
+    return `
+    <div class="adv-item ${geral ? 'geral' : ''}">
+        <div class="adv-info">
+            <div class="adv-nome">${nomeHtml}</div>
+            <div class="adv-badges">
+                <span class="badge b-total">${s.total} lançamento(s)</span>
+                <span class="badge b-rec">R$ ${formatBRL(s.receita)} receita</span>
+                <span class="badge b-desp">R$ ${formatBRL(s.despesa)} despesa</span>
+                <span class="badge b-saldo">R$ ${formatBRL(s.saldo)} saldo</span>
+            </div>
+        </div>
+        <div class="adv-actions">
+            <button class="btn btn-sm btn-outline" onclick="verRelatorio('${chaveAttr}')">👁️ Ver</button>
+            <button class="btn btn-sm btn-financeiro" onclick="baixarRelatorio('${chaveAttr}')">⬇️ Baixar</button>
+        </div>
+    </div>`;
+}
+
+function obterDadosRelatorio(chaveAttr) {
+    const chave = decodeURIComponent(chaveAttr);
+    if (chave === '__GERAL__') {
+        return { itens: DADOS_ALL, titulo: 'Relatório Geral (Todos os Clientes)', isGeral: true };
+    }
+    return { itens: CLIENTES_MAP[chave].itens, titulo: CLIENTES_MAP[chave].nome, isGeral: false };
+}
+
+function verRelatorio(chaveAttr) {
+    const { itens, titulo, isGeral } = obterDadosRelatorio(chaveAttr);
+    const w = window.open('', '_blank');
+    if (!w) { alert("Bloqueador de pop-ups ativo!"); return; }
+    w.document.write(construirHtmlFinanceiro(itens, titulo, isGeral));
+    w.document.close();
+}
+
+function baixarRelatorio(chaveAttr) {
+    const { itens, titulo, isGeral } = obterDadosRelatorio(chaveAttr);
+    const htmlStr = construirHtmlFinanceiro(itens, titulo, isGeral);
+    const blob = new Blob([htmlStr], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dataStr = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `Financeiro_${titulo.replace(/[^a-zA-Z0-9]+/g, '_')}_${dataStr}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function baixarListaSemLancamento() {
+    const linhas = ['Cliente'];
+    CLIENTES_SEM_LANCAMENTO.forEach(c => linhas.push(`"${c.nome.replace(/"/g, '""')}"`));
+    const csv = linhas.join('\n');
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dataStr = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `Clientes_Sem_Lancamento_${dataStr}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// Gera o HTML completo e independente do relatório financeiro (funciona aberto em nova aba ou baixado e aberto depois)
+function construirHtmlFinanceiro(itens, titulo, isGeral) {
+    const semLancamentoHtml = (isGeral && CLIENTES_SEM_LANCAMENTO.length) ? `
+        <div class="card" style="margin-top:25px">
+            <h2 style="margin-top:0;font-size:18px">🚫 Clientes sem lançamento no período (${CLIENTES_SEM_LANCAMENTO.length})</h2>
+            <table>
+                <thead><tr><th>Cliente</th></tr></thead>
+                <tbody>${CLIENTES_SEM_LANCAMENTO.map(c => `<tr><td>${c.nome}</td></tr>`).join('')}</tbody>
+            </table>
+        </div>` : '';
+
+    const chart2Titulo = isGeral ? 'Saldo por Cliente (Top 10)' : 'Por Plano de Contas';
+
+    return `
+    <html><head><title>Financeiro - ${titulo}</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"><\/script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script>
+    <style>
+        body{font-family:sans-serif;padding:40px;background:#f4f7f6;color:#333}
+        .header-card{background:#fff;padding:25px;border-radius:15px;box-shadow:0 4px 15px rgba(0,0,0,.06);margin-bottom:25px;border-left:8px solid #667eea}
+        .btn-bar{display:flex;gap:15px;margin-bottom:30px;flex-wrap:wrap}
+        .btn{padding:14px 25px;border:none;border-radius:10px;color:#fff;font-weight:700;cursor:pointer;font-size:15px}
+        .card{background:#fff;padding:25px;border-radius:15px;box-shadow:0 4px 15px rgba(0,0,0,.05)}
+        table{width:100%;border-collapse:collapse;background:#fff;font-size:14px;box-shadow:0 4px 15px rgba(0,0,0,.05)}
+        th{background:#4fa7a0 !important;color:white !important;padding:15px 10px;text-align:left}
+        td{padding:15px 10px;border-bottom:1px solid #f0f2f5}
+        .mov-link{color:#2980b9;text-decoration:none;font-weight:bold}
+        .grid-charts{display:grid;grid-template-columns:1fr 2fr;gap:20px;margin-bottom:25px}
+        .chart-box{height:300px;position:relative}
+        .summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:35px}
+        .total-row{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-top:20px}
+        .box{padding:25px;border-radius:15px;text-align:center;background:#fff;border-bottom:7px solid #ccc;box-shadow:0 4px 12px rgba(0,0,0,.04)}
+        .red{border-color:#dc3545;color:#dc3545}.green{border-color:#28a745;color:#28a745}.blue{border-color:#667eea;color:#667eea}
+        .val{font-size:28px;font-weight:900;display:block;margin-bottom:5px}
+        .label{font-size:11px;color:#777;text-transform:uppercase;font-weight:800;letter-spacing:1px}
+        @media print{.btn-bar{display:none !important} @page{size:A4 landscape;margin:1cm}}
+    </style></head>
+    <body>
+        <div class="header-card">
+            <h1>Financeiro — ${titulo}</h1>
+        </div>
+        <div class="btn-bar">
+            <button onclick="voltarMenu()" class="btn" style="background:#4fa7a0">⬅️ Voltar</button>
+            <button onclick="window.print()" class="btn" style="background:#6c757d">🖨️ Imprimir PDF</button>
+            <button onclick="exportarExcelLocal()" class="btn" style="background:#667eea">⬇️ Exportar Excel</button>
+            <button onclick="resetarFiltro()" class="btn" style="background:#4fa7a0">🔄 Ver Tudo</button>
+        </div>
+        <div class="grid-charts">
+            <div class="card"><div class="chart-box"><canvas id="cResumo"></canvas></div></div>
+            <div class="card"><div class="chart-box"><canvas id="cSecundario"></canvas></div><div style="text-align:center;font-size:11px;color:#999;margin-top:-15px">${chart2Titulo}</div></div>
+        </div>
+        <table>
+            <thead><tr>
+                <th></th><th>Vencimento</th><th>Descrição</th><th>Cliente</th><th>Terceiro/Envolvido</th>
+                <th style="text-align:right">Original</th><th style="text-align:right">Multa</th>
+                <th style="text-align:right">Juros</th><th style="text-align:right">Desc.</th>
+                <th style="text-align:right">Valor Final</th>
+            </tr></thead>
+            <tbody id="corpoTabela"></tbody>
+        </table>
+        ${semLancamentoHtml}
+        <div class="summary-row" id="resumoBoxes"></div>
+        <div class="total-row" id="saldoBoxes"></div>
+        <script>
+            const DADOS = ${JSON.stringify(itens)};
+            const ISGERAL = ${isGeral};
+            let chartResumo, chartSecundario;
+
+            function voltarMenu() {
+                if (window.opener && !window.opener.closed) { window.close(); }
+                else { alert('Esta aba foi aberta de forma independente (ex: arquivo baixado). Feche-a manualmente para voltar ao menu de geração de relatórios.'); }
+            }
+
+            function formatBRL(v) { return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }); }
+
+            function urlCadastro(obj) {
+                if (!obj || !obj.id) return null;
+                const tipo = obj.tipoDoCadastro === 'CONTATO' ? 'contatos' : 'clientes';
+                return \`https://eleven.alkasoft.com.br/auth/\${tipo}/\${obj.id}/detalhamento\`;
+            }
+
+            function linkCadastro(obj) {
+                if (!obj || !obj.descricao) return '-';
+                const url = urlCadastro(obj);
+                return url ? \`<a href="\${url}" target="_blank" class="mov-link">\${obj.descricao}</a>\` : obj.descricao;
+            }
+
+            function montarTabelaEResumo(lista) {
+                lista = lista || DADOS;
+                let tDP = 0, tRP = 0, tDR = 0, tRR = 0;
+                const linhas = lista.map(i => {
+                    const v = i.valor || 0;
+                    const isRec = v >= 0;
+                    const slug = isRec ? 'receitas' : 'despesas';
+                    if (i._statusRel === 'previstas') { isRec ? tRP += v : tDP += Math.abs(v); }
+                    else { isRec ? tRR += v : tDR += Math.abs(v); }
+                    const urlMov = \`https://eleven.alkasoft.com.br/auth/\${slug}-\${i._statusRel}/\${i.id}/detalhamento\`;
+                    return \`<tr>
+                        <td style="text-align:center;font-size:22px">\${isRec ? '<span style="color:#2ecc71">➔</span>' : '<span style="color:#e74c3c">⬅</span>'}</td>
+                        <td>\${i.dataVencimento ? new Date(i.dataVencimento).toLocaleDateString('pt-BR') : '-'}</td>
+                        <td><a href="\${urlMov}" target="_blank" class="mov-link">\${i.descricao?.descricao || 'Ver Detalhes'}</a></td>
+                        <td>\${linkCadastro(i.cliente)}</td>
+                        <td>\${linkCadastro(i.terceiroEnvolvido || i.envolvido)}</td>
+                        <td style="text-align:right">R$ \${formatBRL(i.valorOriginal || 0)}</td>
+                        <td style="text-align:right;color:#dc3545">R$ \${formatBRL(i.multa || 0)}</td>
+                        <td style="text-align:right;color:#dc3545">R$ \${formatBRL(i.juros || 0)}</td>
+                        <td style="text-align:right;color:#28a745">R$ \${formatBRL(i.desconto || 0)}</td>
+                        <td style="text-align:right;font-weight:bold;color:\${isRec ? '#28a745' : '#dc3545'};font-size:16px">
+                            \${isRec ? '' : '-'} R$ \${formatBRL(Math.abs(v))}
+                        </td>
+                    </tr>\`;
+                }).join('');
+
+                document.getElementById('corpoTabela').innerHTML = linhas || '<tr><td colspan="10" style="text-align:center;padding:40px;color:#999">Nenhum movimento encontrado.</td></tr>';
+
+                const saldoPrev = tRP - tDP;
+                const saldoReal = tRR - tDR;
+
+                document.getElementById('resumoBoxes').innerHTML = \`
+                    <div class="box red"><span class="val">- R$ \${formatBRL(tDP)}</span><span class="label">Despesa Prevista</span></div>
+                    <div class="box green"><span class="val">R$ \${formatBRL(tRP)}</span><span class="label">Receita Prevista</span></div>
+                    <div class="box red"><span class="val">- R$ \${formatBRL(tDR)}</span><span class="label">Despesa Realizada</span></div>
+                    <div class="box green"><span class="val">R$ \${formatBRL(tRR)}</span><span class="label">Receita Realizada</span></div>\`;
+
+                document.getElementById('saldoBoxes').innerHTML = \`
+                    <div class="box blue"><span class="val">\${saldoPrev < 0 ? '-' : ''} R$ \${formatBRL(Math.abs(saldoPrev))}</span><span class="label">Saldo Líquido Previsto</span></div>
+                    <div class="box blue"><span class="val">\${saldoReal < 0 ? '-' : ''} R$ \${formatBRL(Math.abs(saldoReal))}</span><span class="label">Saldo Líquido Realizado</span></div>\`;
+
+                return { tDP, tRP, tDR, tRR };
+            }
+
+            function resetarFiltro() {
+                montarTabelaEResumo(DADOS);
+            }
+
+            function exportarExcelLocal() {
+                const planilha = DADOS.map(i => {
+                    const v = i.valor || 0;
+                    return {
+                        "Tipo": v >= 0 ? "Receita" : "Despesa",
+                        "Situação": i._statusRel === 'previstas' ? "Prevista" : "Realizada",
+                        "Vencimento": i.dataVencimento ? new Date(i.dataVencimento).toLocaleDateString('pt-BR') : '',
+                        "Descrição": i.descricao?.descricao || '',
+                        "Cliente": i.cliente?.descricao || '-',
+                        "Terceiro/Envolvido": i.terceiroEnvolvido?.descricao || i.envolvido?.descricao || '-',
+                        "Original": i.valorOriginal || 0,
+                        "Multa": i.multa || 0,
+                        "Juros": i.juros || 0,
+                        "Desconto": i.desconto || 0,
+                        "Valor Final": v
+                    };
+                });
+                const ws = XLSX.utils.json_to_sheet(planilha);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Financeiro");
+                XLSX.writeFile(wb, "Financeiro_${titulo.replace(/[^a-zA-Z0-9]+/g, '_')}.xlsx");
+            }
+
+            function montarGraficos() {
+                const r = montarTabelaEResumo(DADOS);
+
+                chartResumo = new Chart(document.getElementById('cResumo'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Desp. Prevista', 'Rec. Prevista', 'Desp. Realizada', 'Rec. Realizada'],
+                        datasets: [{ data: [r.tDP, r.tRP, r.tDR, r.tRR], backgroundColor: ['#dc3545', '#28a745', '#dc3545', '#28a745'] }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        onClick: (e, el) => {
+                            if (!el.length) return;
+                            const idx = el[0].index;
+                            const filtros = [
+                                i => i._statusRel === 'previstas' && (i.valor || 0) < 0,
+                                i => i._statusRel === 'previstas' && (i.valor || 0) >= 0,
+                                i => i._statusRel === 'realizadas' && (i.valor || 0) < 0,
+                                i => i._statusRel === 'realizadas' && (i.valor || 0) >= 0
+                            ];
+                            montarTabelaEResumo(DADOS.filter(filtros[idx]));
+                        }
+                    }
+                });
+
+                let mapaSecundario = {};
+                if (ISGERAL) {
+                    DADOS.forEach(i => {
+                        const nome = i.cliente?.descricao || i.envolvido?.descricao || 'Sem Cliente';
+                        mapaSecundario[nome] = (mapaSecundario[nome] || 0) + Math.abs(i.valor || 0);
+                    });
+                } else {
+                    DADOS.forEach(i => {
+                        const nome = i.planoDeContas?.descricao || 'Sem Plano de Contas';
+                        mapaSecundario[nome] = (mapaSecundario[nome] || 0) + Math.abs(i.valor || 0);
+                    });
+                }
+                const chaves = Object.keys(mapaSecundario).sort((a, b) => mapaSecundario[b] - mapaSecundario[a]).slice(0, 10);
+
+                chartSecundario = new Chart(document.getElementById('cSecundario'), {
+                    type: 'bar',
+                    data: {
+                        labels: chaves,
+                        datasets: [{ data: chaves.map(k => mapaSecundario[k]), backgroundColor: '#667eea' }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        onClick: (e, el) => {
+                            if (!el.length) return;
+                            const sel = chaves[el[0].index];
+                            const filtrados = ISGERAL
+                                ? DADOS.filter(i => (i.cliente?.descricao || i.envolvido?.descricao || 'Sem Cliente') === sel)
+                                : DADOS.filter(i => (i.planoDeContas?.descricao || 'Sem Plano de Contas') === sel);
+                            montarTabelaEResumo(filtrados);
+                        }
+                    }
+                });
+            }
+
+            montarGraficos();
+        <\/script>
+    </body></html>`;
+} 
+</script>
+</body>
+</html>

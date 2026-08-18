@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Eleven · Qualidade Segurado</title>
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<style>
+.progress-bar{
+  height:20px;
+  background:var(--input-bg);
+  border:1px solid var(--border);
+  border-radius:6px;
+  display:none;
+  margin-top:15px;
+  overflow:hidden;
+}
+
+.progress-fill{
+  height:100%;
+  background:var(--brand);
+  color:#fff;
+  text-align:center;
+  font-size:12px;
+  line-height:20px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<div class="card login-card center" id="login">
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <p class="subtitle">Acessar Relatório: Qualidade Segurado</p>
+    <form id="loginForm" style="width:100%">
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input type="text" id="email" class="form-control" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <div class="password-wrap">
+          <input type="password" id="senha" class="form-control" required autocomplete="current-password">
+          <button type="button" class="password-toggle" id="toggleSenha" aria-label="Mostrar senha" title="Mostrar senha">
+            <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn">Entrar</button>
+    </form>
+    <div id="resultado" class="subtitle" style="margin-top:10px"></div>
+</div>
+
+<div class="card login-card center" id="relatorio" style="display:none">
+  <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+  <h2>Relatório de Processos Extrajudicias - Competencia</h2>
+
+  <div class="field">
+    <label for="mes">📅 Mês de Competência</label>
+    <select id="mes" class="form-control"></select>
+  </div>
+
+  <div class="field">
+    <label for="ano">📆 Ano de Competência</label>
+    <select id="ano" class="form-control"></select>
+  </div>
+
+  <button id="btnGerar" class="btn">Gerar Relatório</button>
+
+  <div class="progress-bar" id="bar">
+    <div id="fill" class="progress-fill">0%</div>
+  </div>
+
+  <div id="status"></div>
+</div>
+
+</div>
+
+<script>
+
+/* ========== Mostrar/ocultar senha ========== */
+(function(){
+    const toggleSenhaBtn = document.getElementById('toggleSenha');
+    const senhaInput = document.getElementById('senha');
+    const eyeIcon = document.getElementById('eyeIcon');
+    const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+    const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.4 18.4 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/>';
+    if(toggleSenhaBtn){
+        toggleSenhaBtn.addEventListener('click',()=>{
+            const showing = senhaInput.type === 'text';
+            senhaInput.type = showing ? 'password' : 'text';
+            eyeIcon.innerHTML = showing ? EYE_OPEN : EYE_OFF;
+            toggleSenhaBtn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+            toggleSenhaBtn.title = showing ? 'Mostrar senha' : 'Ocultar senha';
+        });
+    }
+})();
+
+const el = id => document.getElementById(id);
+
+/* 🔐 EMAILS PERMITIDOS */
+const EMAILS_PERMITIDOS = [
+  'recepcao3@rodrigocorreaadvogados.com.br',
+  'suporte.janesystem@gmail.com',
+  'coordenadora.rp@rodrigocorreaadvogados.com.br'
+];
+
+let TOKEN=null;
+
+const LOGIN_URL='https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum';
+const BUSCA_URL='https://busca-avancada-api-prod.alkasoft.com.br/api/v1/processos-extrajudiciais';
+const APP_URL='https://app-api-prod.alkasoft.com.br/api/v1';
+const CE_URL='https://app-api-prod.alkasoft.com.br/api/v1/tiposdocadastro/PROCESSO_EXTRA_JUDICIAL/camposextras';
+
+const nomesMes={
+"01":"Janeiro","02":"Fevereiro","03":"Março","04":"Abril",
+"05":"Maio","06":"Junho","07":"Julho","08":"Agosto",
+"09":"Setembro","10":"Outubro","11":"Novembro","12":"Dezembro"
+};
+
+function auth(){
+  return {Authorization:'Bearer '+TOKEN,'Content-Type':'application/json'};
+}
+
+function progresso(p){
+  el('bar').style.display='block';
+  el('fill').style.width=p+'%';
+  el('fill').textContent=p+'%';
+}
+
+/* LOGIN */
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const email = el('email').value.trim().toLowerCase();
+  const senha = el('senha').value.trim();
+
+  if(!EMAILS_PERMITIDOS.includes(email)){
+    el('resultado').innerHTML='<span style="color:red">Acesso não autorizado</span>';
+    return;
+  }
+
+  try{
+    const r=await fetch(LOGIN_URL,{
+      headers:{Authorization:'Basic '+btoa(email+':'+senha)}
+    });
+
+    if(!r.ok) throw 'Erro login';
+
+    TOKEN=(r.headers.get('authorization')||'').replace('Bearer ','');
+
+    el('login').style.display='none';
+    el('relatorio').style.display='block';
+
+    carregarSelect();
+
+  }catch(e){
+    el('resultado').innerHTML='<span style="color:red">'+e+'</span>';
+  }
+});
+
+/* SELECT */
+async function carregarSelect(){
+
+  const [m,a]=await Promise.all([
+    fetch(`${CE_URL}/15962/itens`,{headers:auth()}),
+    fetch(`${CE_URL}/15963/itens`,{headers:auth()})
+  ]);
+
+  const meses=await m.json();
+  const anos=await a.json();
+
+  el('mes').innerHTML='';
+  meses.forEach(i=>{
+    if(nomesMes[i.descricao]){
+      const op=document.createElement('option');
+      op.value=i.descricao;
+      op.textContent=nomesMes[i.descricao];
+      op.dataset.id=i.id;
+      el('mes').appendChild(op);
+    }
+  });
+
+  el('ano').innerHTML='';
+  anos.forEach(i=>{
+    const op=document.createElement('option');
+    op.value=i.descricao;
+    op.textContent=i.descricao;
+    op.dataset.id=i.id;
+    el('ano').appendChild(op);
+  });
+}
+
+/* BODY */
+function montarBody(m,a,idM,idA){
+  return {
+    filtrosCamposExtras:[
+      {idCampoExtra:15963,idsItens:[Number(idA)],nome:"CE_ANO_DE_COMPETENCIA",tipo:"LISTA_DE_ITEM",valor:[a]},
+      {idCampoExtra:15962,idsItens:[Number(idM)],nome:"CE_MES_DE_COMPETENCIA",tipo:"LISTA_DE_ITEM",valor:[m]}
+    ],
+    protocolo:null
+  };
+}
+
+/* BUSCA */
+async function buscarTudo(body){
+
+  const qtd=200;
+  let todos=[];
+
+  const r0=await fetch(`${BUSCA_URL}?inicio=0&quantidade=${qtd}`,{
+    method:'POST',headers:auth(),body:JSON.stringify(body)
+  });
+
+  const j0=await r0.json();
+  const total=j0.quantidadeTotal||0;
+
+  const paginas=Math.ceil(total/qtd);
+
+  for(let i=0;i<paginas;i++){
+
+    const r=await fetch(`${BUSCA_URL}?inicio=${i*qtd}&quantidade=${qtd}`,{
+      method:'POST',headers:auth(),body:JSON.stringify(body)
+    });
+
+    const j=await r.json();
+    todos=todos.concat(j.itens||[]);
+
+    progresso(Math.round(((i+1)/paginas)*100));
+  }
+
+  return todos;
+}
+
+/* UTIL */
+function formatarData(v){
+  if(!v) return '';
+  const m=v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m?`${m[3]}/${m[2]}/${m[1]}`:v;
+}
+
+function vNulo(v){
+  return (v===null||v===undefined)?'':String(v);
+}
+
+const MAPA={
+"15960":"CE_NR_BENEFICIO",
+"15965":"CE_DT_INICIO_CESSACAO",
+"15966":"CE_DT_FIM_CESSACAO",
+"15962":"CE_MES_COMPETENCIA",
+"15963":"CE_ANO_DE_COMPETENCIA"
+};
+
+/* PROCESSAR */
+async function processarItem(it){
+
+  const idP=it.pasta.identificador.id;
+  const id=it.id;
+
+  const pasta=await (await fetch(`${APP_URL}/pastasprocessuais/${idP}?marcarAcessada=false`,{headers:auth()})).json();
+  const p=await (await fetch(`${APP_URL}/pastasprocessuais/${idP}/processosextrajudiciais/${id}`,{headers:auth()})).json();
+
+  let codigo='';
+
+  if(p.requerentePrincipal?.id){
+    const cli=await (await fetch(`${APP_URL}/clientes/${p.requerentePrincipal.id}`,{headers:auth()})).json();
+    for(const c of cli.valoresCamposExtras||[]){
+      if(c.idCampoExtra==15594){
+        codigo=vNulo(c.valor);
+        break;
+      }
+    }
+  }
+
+  const linha={
+    CE_NR_BENEFICIO:'',
+    PROTOCOLO:vNulo(p.protocolo),
+    CODIGO:codigo,
+    NOME_DO_CLIENTE:vNulo(pasta.clientePrincipal?.descricao),
+    IDENTIFICADOR_DA_PASTA_NUMERO:`${pasta.prefixo?.descricao||''}-${pasta.numero||''}`,
+    CE_DT_INICIO_CESSACAO:'',
+    CE_DT_FIM_CESSACAO:'',
+    CE_MES_COMPETENCIA:'',
+    CE_ANO_DE_COMPETENCIA:''
+  };
+
+  for(const campo of p.valoresCamposExtras||[]){
+    const idCampo=String(campo.idCampoExtra);
+
+    if(MAPA[idCampo]){
+      let valor=vNulo(campo.valor);
+      if(MAPA[idCampo].includes('DT')) valor=formatarData(valor);
+      linha[MAPA[idCampo]]=valor;
+    }
+  }
+
+  return linha;
+}
+
+/* GERAR */
+el('btnGerar').onclick = async () => {
+
+  progresso(5);
+
+  const mes=el('mes').value;
+  const ano=el('ano').value;
+
+  const idMes=el('mes').selectedOptions[0].dataset.id;
+  const idAno=el('ano').selectedOptions[0].dataset.id;
+
+  const itens=await buscarTudo(montarBody(mes,ano,idMes,idAno));
+
+  let linhas=[];
+
+  for(let i=0;i<itens.length;i++){
+    linhas.push(await processarItem(itens[i]));
+    progresso(Math.round((i/itens.length)*100));
+  }
+
+  abrirRelatorio(linhas,mes,ano);
+};
+
+/* RELATORIO */
+function abrirRelatorio(linhas,mes,ano){
+
+const colunas=[
+"CE_NR_BENEFICIO","PROTOCOLO","CODIGO","NOME_DO_CLIENTE",
+"IDENTIFICADOR_DA_PASTA_NUMERO","CE_DT_INICIO_CESSACAO",
+"CE_DT_FIM_CESSACAO","CE_MES_COMPETENCIA","CE_ANO_DE_COMPETENCIA"
+];
+
+const w=window.open('', '_blank');
+
+const html=`
+<html><head>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"><\/script>
+<style>
+body{font-family:Arial;background:#f8f9fa;padding:20px;text-align:center}
+table{border-collapse:collapse;width:100%;background:#fff}
+th{background:#667eea;color:#fff;padding:10px}
+td{padding:8px;border-bottom:1px solid #eee}
+button{margin:5px;padding:10px;border:none;border-radius:6px;color:#fff;font-weight:bold}
+</style>
+</head><body>
+
+<h2>Relatório ${mes}/${ano}</h2>
+
+<button style="background:#667eea" onclick="baixar()">⬇️ XLSX</button>
+<button style="background:#6c757d" onclick="print()">🖨️ Imprimir</button>
+
+<table>
+<tr>${colunas.map(c=>`<th>${c}</th>`).join('')}</tr>
+${linhas.map(l=>`<tr>${colunas.map(c=>`<td>${l[c]||''}</td>`).join('')}</tr>`).join('')}
+</table>
+
+<script>
+function baixar(){
+const ws=XLSX.utils.json_to_sheet(${JSON.stringify(linhas)});
+const wb=XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb,ws,"Relatorio");
+XLSX.writeFile(wb,"Relatorio_${mes}_${ano}.xlsx");
+}
+<\/script>
+
+</body></html>`;
+
+w.document.write(html);
+w.document.close();
+}
+
+</script>
+
+</body>
+</html>
