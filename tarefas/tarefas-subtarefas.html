@@ -974,7 +974,8 @@ function renderCalGrid(gridEl,titleEl,monthDate){
     if(!inMonth) el.classList.add('muted');
     if(dateRangeState.tempDate && sameDay(day,dateRangeState.tempDate)) el.classList.add('selected');
     if(inMonth){
-      el.addEventListener('click',()=>{
+      el.addEventListener('click',(e)=>{
+        e.stopPropagation();
         dateRangeState.tempDate=day;
         renderCalendars();
       });
