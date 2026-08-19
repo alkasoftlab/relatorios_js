@@ -11,11 +11,13 @@
 <body>
 <div class="app">
   <div id="loginScreen" class="card login-card center" style="position:relative">
+    <button type="button" class="info-icon" id="infoLoginBtn" aria-label="Sobre este relatório" title="Sobre este relatório">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" font-family="Arial, Helvetica, sans-serif" fill="#08111a">i</text></svg>
+    </button>
     <div class="brand-mark">
       <span class="word">Lawyer Eleven</span>
     </div>
     <p class="subtitle">Acessar Relatório: Tarefas e Subtarefas</p>
-    <p class="small-muted" style="margin:-4px 0 14px;line-height:1.4">Relatório completo de tarefas por período, situação e convidados, com hierarquia de subtarefas e exportação em Excel.</p>
     <form id="loginForm" style="width:100%">
       <div class="field">
         <label for="email">E-mail</label>
@@ -339,6 +341,11 @@ document.getElementById('modalOkBtn').addEventListener('click',closeModal);
 modalOverlay.addEventListener('click',(e)=>{ if(e.target===modalOverlay) closeModal(); });
 document.addEventListener('keydown',(e)=>{ if(e.key==='Escape' && modalOverlay.classList.contains('open')) closeModal(); });
 
+document.getElementById('infoLoginBtn').addEventListener('click',()=>{
+  openModal('Sobre este relatório',
+    'Relatório completo de tarefas por período, situação e convidados, com hierarquia de subtarefas e exportação em Excel.',
+    'info');
+});
 document.getElementById('infoFiltrosBtn').addEventListener('click',()=>{
   openModal('Como usar os filtros',
     '<ul>'+

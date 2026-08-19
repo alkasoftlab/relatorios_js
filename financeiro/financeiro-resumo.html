@@ -24,9 +24,11 @@
 
 <div class="app">
   <div id="loginScreen" class="card login-card center">
+    <button type="button" class="info-icon" id="infoLoginBtn" aria-label="Sobre este relatório" title="Sobre este relatório">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" font-family="Arial, Helvetica, sans-serif" fill="#08111a">i</text></svg>
+    </button>
     <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
     <p class="subtitle">Acessar Relatório: Resumo Financeiro</p>
-    <p class="small-muted" style="margin:-4px 0 14px;line-height:1.4">Visão geral das informações financeiras, permitindo acompanhar os principais valores e indicadores financeiros do escritório.</p>
     <form id="loginForm" style="width:100%">
       <div class="field">
         <label for="email">E-mail</label>
@@ -95,7 +97,29 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="infoModalOverlay">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <button class="modal-close" id="infoModalClose" type="button" aria-label="Fechar">✕</button>
+    <h2 class="modal-title">Sobre este relatório</h2>
+    <div class="modal-body">Visão geral das informações financeiras, permitindo acompanhar os principais valores e indicadores financeiros do escritório.</div>
+  </div>
+</div>
+
 <script>
+/* ========== Modal de informação (tela de login) ========== */
+(function(){
+  const overlay = document.getElementById('infoModalOverlay');
+  const btn = document.getElementById('infoLoginBtn');
+  const closeBtn = document.getElementById('infoModalClose');
+  if(!overlay || !btn) return;
+  const open = ()=> overlay.classList.add('open');
+  const close = ()=> overlay.classList.remove('open');
+  btn.addEventListener('click', open);
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && overlay.classList.contains('open')) close(); });
+})();
+
 let BEARER_TOKEN = null;
 let DADOS_ATUAIS = [];
 let ABA_ATIVA = 'pasta';
