@@ -15,6 +15,7 @@
       <span class="word">Lawyer Eleven</span>
     </div>
     <p class="subtitle">Acessar Relatório: Tarefas e Subtarefas</p>
+    <p class="small-muted" style="margin:-4px 0 14px;line-height:1.4">Relatório completo de tarefas por período, situação e convidados, com hierarquia de subtarefas e exportação em Excel.</p>
     <form id="loginForm" style="width:100%">
       <div class="field">
         <label for="email">E-mail</label>
@@ -674,7 +675,8 @@ function renderConvResults(resultados,query){
 
     it.appendChild(nome);
     it.appendChild(tag);
-    it.addEventListener('click',()=>{
+    it.addEventListener('click',(e)=>{
+      e.stopPropagation();
       if(convState.selected.has(key)) convState.selected.delete(key);
       else convState.selected.set(key,r);
       renderConvChips();
@@ -817,7 +819,8 @@ function criarMultiselectColaboradores({state,control,dropdown,wrapper,toggle,in
       tag.textContent='Colaborador';
       it.appendChild(nome);
       it.appendChild(tag);
-      it.addEventListener('click',()=>{
+      it.addEventListener('click',(e)=>{
+        e.stopPropagation();
         if(state.selected.has(r.id)) state.selected.delete(r.id);
         else state.selected.set(r.id,r.nome);
         render();

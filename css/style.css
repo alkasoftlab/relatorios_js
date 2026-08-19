@@ -971,6 +971,46 @@ input[type="date"].form-control {
 }
 
 
+/* ---------- Botões de filtro rápido (ex: períodos pré-definidos) ---------- */
+
+.filter-btn {
+  padding: 6px 14px;
+
+  border: 1px solid var(--border-strong);
+
+  border-radius: 999px;
+
+  background: var(--card-2);
+
+  color: var(--muted);
+
+  font-weight: 600;
+
+  font-size: .82rem;
+
+  cursor: pointer;
+
+  transition:
+    background .15s ease,
+    color .15s ease,
+    border-color .15s ease;
+}
+
+.filter-btn:hover {
+  border-color: var(--brand);
+
+  color: var(--ink);
+}
+
+.filter-btn.active {
+  background: var(--brand);
+
+  border-color: var(--brand);
+
+  color: #08111a;
+}
+
+
 /* =========================================================
    12. FIELD BOX
    ========================================================= */
