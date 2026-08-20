@@ -3,720 +3,1047 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Eleven · Resumo do Cliente</title>
+<title>Eleven · Dashboard de Clientes</title>
 <link rel="icon" type="image/png" href="../img/favicon.png">
 <link rel="stylesheet" href="../css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-    #resultado, #linkResultado {
-        margin-top: 20px;
-        padding: 10px;
-        border: 1px dashed var(--danger);
-        white-space: pre-wrap;
-        word-break: break-all;
-        text-align: left;
-        max-height: 300px;
-        overflow-y: auto;
-    }
+/* ===================== Dashboard — widget específico deste relatório, sem equivalente no style.css ===================== */
+
+#dashboardScreen{
+  width:100%;
+  max-width:1400px;
+  margin:0 auto;
+  padding:24px 16px 60px;
+  align-self:flex-start;
+}
+
+.dash-header{
+  position:relative;
+  text-align:center;
+  margin-bottom:26px;
+  padding-top:6px;
+}
+
+.dash-header .brand-mark{margin:0 0 10px}
+
+.dash-header h1{margin:0 0 4px;font-size:1.3rem}
+.dash-header p{margin:0 auto;color:var(--muted);font-size:.82rem;max-width:480px}
+
+.dash-header #btnSairDash{
+  position:absolute;
+  top:0;
+  right:0;
+  width:auto;
+}
+
+.dash-body{
+  display:flex;
+  align-items:flex-start;
+  gap:20px;
+}
+
+.dash-filters{
+  width:250px;
+  flex-shrink:0;
+  position:sticky;
+  top:16px;
+  max-height:calc(100vh - 32px);
+  overflow-y:auto;
+}
+
+.dash-filters h2{font-size:.95rem;margin:0 0 14px}
+
+.tipo-btn-row{
+  display:flex;
+  gap:6px;
+  margin-top:6px;
+}
+
+.tipo-btn-row .filter-btn{
+  flex:1;
+  padding:6px 4px;
+  font-size:.76rem;
+  text-align:center;
+  white-space:nowrap;
+}
+
+.dash-main{flex:1;min-width:0}
+
+.kpi-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:14px;
+  margin-bottom:22px;
+}
+
+@media (max-width:760px){
+  .kpi-grid{ grid-template-columns:repeat(2,1fr); }
+}
+@media (max-width:480px){
+  .kpi-grid{ grid-template-columns:1fr; }
+}
+
+.kpi-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:16px;
+  text-align:left;
+  font-family:inherit;
+  cursor:pointer;
+  width:100%;
+  transition:border-color .15s ease,transform .1s ease,background .15s ease;
+}
+
+.kpi-card:hover{ border-color:var(--brand); background:var(--card-2); }
+.kpi-card:active{ transform:scale(.98); }
+.kpi-card:focus-visible{ outline:2px solid var(--brand); outline-offset:2px; }
+.kpi-card.warn:hover{ border-color:var(--orange); }
+
+.kpi-icon{font-size:1.1rem;margin-bottom:6px}
+.kpi-value{font-size:1.5rem;font-weight:700;color:var(--ink);line-height:1.1}
+.kpi-value .kpi-pct{font-size:.78rem;font-weight:600;color:var(--brand);margin-left:4px}
+.kpi-label{font-size:.78rem;color:var(--muted);margin-top:4px}
+.kpi-card.warn .kpi-value{color:var(--orange)}
+
+.chart-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(360px,1fr));
+  gap:16px;
+  margin-bottom:22px;
+}
+
+.chart-card{padding:18px}
+.chart-card h3{margin:0 0 4px;font-size:.95rem}
+.chart-card .chart-sub{margin:0 0 12px;font-size:.78rem;color:var(--muted)}
+.chart-card canvas{max-height:260px}
+
+.qc-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:.82rem;width:100%;background:none;border:none;padding:4px;border-radius:8px;font-family:inherit;text-align:left}
+button.qc-row{cursor:pointer;transition:background .15s ease}
+button.qc-row:hover{background:var(--input-bg)}
+button.qc-row:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.qc-row .qc-label{width:150px;flex-shrink:0;color:var(--muted)}
+.qc-row .qc-bar-wrap{flex:1;height:10px;border-radius:6px;background:var(--input-bg);overflow:hidden}
+.qc-row .qc-bar{height:100%;background:linear-gradient(90deg,var(--brand),var(--brand-2));border-radius:6px}
+.qc-row .qc-count{width:38px;text-align:right;flex-shrink:0;font-weight:700;color:var(--ink)}
+
+.list-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(360px,1fr));
+  gap:16px;
+}
+
+.dash-table{width:100%;border-collapse:collapse;font-size:.85rem}
+.dash-table th{text-align:left;color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;padding:0 0 8px;border-bottom:1px solid var(--border)}
+.dash-table td{padding:8px 0;border-bottom:1px solid var(--border)}
+.dash-table tr:last-child td{border-bottom:none}
+.dash-table .muted-small{color:var(--muted);font-size:.78rem}
+
+.empty-dash{padding:30px;text-align:center;color:var(--muted);font-size:.85rem}
+
+/* ---------- Tela de carregamento ---------- */
+
+.loading-card{
+  max-width:460px;
+  margin:60px auto;
+  text-align:center;
+  padding:36px 32px;
+}
+
+.loading-ring{
+  width:44px;
+  height:44px;
+  margin:4px auto 18px;
+  border-radius:50%;
+  border:3px solid var(--border-strong);
+  border-top-color:var(--brand);
+  animation:dash-spin 0.9s linear infinite;
+}
+
+@keyframes dash-spin{ to{ transform:rotate(360deg); } }
+
+.loading-card .progress-wrap{ display:block; margin-top:4px; }
+
+.dica-box{
+  margin-top:24px;
+  padding:14px 16px;
+  border-radius:10px;
+  background:rgba(55,214,168,.08);
+  border:1px solid rgba(55,214,168,.25);
+  text-align:left;
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  min-height:64px;
+}
+
+.dica-box .dica-icon{font-size:1.1rem;flex-shrink:0}
+.dica-box .dica-text{font-size:.85rem;color:var(--ink);line-height:1.45;opacity:0;transition:opacity .35s ease}
+.dica-box .dica-text.show{opacity:1}
+.dica-box .dica-title{display:block;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--brand);margin-bottom:4px}
+
+@media (max-width:860px){
+  .dash-body{flex-direction:column}
+  .dash-filters{width:100%;position:static;max-height:none}
+  .dash-header #btnSairDash{position:static;margin-top:12px}
+}
 </style>
 </head>
 <body>
-    <div class="app">
-        <div id="telaLogin" class="card login-card center">
-            <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
-            <h1>Entrar no sistema</h1>
-            <p class="subtitle">Preencha os campos abaixo para entrar na sua conta.</p>
-            <form id="loginForm">
-                <div class="field">
-                    <label for="email">E-mail</label>
-                    <input type="text" id="email" name="email" class="form-control" placeholder="E-mail" required>
-                </div>
-                <div class="field">
-                    <label for="senha">Senha</label>
-                    <input type="password" id="senha" name="senha" class="form-control" placeholder="Senha" required>
-                </div>
-                <button type="submit" class="btn">Entrar</button>
-            </form>
-            <div id="resultado">Aguardando login...</div>
-        </div>
 
-        <div id="telaLink" class="card login-card center" style="display:none">
-            <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
-            <h2>Login Bem-sucedido!</h2>
-            <p class="subtitle">Insira o Link/URL do cliente para obter o resumo desejado</p>
-            <form id="linkForm">
-                <div class="field">
-                    <label for="inputLink">Link/URL do Cliente</label>
-                    <input type="url" id="inputLink" name="link" class="form-control" placeholder="Ex: https://eleven.alkasoft.com.br/auth/clientes/2099304/detalhamento" required>
-                </div>
-                <button type="submit" class="btn">Obter Resumo e Abrir</button>
-            </form>
-            <div id="linkResultado" style="border-color: var(--success)">Aguardando Link...</div>
-            <button id="logoutButton" class="btn btn-danger">Sair / Novo Login</button>
+<div class="app">
+  <div id="loginScreen" class="card login-card center">
+    <button type="button" class="info-icon" id="infoLoginBtn" aria-label="Sobre este relatório" title="Sobre este relatório">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" font-family="Arial, Helvetica, sans-serif" fill="#08111a">i</text></svg>
+    </button>
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <p class="subtitle">Acessar Relatório: Dashboard de Clientes</p>
+    <form id="loginForm" style="width:100%">
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input type="text" id="email" class="form-control" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <div class="password-wrap">
+          <input type="password" id="senha" class="form-control" required autocomplete="current-password">
+          <button type="button" class="password-toggle" id="toggleSenha" aria-label="Mostrar senha" title="Mostrar senha">
+            <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
         </div>
+      </div>
+      <button type="submit" class="btn" style="margin-top:6px">Entrar</button>
+    </form>
+    <div id="resultado" class="subtitle" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<div id="dashboardScreen" style="display:none">
+
+  <div class="card loading-card" id="loadingCard">
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <div class="loading-ring"></div>
+    <div class="progress-wrap" style="display:block">
+      <div class="progress"><div class="fill" id="fillCarregamento" style="width:0%"></div></div>
+      <div class="progress-text" id="textoCarregamento">Carregando clientes...</div>
     </div>
+    <div class="dica-box">
+      <span class="dica-icon">💡</span>
+      <span class="dica-text" id="dicaTexto"><span class="dica-title">Dica</span></span>
+    </div>
+  </div>
 
-    <script>
-        let BEARER_TOKEN = null;
-        let CLIENT_ID = null;
+  <div class="dash-header" style="display:none" id="dashHeader">
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <h1>Dashboard de Clientes</h1>
+    <p>Composição da base, qualidade de cadastro e indicadores para tomada de decisão.</p>
+    <button id="btnSairDash" class="btn btn-danger btn-outline-inline">Sair</button>
+  </div>
 
-        const loginForm = document.getElementById('loginForm');
-        const linkForm = document.getElementById('linkForm');
-        const telaLogin = document.getElementById('telaLogin');
-        const telaLink = document.getElementById('telaLink');
-        const resultadoDiv = document.getElementById('resultado');
-        const linkResultadoDiv = document.getElementById('linkResultado');
-        const logoutButton = document.getElementById('logoutButton');
+  <div class="dash-body" id="dashBody" style="display:none">
 
-        const LOGIN_URL = "https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum";
-        const BASE_CLIENTE_API_URL = "https://app-api-prod.alkasoft.com.br/api/v1/clientes/";
-        const SERVICES_API_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/atendimentos?inicio=0&ordenacao=ULTIMA_MODIFICACAO_DESC&quantidade=200";
-        const PROCESSES_API_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/processos-extrajudiciais?inicio=0&ordenacao=DATA_ENTRADA_DESC&quantidade=100";
-        const JUDICIAL_PROCESSES_API_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/processos-judiciais?inicio=0&ordenacao=DATA_ENTRADA_DESC&quantidade=100";
-        const PASTAS_SEARCH_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/pastas?inicio=0&ordenacao=ULTIMA_MODIFICACAO_DESC&quantidade=10";
-        const ELEVEN_BASE_URL = "https://app-api-prod.alkasoft.com.br/api/v1/";
+    <aside class="dash-filters card">
+      <h2>🔎 Filtros</h2>
 
-        function showScreen(screenId) {
-            telaLogin.style.display = screenId === 'login' ? 'block' : 'none';
-            telaLink.style.display = screenId === 'link' ? 'block' : 'none';
-        }
-        
-        loginForm.addEventListener('submit', function(event) {
-            event.preventDefault();
-            const email = document.getElementById('email').value;
-            const senha = document.getElementById('senha').value;
-            
-            if (!email || !senha) {
-                resultadoDiv.innerHTML = '<p style="color: red; font-weight: bold;">Por favor, preencha o e-mail e a senha.</p>';
-                return;
-            }
+      <div class="field-box" style="margin-bottom:14px">
+        <label class="field-box-label">Tipo</label>
+        <div class="tipo-btn-row">
+          <button type="button" class="filter-btn active" data-filtro-tipo="TODOS">Todos</button>
+          <button type="button" class="filter-btn" data-filtro-tipo="PF">Física</button>
+          <button type="button" class="filter-btn" data-filtro-tipo="PJ">Jurídica</button>
+          <button type="button" class="filter-btn" data-filtro-tipo="INDEFINIDO">Indefinido</button>
+        </div>
+      </div>
 
-            const credenciais = email + ':' + senha;
-            const basicEncoded = btoa(credenciais);
-            const authHeader = 'Basic ' + basicEncoded;
-            resultadoDiv.innerHTML = '<p style="color: #007bff;">Enviando requisição de login...</p>';
-            
-            fetch(LOGIN_URL, {
-                method: 'GET',
-                headers: {
-                    'Authorization': authHeader,
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => {
-                const bearerHeader = response.headers.get('authorization');
-                if (!response.ok) {
-                    return response.text().then(errorText => {
-                         throw new Error(`Login Falhou (Status ${response.status}): ${errorText || 'Erro sem detalhes.'}`);
-                    });
-                }
-                let token = bearerHeader;
-                if (!token) {
-                    return response.json().then(data => {
-                        handleLoginSuccess(token);
-                    });
-                } else {
-                    handleLoginSuccess(token);
-                }
-            })
-            .catch(error => {
-                let errorMessage = error.message;
-                if (errorMessage.includes('Failed to fetch')) {
-                    errorMessage = `ERRO DE REDE/CORS: O navegador bloqueou a requisição.`;
-                }
-                resultadoDiv.innerHTML = `<p style="color: red; font-weight: bold;">ERRO no Login:</p><pre>${errorMessage}</pre>`;
-            });
-        });
-        
-        function handleLoginSuccess(token) {
-            if (token) {
-                BEARER_TOKEN = token.replace(/^(Bearer|Basic)\s/i, '').trim();
-            } else {
-                BEARER_TOKEN = null;
-            }
-            console.log("Token Armazenado:", BEARER_TOKEN);
-            showScreen('link');
-        }
+      <div class="field" style="margin-bottom:10px">
+        <label>Estado civil</label>
+        <select id="fEstadoCivil" class="form-control"><option value="">Todos</option></select>
+      </div>
 
-        linkForm.addEventListener('submit', function(event) {
-            event.preventDefault();
-            const fullUrl = document.getElementById('inputLink').value;
-            const regex = /clientes\/(\d+)\/detalhamento/;
-            const match = fullUrl.match(regex);
-            
-            if (!match || !BEARER_TOKEN) {
-                linkResultadoDiv.innerHTML = `<p style="color: red; font-weight: bold;">ERRO:</p><p>${!BEARER_TOKEN ? 'Token não encontrado.' : 'URL inválida.'}</p>`;
-                return;
-            }
-            
-            CLIENT_ID = match[1];
-            const targetUrl = `${BASE_CLIENTE_API_URL}${CLIENT_ID}?registrarAcesso=true`;
-            linkResultadoDiv.innerHTML = `<p style="color: #007bff;">1/5 - Buscando Cliente (ID ${CLIENT_ID})...</p>`;
+      <div class="field" style="margin-bottom:10px">
+        <label>Profissão</label>
+        <select id="fProfissao" class="form-control"><option value="">Todas</option></select>
+      </div>
 
-            fetch(targetUrl, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${BEARER_TOKEN}`,
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => {
-                if (!response.ok) throw new Error(`API Cliente Falhou (${response.status})`);
-                return response.json();
-            })
-            .then(clientData => {
-                linkResultadoDiv.innerHTML = `<p style="color: #007bff;">2/5 - Cliente OK. Buscando Serviços...</p>`;
-                return fetchClientServices(CLIENT_ID).then(servicesData => ({ clientData, servicesData }));
-            })
-            .then(({ clientData, servicesData }) => {
-                linkResultadoDiv.innerHTML = `<p style="color: #007bff;">3/5 - Serviços OK. Buscando Pastas...</p>`;
-                return fetchClientPastas(CLIENT_ID, clientData, servicesData);
-            })
-            .catch(error => {
-                linkResultadoDiv.innerHTML = `<p style="color: red; font-weight: bold;">ERRO:</p><pre>${error.message}</pre>`;
-                console.error('Erro:', error);
-            });
-        });
-        
-        function fetchClientServices(clienteId) {
-            const bodyPayload = {
-                "dataInicio": null, "descricao": null, "duracao": null,
-                "idsCategorias": [], "idsClientes": [parseInt(clienteId)],
-                "idsEncarregados": [], "idsPastas": []
-            };
-            return fetch(SERVICES_API_URL, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify(bodyPayload)
-            })
-            .then(response => response.ok ? response.json() : { itens: [], total: 0 })
-            .catch(() => ({ itens: [], total: 0 }));
-        }
-        
-        function fetchClientPastas(clienteId, clientData, servicesData) {
-            const bodyPayload = {
-                "assunto": null, "dataConclusao": null, "filtrosCamposExtras": [],
-                "valorFinalCausa": null, "dataCadastro": null, "etapas": [],
-                "idsCategorias": [], "idsClientes": [], "idsColaboradores": [],
-                "idsPartesContrarias": [], "idsPrefixos": [], "idsSituacoes": [],
-                "numero": {}, "resultadosConclusao": [],
-                "idsClientesOuPartesContrarias": [parseInt(clienteId)]
-            };
-            return fetch(PASTAS_SEARCH_URL, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify(bodyPayload)
-            })
-            .then(response => response.ok ? response.json() : { itens: [], total: 0 })
-            .then(pastasData => {
-                const pastas = pastasData.itens || [];
-                linkResultadoDiv.innerHTML = `<p style="color: #007bff;">4/5 - ${pastas.length} Pasta(s) encontrada(s). Buscando proc. extrajudiciais...</p>`;
-                return fetchClientProcesses(clientData, servicesData);
-            })
-            .catch(() => fetchClientProcesses(clientData, servicesData));
-        }
-        
-        function fetchClientProcesses(clientData, servicesData) {
-            const bodyPayload = {
-                "dataConclusao": null, 
-                "dataEntrada": null, 
-                "filtrosCamposExtras": [],
-                "protocolo": null, 
-                "idsClientes": [parseInt(CLIENT_ID)],
-                "idsEncarregados": [], 
-                "idsInstituicoes": [], 
-                "idsPartes": [],
-                "idsPartesContrarias": [], 
-                "idsPastas": [], 
-                "idsSituacoes": []
-            };
-            
-            return fetch(PROCESSES_API_URL, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify(bodyPayload)
-            })
-            .then(response => {
-                if (!response.ok) {
-                    console.warn(`Aviso: API Processos Extrajudiciais Falhou (Status ${response.status}).`);
-                    return { itens: [], total: 0 };
-                }
-                return response.json();
-            })
-            .then(processesData => {
-                const total = processesData.total || 0;
-                linkResultadoDiv.innerHTML = `<p style="color: #007bff;">5/5 - ${total} Proc. extrajud. encontrado(s). Buscando proc. judiciais...</p>`;
-                console.log('Processos Extrajudiciais encontrados:', total, processesData);
-                return fetchJudicialProcesses(clientData, servicesData, processesData);
-            })
-            .catch((error) => {
-                console.error('Erro ao buscar processos extrajudiciais:', error);
-                return fetchJudicialProcesses(clientData, servicesData, { itens: [], total: 0 });
-            });
-        }
-        
-        function fetchJudicialProcesses(clientData, servicesData, extrajudicialProcessesData) {
-            const bodyPayload = {
-                "comarca": null, "dataConclusao": null, "dataEntrada": null,
-                "filtrosCamposExtras": [], "numeroCNJ": null, "tribunal": null,
-                "unidadeJudicial": null, "idsAreas": [],
-                "idsClientesPasta": [parseInt(CLIENT_ID)],
-                "idsEncarregadosPasta": [], "idsJuizes": [], "idsPartes": [],
-                "idsPartesContrariasPasta": [], "idsPastasProcessuais": [],
-                "idsSituacoes": [], "idsTiposAcoes": [], "instancias": [],
-                "tiposVinculacoes": []
-            };
-            return fetch(JUDICIAL_PROCESSES_API_URL, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify(bodyPayload)
-            })
-            .then(response => response.ok ? response.json() : { itens: [], total: 0 })
-            .then(judicialProcessesData => {
-                const total = judicialProcessesData.total || 0;
-                linkResultadoDiv.innerHTML = `<p style="color: green; font-weight: bold;">✓ Completo! ${total} Proc. judicial(is). Abrindo resumo...</p>`;
-                console.log('Processos Judiciais encontrados:', total, judicialProcessesData);
-                openResultInNewTab(clientData, servicesData, extrajudicialProcessesData, judicialProcessesData);
-            })
-            .catch(() => openResultInNewTab(clientData, servicesData, extrajudicialProcessesData, { itens: [], total: 0 }));
-        }
-        
-        function openResultInNewTab(clientData, servicesObject, processesObject, judicialProcessesObject) {
-            if (!clientData) return;
-            const html = createResultPage(clientData, servicesObject, processesObject, judicialProcessesObject);
-            const newWindow = window.open('', '_blank');
-            if (newWindow) {
-                newWindow.document.write(html);
-                newWindow.document.close();
-            } else {
-                linkResultadoDiv.innerHTML += `<p style="color: orange;">Aviso: Pop-up bloqueado.</p>`;
-            }
-        }
-        
-        function formatCpfCnpj(doc) {
-            if (!doc) return '--';
-            const cleanDoc = doc.replace(/\D/g, '');
-            if (cleanDoc.length === 11) {
-                return cleanDoc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-            } else if (cleanDoc.length === 14) {
-                return cleanDoc.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
-            }
-            return doc;
-        }
+      <div class="field" style="margin-bottom:10px">
+        <label>Faixa etária</label>
+        <select id="fFaixaEtaria" class="form-control">
+          <option value="">Todas</option>
+          <option value="18-25">18 a 25 anos</option>
+          <option value="26-35">26 a 35 anos</option>
+          <option value="36-45">36 a 45 anos</option>
+          <option value="46-60">46 a 60 anos</option>
+          <option value="60+">Acima de 60 anos</option>
+        </select>
+      </div>
 
-        function formatPhone(phone) {
-            if (!phone) return '--';
-            const cleanPhone = phone.replace(/\D/g, '');
-            if (cleanPhone.length >= 10 && cleanPhone.length <= 11) {
-                const ddd = cleanPhone.substring(0, 2);
-                const parte1 = cleanPhone.substring(2, cleanPhone.length - 4);
-                const parte2 = cleanPhone.substring(cleanPhone.length - 4);
-                return `(${ddd}) ${parte1}-${parte2}`;
-            }
-            return phone;
-        }
-        
-        function formatCep(cep) {
-            if (!cep) return '--';
-            const cleanCep = cep.replace(/\D/g, '');
-            if (cleanCep.length === 8) {
-                return cleanCep.replace(/(\d{5})(\d{3})/, '$1-$2');
-            }
-            return cep;
-        }
+      <div class="field" style="margin-bottom:10px">
+        <label>Possui e-mail</label>
+        <select id="fEmail" class="form-control"><option value="">Todos</option><option value="sim">Sim</option><option value="nao">Não</option></select>
+      </div>
 
-        function formatNotesForDisplay(text) {
-            if (!text) return '';
-            let formatted = text.replace(/(\r\n|\r|\n){2,}/g, '</p><p>');
-            formatted = formatted.replace(/(\r\n|\r|\n)/g, '<br>');
-            if (formatted.trim() !== '') {
-                formatted = `<p>${formatted}</p>`;
-            }
-            return formatted;
-        }
+      <div class="field" style="margin-bottom:10px">
+        <label>Possui celular</label>
+        <select id="fCelular" class="form-control"><option value="">Todos</option><option value="sim">Sim</option><option value="nao">Não</option></select>
+      </div>
 
-        function formatDateOnly(dateString) {
-            if (!dateString || dateString === 'N/A' || dateString === '--' || dateString === 'null') return '--';
-            try {
-                const date = new Date(dateString);
-                if (isNaN(date.getTime())) return '--';
-                return date.toLocaleDateString('pt-BR', {
-                    day: '2-digit', month: '2-digit', year: 'numeric'
-                });
-            } catch (e) {
-                return '--';
-            }
-        }
+      <div class="field" style="margin-bottom:14px">
+        <label>Possui telefone comercial</label>
+        <select id="fTelComercial" class="form-control"><option value="">Todos</option><option value="sim">Sim</option><option value="nao">Não</option></select>
+      </div>
 
-        function formatTimeOnly(dateString) {
-            if (!dateString || dateString === 'N/A' || dateString === '--' || dateString === 'null') return '--';
-            try {
-                const date = new Date(dateString);
-                if (isNaN(date.getTime())) return '--';
-                return date.toLocaleTimeString('pt-BR', {
-                    hour: '2-digit', minute: '2-digit'
-                });
-            } catch (e) {
-                return '--';
-            }
-        }
+      <button type="button" id="btnLimparFiltros" class="btn btn-outline-inline" style="width:100%">Limpar filtros</button>
 
-        function formatName(fullName) {
-            if (!fullName || fullName.trim() === '' || fullName === 'N/A' || fullName === 'null') return '--';
-            const parts = fullName.trim().split(/\s+/);
-            return parts.slice(0, 2).join(' ');
-        }
-        
-        function safeGet(obj, key) {
-            const value = obj && obj[key] ? obj[key] : null;
-            return value && value !== 'null' && String(value).trim() !== '' ? value : '--';
-        }
+      <p class="muted-small" style="margin-top:14px;color:var(--muted);font-size:.72rem;line-height:1.4">Os gráficos de evolução, ano e "novos no mês" consultam a base inteira e não são afetados por estes filtros.</p>
+    </aside>
 
-        function safeGetNested(obj, key1, key2) {
-            const value = obj && obj[key1] && obj[key1][key2] ? obj[key1][key2] : null;
-            return value && value !== 'null' && String(value).trim() !== '' ? value : '--';
-        }
+    <main class="dash-main">
 
-        function createProcessesTable(processes, totalProcesses) {
-            if (!processes || processes.length === 0) {
-                return `<h3>Processos Extrajudiciais (Total: 0)</h3><p style="color: #dc3545; font-weight: bold;">Nenhum processo extrajudicial encontrado.</p>`;
-            }
-            
-            const tableRows = processes.map(p => {
-                const protocolo = safeGet(p, 'protocolo');
-                const pId = safeGet(p, 'id');
-                const processLink = pId !== '--' ? `${ELEVEN_BASE_URL}processos-extrajudiciais/${pId}/detalhamento` : '#';
-                const instituicaoDesc = safeGetNested(p, 'instituicao', 'descricao');
-                const requerenteDesc = safeGetNested(p, 'requerentePrincipal', 'descricao');
-                const requeridoDesc = safeGetNested(p, 'requeridoPrincipal', 'descricao');
-                const dataEntrada = formatDateOnly(safeGet(p, 'dataEntrada'));
-                const dataConclusaoRaw = safeGet(p, 'dataConclusao');
-                const dataConclusao = (dataConclusaoRaw && dataConclusaoRaw !== '--') ? formatDateOnly(dataConclusaoRaw) : '';
-                const situacaoDesc = safeGetNested(p, 'situacao', 'descricao');
-                const pastaDesc = (p.pasta && p.pasta.identificador && p.pasta.identificador.descricao) ? p.pasta.identificador.descricao : '--';
-                const partes = `${requerenteDesc}<br><small style="color: #6c757d;">${requeridoDesc}</small>`;
-                const anotacoes = safeGet(p, 'anotacoes');
-                
-                return `
-                    <tr>
-                        <td><a href="${processLink}" target="_blank" style="font-weight: 600;">${protocolo}</a><br><small style="color: #6c757d;">${instituicaoDesc}</small></td>
-                        <td>${partes}<br><small style="color: #28a745; font-weight: 500;">Pasta: ${pastaDesc}</small></td>
-                        <td style="text-align: center;"><span style="font-weight: 600;">${dataEntrada}</span>${dataConclusao ? `<br><small style="color: #dc3545; font-weight: 500;">${dataConclusao}</small>` : ''}</td>
-                        <td><span style="font-weight: 500;">${situacaoDesc}</span></td>
-                        <td><div class="process-notes">${formatNotesForDisplay(anotacoes !== '--' ? anotacoes : '') || '--'}</div></td>
-                    </tr>
-                `;
-            }).join('');
+      <div class="kpi-grid">
+        <button type="button" class="kpi-card" data-kpi-action="reset" title="Limpar filtros"><div class="kpi-icon">👥</div><div class="kpi-value" id="kpiTotal">—</div><div class="kpi-label">Total de Clientes</div></button>
+        <button type="button" class="kpi-card" data-kpi-action="tipo-pf" title="Filtrar por Pessoa Física"><div class="kpi-icon">🧍</div><div class="kpi-value" id="kpiPF">—</div><div class="kpi-label">Pessoas Físicas</div></button>
+        <button type="button" class="kpi-card" data-kpi-action="tipo-pj" title="Filtrar por Pessoa Jurídica"><div class="kpi-icon">🏢</div><div class="kpi-value" id="kpiPJ">—</div><div class="kpi-label">Pessoas Jurídicas</div></button>
+        <button type="button" class="kpi-card warn" data-kpi-action="ver-indefinidos" title="Ver clientes com tipo indefinido"><div class="kpi-icon">❓</div><div class="kpi-value" id="kpiIndefinido">—</div><div class="kpi-label">Tipo Indefinido</div></button>
+        <button type="button" class="kpi-card" data-kpi-action="ver-evolucao" title="Ver gráfico de evolução"><div class="kpi-icon">➕</div><div class="kpi-value" id="kpiNovos">…</div><div class="kpi-label">Novos Clientes (Mês)</div></button>
+        <button type="button" class="kpi-card" data-kpi-action="email-sim" title="Filtrar clientes com e-mail"><div class="kpi-icon">📧</div><div class="kpi-value" id="kpiEmail">—</div><div class="kpi-label">Clientes com E-mail</div></button>
+        <button type="button" class="kpi-card" data-kpi-action="celular-sim" title="Filtrar clientes com celular"><div class="kpi-icon">📱</div><div class="kpi-value" id="kpiCelular">—</div><div class="kpi-label">Clientes com Celular</div></button>
+        <button type="button" class="kpi-card" data-kpi-action="ver-faixa-etaria" title="Ver gráfico de faixa etária"><div class="kpi-icon">🎂</div><div class="kpi-value" id="kpiIdade">—</div><div class="kpi-label">Idade Média</div></button>
+        <button type="button" class="kpi-card warn" data-kpi-action="ver-qualidade" title="Ver detalhe de cadastros incompletos"><div class="kpi-icon">⚠️</div><div class="kpi-value" id="kpiIncompletos">—</div><div class="kpi-label">Cadastros Incompletos</div></button>
+      </div>
 
-            return `
-                <h3>Processos Extrajudiciais (Total: ${totalProcesses})</h3>
-                <table class="processes-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 18%;">Protocolo / Instituição</th>
-                            <th style="width: 22%;">Requerente / Requerido / Pasta</th>
-                            <th style="width: 12%;">Dt. Entrada / Dt. Conclusão</th>
-                            <th style="width: 13%;">Situação</th>
-                            <th style="width: 35%;">Anotações</th>
-                        </tr>
-                    </thead>
-                    <tbody>${tableRows}</tbody>
-                </table>
-            `;
-        }
+      <div class="chart-grid">
+        <div class="card chart-card">
+          <h3>📈 Evolução dos Cadastros</h3>
+          <p class="chart-sub">Clientes cadastrados por mês (últimos 6 meses)</p>
+          <canvas id="chartEvolucao"></canvas>
+        </div>
 
-        function createJudicialProcessesTable(processes, totalProcesses) {
-            if (!processes || processes.length === 0) {
-                return `<h3>Processos Judiciais (Total: 0)</h3><p style="color: #dc3545; font-weight: bold;">Nenhum processo judicial encontrado.</p>`;
-            }
-            
-            const tableRows = processes.map(p => {
-                const numeroCNJ = safeGet(p, 'numeroCNJ');
-                const pId = safeGet(p, 'id');
-                const processLink = pId !== '--' ? `${ELEVEN_BASE_URL}processos-judiciais/${pId}/detalhamento` : '#';
+        <div class="card chart-card">
+          <h3>🥧 Pessoa Física x Pessoa Jurídica</h3>
+          <p class="chart-sub">Composição geral da base</p>
+          <canvas id="chartPfPj"></canvas>
+        </div>
 
-                // tribunal e unidadeJudicial chegam como strings diretas na API
-                const tribunalDesc = safeGet(p, 'tribunal');
-                const unidadeDesc = safeGet(p, 'unidadeJudicial');
-                const comarca = safeGet(p, 'comarca');
+        <div class="card chart-card">
+          <h3>💍 Estado Civil</h3>
+          <p class="chart-sub">Apenas Pessoa Física</p>
+          <canvas id="chartEstadoCivil"></canvas>
+        </div>
 
-                const autorPrincipalDesc = safeGetNested(p, 'autorPrincipal', 'descricao');
-                // advogados usam chaves corretas da API
-                const advAutorDesc = safeGetNested(p, 'advogadoAutorPrincipal', 'descricao');
-                const reuPrincipalDesc = safeGetNested(p, 'reuPrincipal', 'descricao');
-                const advReuDesc = safeGetNested(p, 'advogadoReuPrincipal', 'descricao');
+        <div class="card chart-card">
+          <h3>🎂 Faixa Etária</h3>
+          <p class="chart-sub">Calculada a partir da data de nascimento</p>
+          <canvas id="chartFaixaEtaria"></canvas>
+        </div>
 
-                // tipo de ação usa chave correta da API
-                const tipoAcaoDesc = safeGetNested(p, 'tipoDeAcao', 'descricao');
-                const areaDesc = safeGetNested(p, 'area', 'descricao');
-                const situacaoDesc = safeGetNested(p, 'situacao', 'descricao');
+        <div class="card chart-card">
+          <h3>☎️ Qualidade dos Contatos</h3>
+          <p class="chart-sub">% da base com cada dado preenchido</p>
+          <canvas id="chartQualidade"></canvas>
+        </div>
 
-                const dataEntrada = formatDateOnly(safeGet(p, 'dataEntrada'));
-                const dataConclusaoRaw = safeGet(p, 'dataConclusao');
-                const dataConclusao = (dataConclusaoRaw && dataConclusaoRaw !== '--') ? formatDateOnly(dataConclusaoRaw) : '';
+        <div class="card chart-card">
+          <h3>🏆 Ranking de Profissões</h3>
+          <p class="chart-sub">Apenas Pessoa Física</p>
+          <canvas id="chartProfissoes"></canvas>
+        </div>
 
-                const tribunalInfo = `${tribunalDesc}<br>
-                    <small style="color: #6c757d;">${unidadeDesc}</small><br>
-                    <small style="color: #6c757d;">Comarca: ${comarca}</small>`;
+        <div class="card chart-card">
+          <h3>📆 Clientes Cadastrados por Ano</h3>
+          <p class="chart-sub">Últimos 3 anos</p>
+          <canvas id="chartPorAno"></canvas>
+        </div>
 
-                const partesInfo = `<strong>Autor:</strong> ${autorPrincipalDesc}<br>
-                    <small style="color: #6c757d;">Adv: ${advAutorDesc}</small><br>
-                    <strong>Réu:</strong> ${reuPrincipalDesc}<br>
-                    <small style="color: #6c757d;">Adv: ${advReuDesc}</small>`;
-                
-                return `
-                    <tr>
-                        <td><a href="${processLink}" target="_blank" style="font-weight: 600;">${numeroCNJ}</a><br>${tribunalInfo}</td>
-                        <td>${partesInfo}</td>
-                        <td style="text-align: center;"><span style="font-weight: 600;">${dataEntrada}</span>${dataConclusao ? `<br><small style="color: #dc3545; font-weight: 500;">${dataConclusao}</small>` : ''}</td>
-                        <td><span style="font-weight: 500;">${situacaoDesc}</span><br><small style="color: #6c757d;">${tipoAcaoDesc}</small><br><small style="color: #28a745;">${areaDesc}</small></td>
-                    </tr>
-                `;
-            }).join('');
+        <div class="card chart-card">
+          <h3>⚠️ Indicador de Qualidade do Cadastro</h3>
+          <p class="chart-sub">Esse painel ajuda a identificar informações faltantes</p>
+          <div id="qualidadeCadastroList"></div>
+        </div>
+      </div>
 
-            return `
-                <h3>Processos Judiciais (Total: ${totalProcesses})</h3>
-                <table class="judicial-processes-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 25%;">Nº CNJ / Tribunal / Unidade / Comarca</th>
-                            <th style="width: 35%;">Autor Principal / Réu Principal</th>
-                            <th style="width: 12%;">Dt. Entrada / Dt. Conclusão</th>
-                            <th style="width: 28%;">Situação / Tipo de Ação / Área</th>
-                        </tr>
-                    </thead>
-                    <tbody>${tableRows}</tbody>
-                </table>
-            `;
-        }
+      <div class="list-grid">
+        <div class="card chart-card">
+          <h3>🎈 Próximos Aniversariantes</h3>
+          <table class="dash-table">
+            <thead><tr><th>Nome</th><th>Data</th></tr></thead>
+            <tbody id="tabelaAniversariantes"></tbody>
+          </table>
+        </div>
 
-        function createServicesTable(services, totalServices) {
-            let html = `<h3>Histórico de Serviços (Total: ${totalServices}) - Máximo: 200</h3>`;
-            if (!services || services.length === 0) {
-                html += `<p style="color: #dc3545; font-weight: bold;">Nenhum serviço encontrado.</p>`;
-                return html;
-            }
+        <div class="card chart-card">
+          <h3>🆕 Cadastrados nos Últimos 30 Dias</h3>
+          <table class="dash-table">
+            <thead><tr><th>Cliente</th><th>Tipo</th></tr></thead>
+            <tbody id="tabelaUltimos"></tbody>
+          </table>
+        </div>
+      </div>
 
-            const tableRows = services.map(service => {
-                const serviceId = safeGet(service, 'id');
-                const serviceLink = serviceId !== '--' ? `${ELEVEN_BASE_URL}servicos/${serviceId}/detalhamento` : '#';
-                const serviceNotesFormatted = formatNotesForDisplay(service.anotacoes || '');
-                const formattedDate = formatDateOnly(service.dataInicio);
-                const formattedTime = formatTimeOnly(service.dataInicio);
-                const encarregadoName = safeGetNested(service, 'encarregado', 'descricao');
-                const formattedEncarregado = formatName(encarregadoName);
-                const descricao = safeGet(service, 'descricao');
-                const categoria = safeGetNested(service, 'categoria', 'descricao');
+    </main>
+  </div>
+</div>
 
-                return `
-                    <tr>
-                        <td><small style="color: #6c757d; font-weight: bold;">${formattedDate}</small><br>${formattedTime}</td>
-                        <td><a href="${serviceLink}" target="_blank">${descricao}</a><br><small style="color: #6c757d;">(${categoria})</small></td>
-                        <td>${formattedEncarregado}</td>
-                        <td><div class="service-notes">${serviceNotesFormatted || '--'}</div></td>
-                    </tr>
-                `;
-            }).join('');
-            
-            html += `
-                <table class="services-table">
-                    <thead>
-                        <tr>
-                            <th>Data e Hora</th>
-                            <th>Descrição</th>
-                            <th>Encarregado</th>
-                            <th>Anotações</th>
-                        </tr>
-                    </thead>
-                    <tbody>${tableRows}</tbody>
-                </table>
-            `;
-            return html;
-        }
+<div class="modal-overlay" id="infoModalOverlay">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <button class="modal-close" id="infoModalClose" type="button" aria-label="Fechar">✕</button>
+    <h2 class="modal-title">Sobre este relatório</h2>
+    <div class="modal-body">
+      <p>Dashboard com a visão geral da base de clientes do escritório: composição (pessoa física/jurídica), qualidade dos cadastros e indicadores para apoiar a tomada de decisão.</p>
+      <p style="background:rgba(255,171,74,.12);border:1px solid rgba(255,171,74,.3);color:var(--orange);padding:10px 12px;border-radius:8px;margin-top:10px;line-height:1.4">⚠️ <strong>Importante:</strong> este relatório busca todos os clientes cadastrados no sistema, então o carregamento pode levar alguns segundos dependendo do tamanho da base.</p>
+      <p style="color:var(--muted);font-size:.85rem;margin-top:10px">Este relatório apenas consulta informações — ele não altera, cria ou apaga nada nas pastas ou processos.</p>
+      <h3 style="margin:14px 0 8px">Se algo der errado no login</h3>
+      <ul>
+        <li>Confira se o e-mail está completo e sem espaço no fim.</li>
+        <li>Teste o mesmo acesso direto no sistema. Se não entrar lá, a senha é o problema.</li>
+        <li>Se entrar no sistema mas não aqui, avise o suporte: pode ser permissão de perfil.</li>
+      </ul>
+    </div>
+  </div>
+</div>
 
-        function createResultPage(data, servicesObject, processesObject, judicialProcessesObject) {
-            const services = servicesObject.itens || [];
-            const totalServices = servicesObject.total || services.length;
-            const processes = processesObject.itens || [];
-            const totalProcesses = processesObject.total || processes.length;
-            const judicialProcesses = judicialProcessesObject.itens || [];
-            const totalJudicialProcesses = judicialProcessesObject.total || judicialProcesses.length;
-            
-            const clienteId = safeGet(data, 'id');
-            const clienteLink = clienteId !== '--' ? `${ELEVEN_BASE_URL}clientes/${clienteId}/detalhamento` : '#';
-            const docNumber = safeGet(data, 'cnpj') || safeGet(data, 'cpf');
-            const phone = safeGet(data, 'telefone') || safeGet(data, 'telefoneMovel');
-            const cep = safeGetNested(data, 'enderecoPrincipal', 'cep');
-            
-            const allData = [
-                ['Nome / Razão Social', safeGet(data, 'nome')],
-                ['Tipo de Contato', safeGetNested(data, 'tipoContato', 'descricao')],
-                ['CPF/CNPJ', formatCpfCnpj(docNumber)],
-                ['E-mail', safeGet(data, 'email') || safeGet(data, 'emailAdicional') || '--'],
-                ['Telefone', formatPhone(phone)],
-                ['Endereço (Texto)', safeGet(data, 'enderecoPrincipalTextual') || '--'],
-                ['Logradouro Principal', safeGetNested(data, 'enderecoPrincipal', 'logradouro') + (safeGetNested(data, 'enderecoPrincipal', 'numero') !== '--' && safeGetNested(data, 'enderecoPrincipal', 'numero') ? ', ' + safeGetNested(data, 'enderecoPrincipal', 'numero') : '')],
-                ['CEP', formatCep(cep)],
-                ['Cidade/UF', safeGetNested(data, 'enderecoPrincipal', 'municipio') + '/' + safeGetNested(data, 'enderecoPrincipal', 'uf')],
-            ];
+<div class="modal-overlay" id="indefinidosModalOverlay">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <button class="modal-close" id="indefinidosModalClose" type="button" aria-label="Fechar">✕</button>
+    <h2 class="modal-title">Clientes com tipo indefinido</h2>
+    <p style="color:var(--muted);font-size:.82rem;margin:-6px 0 12px;line-height:1.4">Não têm CPF, CNPJ nem tipo de contato definidos no cadastro — por isso não entram na contagem de Pessoa Física nem Pessoa Jurídica. Clique num nome para abrir o cadastro no sistema e corrigir o tipo por lá.</p>
+    <div class="modal-body" id="indefinidosModalBody" style="max-height:340px;overflow-y:auto"></div>
+  </div>
+</div>
 
-            const mainData = allData.filter(row => {
-                const valueString = String(row[1]).trim();
-                return valueString !== '--' && valueString !== '/' && valueString !== ',' && valueString !== '';
-            });
-            
-            const anotacoesRaw = safeGet(data, 'anotacoes');
-            const anotacoesFormatted = formatNotesForDisplay(anotacoesRaw);
-            const hasAnotacoes = anotacoesRaw !== '--' && anotacoesRaw.trim() !== '';
+<script>
+/* ========== Modal de informação (tela de login) ========== */
+(function(){
+  const overlay = document.getElementById('infoModalOverlay');
+  const btn = document.getElementById('infoLoginBtn');
+  const closeBtn = document.getElementById('infoModalClose');
+  if(!overlay || !btn) return;
+  const open = ()=> overlay.classList.add('open');
+  const close = ()=> overlay.classList.remove('open');
+  btn.addEventListener('click', open);
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && overlay.classList.contains('open')) close(); });
+})();
 
-            const processesTableHtml = createProcessesTable(processes, totalProcesses);
-            const judicialProcessesTableHtml = createJudicialProcessesTable(judicialProcesses, totalJudicialProcesses);
-            const servicesTableHtml = createServicesTable(services, totalServices);
+/* ========== Modal de clientes com tipo indefinido ========== */
+(function(){
+  const overlay = document.getElementById('indefinidosModalOverlay');
+  const closeBtn = document.getElementById('indefinidosModalClose');
+  const body = document.getElementById('indefinidosModalBody');
+  if(!overlay) return;
+  window.abrirListaIndefinidos = function(){
+    const nomes = TODOS_CLIENTES.filter(ehIndefinido);
+    body.innerHTML = nomes.length
+      ? '<ul style="margin:0;padding-left:18px">' + nomes.map(c=>`<li style="margin-bottom:8px"><a class="link-small" href="${urlCliente(c.id)}" target="_blank" rel="noopener">${escapeHtml(c.nome||'—')}</a></li>`).join('') + '</ul>'
+      : '<div class="empty-dash">Nenhum cliente com tipo indefinido nesta base.</div>';
+    overlay.classList.add('open');
+  };
+  const close = ()=> overlay.classList.remove('open');
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && overlay.classList.contains('open')) close(); });
+})();
 
-            return `
-                <html>
-                <head>
-                    <title>Resumo do Cliente: ${safeGet(data, 'nome')}</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f8f9fa; }
-                        .header {
-                            margin-bottom: 20px;
-                            border-bottom: 2px solid #667eea;
-                            padding-bottom: 10px;
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: center;
-                        }
-                        .header h1 { color: #343a40; font-size: 1.8rem; margin: 0;}
-                        .header-content { flex-grow: 1; }
-                        .header p { margin-top: 5px; }
-                        h3 { color: #667eea; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-top: 30px; }
-                        a { color: #667eea; text-decoration: none; }
-                        a:hover { text-decoration: underline; }
-                        .btn-pdf {
-                            background-color: #dc3545;
-                            color: white;
-                            border: none;
-                            padding: 10px 15px;
-                            border-radius: 4px;
-                            font-weight: bold;
-                            cursor: pointer;
-                            transition: background-color 0.3s;
-                        }
-                        .btn-pdf:hover { background-color: #c82333; }
-                        .main-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-                        .main-table th, .main-table td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
-                        .main-table th { background-color: #667eea; color: white; font-weight: 600; width: 30%; }
-                        .processes-table { 
-                            width: 100%; 
-                            border-collapse: collapse; 
-                            background-color: white; 
-                            font-size: 0.95em;
-                            margin-bottom: 30px;
-                        }
-                        .processes-table th, .processes-table td { border: 1px solid #dee2e6; padding: 8px; text-align: left; vertical-align: top; }
-                        .processes-table th { background-color: #f1f1f1; color: #343a40; font-weight: 600; }
-                        .processes-table td:nth-child(1) { width: 18%; } 
-                        .processes-table td:nth-child(2) { width: 22%; }
-                        .processes-table td:nth-child(3) { width: 12%; text-align: center; } 
-                        .processes-table td:nth-child(4) { width: 13%; }
-                        .processes-table td:nth-child(5) { width: 35%; max-width: 35%; } 
-                        .judicial-processes-table { 
-                            width: 100%; 
-                            border-collapse: collapse; 
-                            background-color: white; 
-                            font-size: 0.95em;
-                            margin-bottom: 30px;
-                        }
-                        .judicial-processes-table th, .judicial-processes-table td { border: 1px solid #dee2e6; padding: 8px; text-align: left; vertical-align: top; }
-                        .judicial-processes-table th { background-color: #f1f1f1; color: #343a40; font-weight: 600; }
-                        .judicial-processes-table td:nth-child(1) { width: 25%; } 
-                        .judicial-processes-table td:nth-child(2) { width: 35%; }
-                        .judicial-processes-table td:nth-child(3) { width: 12%; text-align: center; } 
-                        .judicial-processes-table td:nth-child(4) { width: 28%; }
-                        .services-table { 
-                            width: 100%; 
-                            border-collapse: collapse; 
-                            background-color: white; 
-                            font-size: 0.95em;
-                        }
-                        .services-table th, .services-table td { border: 1px solid #dee2e6; padding: 8px; text-align: left; vertical-align: top; }
-                        .services-table th { background-color: #f1f1f1; color: #343a40; font-weight: 600; }
-                        .services-table td:nth-child(1) { width: 8%; text-align: center; } 
-                        .services-table td:nth-child(2) { width: 16%; } 
-                        .services-table td:nth-child(3) { width: 6%; }
-                        .services-table td:nth-child(4) { width: 70%; max-width: 70%; }
-                        .anotacoes-box {
-                            border: 1px solid #ced4da;
-                            padding: 15px;
-                            background-color: #fff3cd;
-                            margin-top: 15px;
-                        }
-                        .anotacoes-box p {
-                            margin: 0 0 10px 0;
-                            white-space: normal;
-                        }
-                        .anotacoes-box p:last-child { margin-bottom: 0; }
-                        .service-notes, .process-notes {
-                            max-height: 100px;
-                            overflow-y: auto;
-                            word-break: break-word;
-                            font-size: 0.8em;
-                            background-color: #fafafa;
-                            padding: 5px;
-                            border-radius: 3px;
-                        }
-                        @media print {
-                            .btn-pdf { display: none; }
-                            .anotacoes-box {
-                                background-color: transparent !important;
-                                border: 1px dashed #6c757d;
-                            }
-                            .service-notes, .process-notes {
-                                max-height: none !important;
-                                overflow-y: visible !important;
-                                background-color: transparent !important;
-                                font-size: 0.8em; 
-                            }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <div class="header-content">
-                            <h1>Resumo do Cliente: ${safeGet(data, 'nome')}</h1>
-                            <p>ID do Cliente: <strong><a href="${clienteLink}" target="_blank">${clienteId}</a></strong></p>
-                        </div>
-                        <button class="btn-pdf" onclick="window.print()">Gerar PDF / Imprimir</button>
-                    </div>
-                    <table class="main-table">
-                        <thead>
-                            <tr><th colspan="2">Dados de Identificação e Contato</th></tr>
-                        </thead>
-                        <tbody>
-                            ${mainData.map(row => `<tr><th>${row[0]}</th><td>${row[1]}</td></tr>`).join('')}
-                        </tbody>
-                    </table>
-                    ${hasAnotacoes ? `
-                        <h3>Anotações do Cadastro</h3>
-                        <div class="anotacoes-box">${anotacoesFormatted}</div>
-                    ` : ''}
-                    ${processesTableHtml}
-                    ${judicialProcessesTableHtml}
-                    ${servicesTableHtml}
-                </body>
-                </html>
-            `;
-        }
+/* ========== Mostrar/ocultar senha ========== */
+(function(){
+  const toggleSenhaBtn = document.getElementById('toggleSenha');
+  const senhaInput = document.getElementById('senha');
+  const eyeIcon = document.getElementById('eyeIcon');
+  const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+  const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.4 18.4 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/>';
+  if(toggleSenhaBtn){
+    toggleSenhaBtn.addEventListener('click',()=>{
+      const showing = senhaInput.type === 'text';
+      senhaInput.type = showing ? 'password' : 'text';
+      eyeIcon.innerHTML = showing ? EYE_OPEN : EYE_OFF;
+      toggleSenhaBtn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+      toggleSenhaBtn.title = showing ? 'Mostrar senha' : 'Ocultar senha';
+    });
+  }
+})();
 
-        logoutButton.addEventListener('click', function() {
-            BEARER_TOKEN = null;
-            CLIENT_ID = null;
-            loginForm.reset();
-            linkForm.reset();
-            resultadoDiv.textContent = 'Aguardando login...';
-            linkResultadoDiv.textContent = 'Aguardando Link...';
-            showScreen('login');
-        });
-    </script>
+/* ========== Dicas rotativas (tela de carregamento) ========== */
+const DICAS = [
+  'Para melhorar a qualidade dos seus cadastros, nas configurações do Lawyer Eleven, configure a obrigatoriedade dos principais campos.',
+  'Crie campos extras específicos para as informações mais importantes do seu escritório.',
+  'Organize sua carteira de clientes com o Lawyer Eleven.',
+  'Se identificar cadastros duplicados, utilize a função "Unificar" no botão Ações.'
+];
+let dicaIndex = 0, dicaTimer = null;
+function iniciarDicas(){
+  const el = document.getElementById('dicaTexto');
+  function mostrar(){
+    el.classList.remove('show');
+    setTimeout(()=>{
+      el.innerHTML = '<span class="dica-title">Dica</span>' + DICAS[dicaIndex];
+      el.classList.add('show');
+      dicaIndex = (dicaIndex + 1) % DICAS.length;
+    }, 250);
+  }
+  mostrar();
+  dicaTimer = setInterval(mostrar, 4500);
+}
+function pararDicas(){ if(dicaTimer){ clearInterval(dicaTimer); dicaTimer = null; } }
+
+/* =========================================================
+   DADOS / API
+   ========================================================= */
+let BEARER_TOKEN = null;
+let TODOS_CLIENTES = [];
+let CLIENTES_FILTRADOS = [];
+let FILTRO_TIPO = 'TODOS'; // TODOS | PF | PJ
+const CHARTS = {};
+
+const LOGIN_URL = "https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum";
+const CONTATOS_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/contatos";
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const senha = document.getElementById('senha').value.trim();
+  const resultado = document.getElementById('resultado');
+  if(!email || !senha){ resultado.innerHTML = '<span style="color:red">Informe e-mail e senha</span>'; return; }
+  resultado.innerHTML = '🔄 Realizando login...';
+  try{
+    const creds = btoa(email + ':' + senha);
+    const r = await fetch(LOGIN_URL, { headers: { 'Authorization': 'Basic ' + creds } });
+    if(!r.ok) throw new Error('Falha no login');
+    BEARER_TOKEN = (r.headers.get('authorization') || '').replace(/^(Bearer|Basic)\s/i, '').trim();
+    document.getElementById('loginScreen').parentElement.style.display = 'none';
+    document.getElementById('dashboardScreen').style.display = 'block';
+    iniciarDicas();
+    carregarClientes();
+  }catch(err){
+    resultado.innerHTML = '<span style="color:red">'+err.message+'</span>';
+  }
+});
+
+document.getElementById('btnSairDash').addEventListener('click', ()=> location.reload());
+
+/* Busca paginada — mesmo padrão usado em financeiro-clientes.html / tarefas-subtarefas.html */
+async function buscarPaginado(url, body, quantidade, ordenacao, onProgress){
+  let inicio = 0, todos = [], totalEsperado = null;
+  while(true){
+    const r = await fetch(`${url}?inicio=${inicio}&quantidade=${quantidade}&ordenacao=${ordenacao}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const j = await r.json();
+    const itens = j.itens || [];
+    if(totalEsperado === null) totalEsperado = j.total ?? j.totalItens ?? j.count ?? null;
+    todos.push(...itens);
+    if(onProgress) onProgress(todos.length, totalEsperado);
+    if(totalEsperado !== null && todos.length >= totalEsperado) break;
+    if(itens.length < quantidade) break;
+    inicio += quantidade;
+  }
+  return todos;
+}
+
+function bodyContatosBase(dataCadastroRange){
+  return {
+    "cnpj": null, "cpf": null, "email": null, "filtrosCamposExtras": [],
+    "nome": null, "nomeMae": null, "nomePai": null, "rg": null, "telefone": null,
+    "ano": {}, "dataCadastro": dataCadastroRange || null, "dia": {},
+    "discriminador": "CLIENTE", "idsEstadoCivil": [], "idsProfissao": [], "tipo": "TODOS"
+  };
+}
+
+/* Conta quantos clientes existem num período. Usa a mesma busca paginada
+   da lista principal (não depende de a API devolver "total" — que na prática
+   não vem preenchido quando o filtro é por dataCadastro). */
+async function contarClientesNoPeriodo(dataMinISO, dataMaxISO){
+  try{
+    const itens = await buscarPaginado(CONTATOS_URL, bodyContatosBase({ valorMinimo: dataMinISO, valorMaximo: dataMaxISO }), 200, 'NOME_ASC');
+    return itens.length;
+  }catch(err){
+    console.error('Erro ao contar período', err);
+    return null;
+  }
+}
+
+function inicioDoDiaISO(d){ const x = new Date(d); x.setHours(0,0,0,0); return x.toISOString(); }
+function fimDoDiaISO(d){ const x = new Date(d); x.setHours(23,59,59,999); return x.toISOString(); }
+
+async function carregarClientes(){
+  const fill = document.getElementById('fillCarregamento');
+  const texto = document.getElementById('textoCarregamento');
+
+  try{
+    /* 1) Base completa de clientes — usada para tudo que não depende de data de cadastro */
+    TODOS_CLIENTES = await buscarPaginado(CONTATOS_URL, bodyContatosBase(), 200, 'NOME_ASC', (atual, total)=>{
+      if(total){
+        const pct = Math.min(100, Math.round((atual/total)*100));
+        fill.style.width = pct+'%';
+        texto.textContent = `Carregando clientes... ${atual} / ${total}`;
+      }else{
+        texto.textContent = `Carregando clientes... ${atual}`;
+      }
+    });
+
+    pararDicas();
+    document.getElementById('loadingCard').style.display = 'none';
+    document.getElementById('dashHeader').style.display = 'block';
+    document.getElementById('dashBody').style.display = 'flex';
+    popularOpcoesFiltro();
+    aplicarFiltros();
+
+    /* 2) Métricas por data de cadastro — consultadas à parte, pois a listagem
+          em massa não devolve esse campo por item (só aceita filtrar por ele) */
+    carregarMetricasPorData();
+  }catch(err){
+    texto.textContent = 'Erro ao carregar clientes: ' + err.message;
+  }
+}
+
+/* Executa uma lista de contagens por período UMA DE CADA VEZ (não em paralelo).
+   Disparar muitas buscas simultâneas parecia estar fazendo a API devolver
+   tudo zerado — sequencial é mais lento mas mais confiável. */
+async function contarSequencial(periodos, onProgresso){
+  const valores = [];
+  for(const p of periodos){
+    const n = await contarClientesNoPeriodo(p.ini, p.fim);
+    valores.push(n);
+    if(onProgresso) onProgresso(valores.slice());
+  }
+  return valores;
+}
+
+async function carregarMetricasPorData(){
+  const hoje = new Date();
+
+  /* Novos clientes no mês atual */
+  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const novosMes = await contarClientesNoPeriodo(inicioDoDiaISO(inicioMes), fimDoDiaISO(hoje));
+  document.getElementById('kpiNovos').textContent = novosMes === null ? '—' : novosMes.toLocaleString('pt-BR');
+
+  /* Evolução — últimos 6 meses (sequencial, preenchendo o gráfico aos poucos) */
+  const meses = [];
+  for(let i=5;i>=0;i--){
+    const ref = new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
+    const ini = new Date(ref.getFullYear(), ref.getMonth(), 1);
+    const fim = new Date(ref.getFullYear(), ref.getMonth()+1, 0);
+    meses.push({ label: formatarMesLabel(ref), ini: inicioDoDiaISO(ini), fim: fimDoDiaISO(fim) });
+  }
+  const valoresMeses = await contarSequencial(
+    meses.map(m=>({ ini:m.ini, fim:m.fim })),
+    parciais=> renderGraficoEvolucao(meses.slice(0,parciais.length).map(m=>m.label), parciais.map(v=>v||0))
+  );
+  if(valoresMeses.every(v=>v===null)) renderGraficoVazio('chartEvolucao');
+
+  /* Cadastrados por ano — últimos 3 anos (sequencial) */
+  const anos = [];
+  for(let i=2;i>=0;i--) anos.push(hoje.getFullYear()-i);
+  const periodosAnos = anos.map(a=>({ ini: new Date(a,0,1).toISOString(), fim: fimDoDiaISO(new Date(a,11,31)) }));
+  const valoresAnos = await contarSequencial(
+    periodosAnos,
+    parciais=> renderGraficoPorAno(anos.slice(0,parciais.length), parciais.map(v=>v||0))
+  );
+  if(valoresAnos.every(v=>v===null)) renderGraficoVazio('chartPorAno');
+
+  /* Cadastrados nos últimos 30 dias — melhor esforço, sem data exata por item */
+  const inicio30 = new Date(hoje); inicio30.setDate(inicio30.getDate()-30);
+  try{
+    const r = await fetch(`${CONTATOS_URL}?inicio=0&quantidade=30&ordenacao=NOME_ASC`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyContatosBase({ valorMinimo: inicioDoDiaISO(inicio30), valorMaximo: fimDoDiaISO(hoje) }))
+    });
+    const j = await r.json();
+    renderUltimos(j.itens || []);
+  }catch(err){
+    renderUltimos([]);
+  }
+}
+
+/* Mostra um aviso no lugar do gráfico quando TODAS as consultas do período falharam
+   (diferente de "zero clientes" — isso indica erro de busca, não dado real) */
+function renderGraficoVazio(canvasId){
+  destruirGrafico(canvasId);
+  const canvas = document.getElementById(canvasId);
+  const wrap = document.createElement('div');
+  wrap.className = 'empty-dash';
+  wrap.textContent = 'Não foi possível carregar esses dados agora. Tente novamente mais tarde.';
+  canvas.replaceWith(wrap);
+}
+
+/* =========================================================
+   EXTRAÇÃO DE CAMPOS (defensiva — nomes de campo baseados no
+   exemplo de retorno do cliente; se a API usar outro nome,
+   essas funções são o único lugar a ajustar)
+   ========================================================= */
+/* PF | PJ | INDEFINIDO — alguns contatos não têm cpf, cnpj nem tipoContato
+   preenchidos (cadastro incompleto/legado). Antes isso caía como PF por
+   engano; agora vira sua própria categoria. */
+function tipoDe(c){
+  // indefinido = tipoContato realmente null. Se existe (qualquer valor), NUNCA é indefinido.
+  if(!c.tipoContato) return 'INDEFINIDO';
+  const valor = (c.tipoContato.valor || '').toUpperCase();
+  const desc = c.tipoContato.descricao || '';
+  if(valor === 'EMPRESA' || /empresa|jur[ií]dic/i.test(desc)) return 'PJ';
+  if(valor === 'PESSOA' || /f[ií]sica/i.test(desc)) return 'PF';
+  // tipoContato existe mas com um valor que não reconheço — ainda assim tem tipo definido,
+  // então uso cnpj como desempate e caio em PF como padrão seguro (nunca indefinido aqui)
+  if(c.cnpj) return 'PJ';
+  return 'PF';
+}
+function ehPJ(c){ return tipoDe(c) === 'PJ'; }
+function ehPF(c){ return tipoDe(c) === 'PF'; }
+function ehIndefinido(c){ return tipoDe(c) === 'INDEFINIDO'; }
+function temEmail(c){ return !!(c.email && String(c.email).trim()); }
+function temCelular(c){ return !!(c.telefoneMovel && String(c.telefoneMovel).trim()); }
+function temTelComercial(c){ return !!(c.telefone && String(c.telefone).trim()); }
+function refDescricao(v){
+  if(!v) return null;
+  if(typeof v === 'object') return v.descricao || v.nome || null;
+  return String(v);
+}
+function idadeDe(c){
+  if(!c.ano) return null;
+  const hoje = new Date();
+  const mesNasc = (c.mes || 1) - 1, diaNasc = c.dia || 1;
+  let idade = hoje.getFullYear() - c.ano;
+  if(hoje.getMonth() < mesNasc || (hoje.getMonth() === mesNasc && hoje.getDate() < diaNasc)) idade--;
+  return idade;
+}
+function faixaEtariaDe(c){
+  const idade = idadeDe(c);
+  if(idade === null) return null;
+  if(idade <= 25) return '18-25';
+  if(idade <= 35) return '26-35';
+  if(idade <= 45) return '36-45';
+  if(idade <= 60) return '46-60';
+  return '60+';
+}
+function cadastroIncompleto(c){
+  if(ehIndefinido(c)) return true;
+  if(!temEmail(c) || !temCelular(c)) return true;
+  if(ehPF(c)){
+    if(!refDescricao(c.estadoCivil)) return true;
+    if(!refDescricao(c.profissao)) return true;
+  }
+  return false;
+}
+
+/* =========================================================
+   FILTROS
+   ========================================================= */
+document.querySelectorAll('[data-filtro-tipo]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-filtro-tipo]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    FILTRO_TIPO = btn.dataset.filtroTipo;
+    aplicarFiltros();
+  });
+});
+
+['fEstadoCivil','fProfissao','fFaixaEtaria','fEmail','fCelular','fTelComercial'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', aplicarFiltros);
+});
+
+/* Cards de indicadores clicáveis — aplicam um filtro relacionado ou levam ao gráfico correspondente */
+function scrollParaCard(elId){
+  const el = document.getElementById(elId);
+  if(el) el.closest('.chart-card').scrollIntoView({ behavior:'smooth', block:'center' });
+}
+document.querySelectorAll('[data-kpi-action]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    switch(btn.dataset.kpiAction){
+      case 'reset':
+        document.getElementById('btnLimparFiltros').click();
+        break;
+      case 'tipo-pf':
+        document.querySelector('[data-filtro-tipo="PF"]').click();
+        break;
+      case 'tipo-pj':
+        document.querySelector('[data-filtro-tipo="PJ"]').click();
+        break;
+      case 'email-sim':
+        document.getElementById('fEmail').value = 'sim';
+        aplicarFiltros();
+        break;
+      case 'celular-sim':
+        document.getElementById('fCelular').value = 'sim';
+        aplicarFiltros();
+        break;
+      case 'ver-evolucao':
+        scrollParaCard('chartEvolucao');
+        break;
+      case 'ver-faixa-etaria':
+        scrollParaCard('chartFaixaEtaria');
+        break;
+      case 'ver-qualidade':
+        scrollParaCard('qualidadeCadastroList');
+        break;
+      case 'ver-indefinidos':
+        document.querySelector('[data-filtro-tipo="INDEFINIDO"]').click();
+        abrirListaIndefinidos();
+        break;
+    }
+  });
+});
+
+document.getElementById('btnLimparFiltros').addEventListener('click', ()=>{
+  FILTRO_TIPO = 'TODOS';
+  document.querySelectorAll('[data-filtro-tipo]').forEach(b=>b.classList.toggle('active', b.dataset.filtroTipo==='TODOS'));
+  ['fEstadoCivil','fProfissao','fFaixaEtaria','fEmail','fCelular','fTelComercial'].forEach(id=>{
+    document.getElementById(id).value = '';
+  });
+  aplicarFiltros();
+});
+
+function popularOpcoesFiltro(){
+  const estadosCivis = new Set(), profissoes = new Set();
+  TODOS_CLIENTES.forEach(c=>{
+    const ec = refDescricao(c.estadoCivil);
+    const pr = refDescricao(c.profissao);
+    if(ec) estadosCivis.add(ec);
+    if(pr) profissoes.add(pr);
+  });
+  const selEc = document.getElementById('fEstadoCivil');
+  const selPr = document.getElementById('fProfissao');
+  [...estadosCivis].sort().forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; selEc.appendChild(o); });
+  [...profissoes].sort().forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; selPr.appendChild(o); });
+}
+
+function aplicarFiltros(){
+  const estadoCivil = document.getElementById('fEstadoCivil').value;
+  const profissao = document.getElementById('fProfissao').value;
+  const faixa = document.getElementById('fFaixaEtaria').value;
+  const email = document.getElementById('fEmail').value;
+  const celular = document.getElementById('fCelular').value;
+  const telComercial = document.getElementById('fTelComercial').value;
+
+  CLIENTES_FILTRADOS = TODOS_CLIENTES.filter(c=>{
+    if(FILTRO_TIPO === 'PF' && !ehPF(c)) return false;
+    if(FILTRO_TIPO === 'PJ' && !ehPJ(c)) return false;
+    if(FILTRO_TIPO === 'INDEFINIDO' && !ehIndefinido(c)) return false;
+
+    if(estadoCivil && refDescricao(c.estadoCivil) !== estadoCivil) return false;
+    if(profissao && refDescricao(c.profissao) !== profissao) return false;
+    if(faixa && faixaEtariaDe(c) !== faixa) return false;
+
+    if(email === 'sim' && !temEmail(c)) return false;
+    if(email === 'nao' && temEmail(c)) return false;
+    if(celular === 'sim' && !temCelular(c)) return false;
+    if(celular === 'nao' && temCelular(c)) return false;
+    if(telComercial === 'sim' && !temTelComercial(c)) return false;
+    if(telComercial === 'nao' && temTelComercial(c)) return false;
+
+    return true;
+  });
+
+  renderTudo();
+}
+
+/* =========================================================
+   RENDERIZAÇÃO
+   ========================================================= */
+function renderTudo(){
+  const lista = CLIENTES_FILTRADOS;
+  renderKpis(lista);
+  renderGraficos(lista);
+  renderQualidade(lista);
+  renderAniversariantes(lista);
+}
+
+function renderKpis(lista){
+  const total = lista.length;
+  const pf = lista.filter(ehPF);
+  const pj = lista.filter(ehPJ);
+  const indefinidos = lista.filter(ehIndefinido);
+  const comEmail = lista.filter(temEmail);
+  const comCelular = lista.filter(temCelular);
+  const incompletos = lista.filter(cadastroIncompleto);
+
+  const idades = pf.map(idadeDe).filter(i=>i !== null && i >= 0 && i < 130);
+  const idadeMedia = idades.length ? Math.round(idades.reduce((a,b)=>a+b,0)/idades.length) : null;
+
+  document.getElementById('kpiTotal').textContent = total.toLocaleString('pt-BR');
+  document.getElementById('kpiPF').textContent = pf.length.toLocaleString('pt-BR');
+  document.getElementById('kpiPJ').textContent = pj.length.toLocaleString('pt-BR');
+  document.getElementById('kpiIndefinido').textContent = indefinidos.length.toLocaleString('pt-BR');
+  document.getElementById('kpiEmail').innerHTML = comEmail.length.toLocaleString('pt-BR') + (total ? `<span class="kpi-pct">${Math.round(comEmail.length/total*100)}%</span>` : '');
+  document.getElementById('kpiCelular').innerHTML = comCelular.length.toLocaleString('pt-BR') + (total ? `<span class="kpi-pct">${Math.round(comCelular.length/total*100)}%</span>` : '');
+  document.getElementById('kpiIdade').textContent = idadeMedia !== null ? idadeMedia + ' anos' : '—';
+  document.getElementById('kpiIncompletos').textContent = incompletos.length.toLocaleString('pt-BR');
+}
+
+function destruirGrafico(id){
+  if(CHARTS[id]){ CHARTS[id].destroy(); delete CHARTS[id]; }
+}
+
+function renderGraficos(lista){
+  const pf = lista.filter(ehPF);
+  const pj = lista.filter(ehPJ);
+  const indefinidos = lista.filter(ehIndefinido);
+
+  /* PF x PJ x Indefinido */
+  destruirGrafico('chartPfPj');
+  const pfPjLabels = ['Pessoa Física','Pessoa Jurídica'].concat(indefinidos.length ? ['Tipo indefinido'] : []);
+  const pfPjValores = [pf.length, pj.length].concat(indefinidos.length ? [indefinidos.length] : []);
+  const pfPjCores = ['#37d6a8','#4f8fef'].concat(indefinidos.length ? ['#ffab4a'] : []);
+  CHARTS.chartPfPj = new Chart(document.getElementById('chartPfPj'), {
+    type:'doughnut',
+    data:{ labels:pfPjLabels, datasets:[{ data:pfPjValores, backgroundColor:pfPjCores }] },
+    options: { ...opcoesBase(lista.length === 0), plugins:{ legend:{ display:true, position:'bottom', labels:{ color:'#8b93a7', boxWidth:12, font:{size:11} } }, tooltip:{ enabled: lista.length>0 } } }
+  });
+
+  /* Estado civil (PF) */
+  const porEstadoCivil = {};
+  pf.forEach(c=>{ const v = refDescricao(c.estadoCivil); if(v) porEstadoCivil[v] = (porEstadoCivil[v]||0)+1; });
+  const ecLabels = Object.keys(porEstadoCivil).sort((a,b)=>porEstadoCivil[b]-porEstadoCivil[a]);
+  destruirGrafico('chartEstadoCivil');
+  CHARTS.chartEstadoCivil = new Chart(document.getElementById('chartEstadoCivil'), {
+    type:'bar',
+    data:{ labels: ecLabels, datasets:[{ label:'Clientes', data: ecLabels.map(l=>porEstadoCivil[l]), backgroundColor:'#37d6a8' }] },
+    options: opcoesBase(ecLabels.length === 0)
+  });
+
+  /* Faixa etária */
+  const faixas = ['18-25','26-35','36-45','46-60','60+'];
+  const porFaixa = {}; faixas.forEach(f=>porFaixa[f]=0);
+  pf.forEach(c=>{ const f = faixaEtariaDe(c); if(f) porFaixa[f]++; });
+  destruirGrafico('chartFaixaEtaria');
+  CHARTS.chartFaixaEtaria = new Chart(document.getElementById('chartFaixaEtaria'), {
+    type:'bar',
+    data:{ labels: faixas, datasets:[{ label:'Clientes', data: faixas.map(f=>porFaixa[f]), backgroundColor:'#4f8fef' }] },
+    options: opcoesBase(pf.every(c=>faixaEtariaDe(c)===null))
+  });
+
+  /* Qualidade dos contatos */
+  const total = lista.length || 1;
+  destruirGrafico('chartQualidade');
+  CHARTS.chartQualidade = new Chart(document.getElementById('chartQualidade'), {
+    type:'bar',
+    data:{
+      labels:['Possui e-mail','Possui celular','Possui tel. comercial'],
+      datasets:[{ label:'% da base', data:[
+        Math.round(lista.filter(temEmail).length/total*100),
+        Math.round(lista.filter(temCelular).length/total*100),
+        Math.round(lista.filter(temTelComercial).length/total*100)
+      ], backgroundColor:['#37d6a8','#4f8fef','#ffab4a'] }]
+    },
+    options: opcoesBase(lista.length === 0, { max:100 })
+  });
+
+  /* Ranking de profissões (PF) — top 7 + Outros */
+  const porProfissao = {};
+  pf.forEach(c=>{ const v = refDescricao(c.profissao); if(v) porProfissao[v] = (porProfissao[v]||0)+1; });
+  const profOrdenadas = Object.entries(porProfissao).sort((a,b)=>b[1]-a[1]);
+  const top = profOrdenadas.slice(0,7);
+  const outrosTotal = profOrdenadas.slice(7).reduce((a,[,v])=>a+v,0);
+  const profLabels = top.map(([k])=>k).concat(outrosTotal ? ['Outros'] : []);
+  const profValores = top.map(([,v])=>v).concat(outrosTotal ? [outrosTotal] : []);
+  destruirGrafico('chartProfissoes');
+  CHARTS.chartProfissoes = new Chart(document.getElementById('chartProfissoes'), {
+    type:'bar',
+    data:{ labels: profLabels, datasets:[{ label:'Clientes', data: profValores, backgroundColor:'#37d6a8' }] },
+    options: opcoesBase(profLabels.length === 0, {}, true)
+  });
+}
+
+function renderGraficoEvolucao(labels, valores){
+  destruirGrafico('chartEvolucao');
+  CHARTS.chartEvolucao = new Chart(document.getElementById('chartEvolucao'), {
+    type:'line',
+    data:{ labels, datasets:[{ label:'Cadastros', data: valores, borderColor:'#37d6a8', backgroundColor:'rgba(55,214,168,.15)', fill:true, tension:.3 }] },
+    options: opcoesBase(valores.every(v=>v===0))
+  });
+}
+
+function renderGraficoPorAno(anos, valores){
+  destruirGrafico('chartPorAno');
+  CHARTS.chartPorAno = new Chart(document.getElementById('chartPorAno'), {
+    type:'bar',
+    data:{ labels: anos.map(String), datasets:[{ label:'Clientes', data: valores, backgroundColor:'#37d6a8' }] },
+    options: opcoesBase(valores.every(v=>v===0))
+  });
+}
+
+function opcoesBase(semDados, escalaY, horizontal){
+  return {
+    responsive:true,
+    maintainAspectRatio:true,
+    indexAxis: horizontal ? 'y' : 'x',
+    plugins:{
+      legend:{ display:false },
+      tooltip:{ enabled:!semDados }
+    },
+    scales:{
+      x:{ ticks:{ color:'#8b93a7' }, grid:{ color:'rgba(255,255,255,.05)' } },
+      y:{ ticks:{ color:'#8b93a7' }, grid:{ color:'rgba(255,255,255,.05)' }, beginAtZero:true, ...(escalaY||{}) }
+    }
+  };
+}
+
+function formatarMesLabel(data){
+  const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  return nomes[data.getMonth()] + '/' + String(data.getFullYear()).slice(2);
+}
+
+function renderQualidade(lista){
+  const total = lista.length || 1;
+  const itens = [
+    { label:'Tipo indefinido (nem PF, nem PJ)', qtd: lista.filter(ehIndefinido).length, action:'tipo-indefinido' },
+    { label:'Sem e-mail', qtd: lista.filter(c=>!temEmail(c)).length, action:'email-nao' },
+    { label:'Sem celular', qtd: lista.filter(c=>!temCelular(c)).length, action:'celular-nao' },
+    { label:'Sem CPF/CNPJ', qtd: lista.filter(c=>!c.cpf && !c.cnpj).length },
+    { label:'Sem profissão (PF)', qtd: lista.filter(c=>ehPF(c) && !refDescricao(c.profissao)).length },
+    { label:'Sem estado civil (PF)', qtd: lista.filter(c=>ehPF(c) && !refDescricao(c.estadoCivil)).length },
+    { label:'Sem RG (PF)', qtd: lista.filter(c=>ehPF(c) && !c.rg).length }
+  ];
+  const container = document.getElementById('qualidadeCadastroList');
+  if(!lista.length){ container.innerHTML = '<div class="empty-dash">Sem dados para o filtro atual.</div>'; return; }
+  container.innerHTML = itens.map(i=>`
+    <${i.action?'button type="button"':'div'} class="qc-row"${i.action?` data-qc-action="${i.action}"`:''}>
+      <div class="qc-label">${i.label}</div>
+      <div class="qc-bar-wrap"><div class="qc-bar" style="width:${Math.round(i.qtd/total*100)}%"></div></div>
+      <div class="qc-count">${i.qtd}</div>
+    </${i.action?'button':'div'}>
+  `).join('');
+  container.querySelectorAll('[data-qc-action]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(btn.dataset.qcAction === 'email-nao'){ document.getElementById('fEmail').value = 'nao'; aplicarFiltros(); }
+      if(btn.dataset.qcAction === 'celular-nao'){ document.getElementById('fCelular').value = 'nao'; aplicarFiltros(); }
+      if(btn.dataset.qcAction === 'tipo-indefinido'){ document.querySelector('[data-filtro-tipo="INDEFINIDO"]').click(); abrirListaIndefinidos(); }
+    });
+  });
+}
+
+function renderAniversariantes(lista){
+  const hoje = new Date();
+  const hojeMD = hoje.getMonth()*100 + hoje.getDate();
+  const comData = lista.filter(c=>ehPF(c) && c.dia && c.mes).map(c=>{
+    const md = (c.mes-1)*100 + c.dia;
+    let diff = md - hojeMD;
+    if(diff < 0) diff += 1200;
+    return { id: c.id, nome: c.nome, dia: c.dia, mes: c.mes, diff };
+  }).sort((a,b)=>a.diff-b.diff).slice(0,10);
+
+  const tbody = document.getElementById('tabelaAniversariantes');
+  if(!comData.length){ tbody.innerHTML = '<tr><td colspan="2" class="muted-small">Nenhum aniversário com data cadastrada.</td></tr>'; return; }
+  tbody.innerHTML = comData.map(c=>`<tr><td><a class="link-small" href="${urlCliente(c.id)}" target="_blank" rel="noopener">${escapeHtml(c.nome||'—')}</a></td><td>${String(c.dia).padStart(2,'0')}/${String(c.mes).padStart(2,'0')}</td></tr>`).join('');
+}
+
+function renderUltimos(itens){
+  const tbody = document.getElementById('tabelaUltimos');
+  if(!itens.length){ tbody.innerHTML = '<tr><td colspan="2" class="muted-small">Nenhum cliente cadastrado nos últimos 30 dias.</td></tr>'; return; }
+  tbody.innerHTML = itens.slice(0,10).map(c=>`<tr><td><a class="link-small" href="${urlCliente(c.id)}" target="_blank" rel="noopener">${escapeHtml(c.nome||'—')}</a></td><td>${ {PF:'Física',PJ:'Jurídica',INDEFINIDO:'Indefinido'}[tipoDe(c)] }</td></tr>`).join('');
+}
+
+/* Nota: o padrão de link usado em todos os outros relatórios do projeto é
+   https://eleven.alkasoft.com.br/auth/... (sem "lawyer" no domínio) — usei
+   o mesmo aqui. Se o domínio correto for outro, é só ajustar esta função. */
+function urlCliente(id){
+  return `https://eleven.alkasoft.com.br/auth/clientes/${id}/detalhamento`;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+</script>
 </body>
 </html>
