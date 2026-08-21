@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Eleven · Dashboard de Serviços</title>
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ===================== Dashboard — widget específico deste relatório, sem equivalente no style.css ===================== */
+
+#dashboardScreen{
+  width:100%;
+  max-width:1400px;
+  margin:0 auto;
+  padding:24px 16px 60px;
+  align-self:flex-start;
+}
+
+.dash-header{
+  position:relative;
+  text-align:center;
+  margin-bottom:26px;
+  padding-top:6px;
+}
+
+.dash-header .brand-mark{margin:0 0 10px}
+.dash-header h1{margin:0 0 4px;font-size:1.3rem}
+.dash-header p{margin:0 auto;color:var(--muted);font-size:.82rem;max-width:480px}
+
+.dash-header #btnSairDash{
+  position:absolute;
+  top:0;
+  right:0;
+  width:auto;
+}
+
+.dash-body{
+  display:flex;
+  align-items:flex-start;
+  gap:20px;
+}
+
+.dash-filters{
+  width:250px;
+  flex-shrink:0;
+  position:sticky;
+  top:16px;
+  max-height:calc(100vh - 32px);
+  overflow-y:auto;
+}
+
+.dash-filters h2{font-size:.95rem;margin:0 0 14px}
+
+.tipo-btn-row{ display:flex; gap:6px; margin-top:6px; }
+.tipo-btn-row .filter-btn{ flex:1; padding:6px 4px; font-size:.76rem; text-align:center; white-space:nowrap; }
+
+.dash-main{flex:1;min-width:0}
+
+.kpi-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:14px;
+  margin-bottom:22px;
+}
+@media (max-width:760px){ .kpi-grid{ grid-template-columns:repeat(2,1fr); } }
+@media (max-width:480px){ .kpi-grid{ grid-template-columns:1fr; } }
+
+.kpi-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:16px;
+  text-align:left;
+  font-family:inherit;
+  cursor:pointer;
+  width:100%;
+  transition:border-color .15s ease,transform .1s ease,background .15s ease;
+}
+.kpi-card:hover{ border-color:var(--brand); background:var(--card-2); }
+.kpi-card:active{ transform:scale(.98); }
+.kpi-card:focus-visible{ outline:2px solid var(--brand); outline-offset:2px; }
+.kpi-card.warn:hover{ border-color:var(--orange); }
+
+.kpi-icon{font-size:1.1rem;margin-bottom:6px}
+.kpi-value{font-size:1.5rem;font-weight:700;color:var(--ink);line-height:1.1}
+.kpi-label{font-size:.78rem;color:var(--muted);margin-top:4px}
+.kpi-card.warn .kpi-value{color:var(--orange)}
+
+.chart-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(360px,1fr));
+  gap:16px;
+  margin-bottom:22px;
+}
+
+.chart-card{padding:18px}
+.chart-card h3{margin:0 0 4px;font-size:.95rem}
+.chart-card .chart-sub{margin:0 0 12px;font-size:.78rem;color:var(--muted)}
+.chart-card canvas{max-height:260px}
+
+.dash-table{width:100%;border-collapse:collapse;font-size:.85rem}
+.dash-table th{text-align:left;color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;padding:0 0 8px;border-bottom:1px solid var(--border)}
+.dash-table td{padding:8px 0;border-bottom:1px solid var(--border)}
+.dash-table tr:last-child td{border-bottom:none}
+.dash-table .muted-small{color:var(--muted);font-size:.78rem}
+
+.empty-dash{padding:30px;text-align:center;color:var(--muted);font-size:.85rem}
+
+/* ---------- Tela de carregamento ---------- */
+.loading-card{ max-width:460px; margin:60px auto; text-align:center; padding:36px 32px; }
+.loading-ring{ width:44px; height:44px; margin:4px auto 18px; border-radius:50%; border:3px solid var(--border-strong); border-top-color:var(--brand); animation:dash-spin .9s linear infinite; }
+@keyframes dash-spin{ to{ transform:rotate(360deg); } }
+.loading-card .progress-wrap{ display:block; margin-top:4px; }
+
+.dica-box{
+  margin-top:24px; padding:14px 16px; border-radius:10px;
+  background:rgba(55,214,168,.08); border:1px solid rgba(55,214,168,.25);
+  text-align:left; display:flex; gap:10px; align-items:flex-start; min-height:64px;
+}
+.dica-box .dica-icon{font-size:1.1rem;flex-shrink:0}
+.dica-box .dica-text{font-size:.85rem;color:var(--ink);line-height:1.45;opacity:0;transition:opacity .35s ease}
+.dica-box .dica-text.show{opacity:1}
+.dica-box .dica-title{display:block;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--brand);margin-bottom:4px}
+
+@media (max-width:860px){
+  .dash-body{flex-direction:column}
+  .dash-filters{width:100%;position:static;max-height:none}
+  .dash-header #btnSairDash{position:static;margin-top:12px}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div id="loginScreen" class="card login-card center">
+    <button type="button" class="info-icon" id="infoLoginBtn" aria-label="Sobre este relatório" title="Sobre este relatório">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" font-family="Arial, Helvetica, sans-serif" fill="#08111a">i</text></svg>
+    </button>
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <p class="subtitle">Acessar Relatório: Dashboard de Serviços</p>
+    <form id="loginForm" style="width:100%">
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input type="text" id="email" class="form-control" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <div class="password-wrap">
+          <input type="password" id="senha" class="form-control" required autocomplete="current-password">
+          <button type="button" class="password-toggle" id="toggleSenha" aria-label="Mostrar senha" title="Mostrar senha">
+            <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn" style="margin-top:6px">Entrar</button>
+    </form>
+    <div id="resultado" class="subtitle" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<div id="dashboardScreen" style="display:none">
+
+  <div class="card loading-card" id="loadingCard">
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <div class="loading-ring"></div>
+    <div class="progress-wrap" style="display:block">
+      <div class="progress"><div class="fill" id="fillCarregamento" style="width:0%"></div></div>
+      <div class="progress-text" id="textoCarregamento">Carregando serviços...</div>
+    </div>
+    <div class="dica-box">
+      <span class="dica-icon">💡</span>
+      <span class="dica-text" id="dicaTexto"><span class="dica-title">Dica</span></span>
+    </div>
+  </div>
+
+  <div class="dash-header" style="display:none" id="dashHeader">
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <h1>Dashboard de Serviços</h1>
+    <p>Carga de serviços por categoria, encarregado e produtividade — escolha o período na lateral.</p>
+    <button id="btnSairDash" class="btn btn-danger btn-outline-inline">Sair</button>
+  </div>
+
+  <div class="dash-body" id="dashBody" style="display:none">
+
+    <aside class="dash-filters card">
+      <h2>🔎 Filtros</h2>
+
+      <div class="field-box" style="margin-bottom:14px">
+        <label class="field-box-label">Pasta vinculada</label>
+        <div class="tipo-btn-row">
+          <button type="button" class="filter-btn active" data-filtro-pasta="TODOS">Todos</button>
+          <button type="button" class="filter-btn" data-filtro-pasta="COM">Com</button>
+          <button type="button" class="filter-btn" data-filtro-pasta="SEM">Sem</button>
+        </div>
+      </div>
+
+      <div class="field-box" style="margin-bottom:10px">
+        <label class="field-box-label">Período rápido</label>
+        <div class="tipo-btn-row">
+          <button type="button" class="filter-btn" data-periodo-rapido="1">1 mês</button>
+          <button type="button" class="filter-btn" data-periodo-rapido="2">2 meses</button>
+        </div>
+        <div class="tipo-btn-row" style="margin-top:6px">
+          <button type="button" class="filter-btn active" data-periodo-rapido="3">3 meses</button>
+          <button type="button" class="filter-btn" data-periodo-rapido="6">6 meses</button>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:10px">
+        <label>De</label>
+        <input type="date" id="fDataMin" class="form-control">
+      </div>
+      <div class="field" style="margin-bottom:10px">
+        <label>Até</label>
+        <input type="date" id="fDataMax" class="form-control">
+      </div>
+
+      <div class="field" style="margin-bottom:10px">
+        <label>Categoria</label>
+        <select id="fCategoria" class="form-control"><option value="">Todas</option></select>
+      </div>
+
+      <div class="field" style="margin-bottom:10px">
+        <label>Encarregado</label>
+        <select id="fEncarregado" class="form-control"><option value="">Todos</option></select>
+      </div>
+
+      <div class="field" style="margin-bottom:14px">
+        <label>Cliente (buscar por nome)</label>
+        <input type="text" id="fCliente" class="form-control" placeholder="Digite parte do nome...">
+      </div>
+
+      <button type="button" id="btnLimparFiltros" class="btn btn-outline-inline" style="width:100%">Limpar filtros</button>
+
+      <p class="muted-small" style="margin-top:14px;color:var(--muted);font-size:.72rem;line-height:1.4">A busca carrega o histórico de serviços uma vez; o período e os demais filtros só refinam o que já foi carregado, sem nova consulta.</p>
+    </aside>
+
+    <main class="dash-main">
+
+      <div class="kpi-grid">
+        <button type="button" class="kpi-card" data-kpi-action="reset" title="Limpar filtros"><div class="kpi-icon">🗂️</div><div class="kpi-value" id="kpiTotal">—</div><div class="kpi-label">Total de Serviços</div></button>
+        <button type="button" class="kpi-card" data-kpi-action="ver-produtividade" title="Ver gráfico de produtividade"><div class="kpi-icon">⏱️</div><div class="kpi-value" id="kpiHoras">—</div><div class="kpi-label">Duração Total (horas)</div></button>
+        <button type="button" class="kpi-card" data-kpi-action="ver-produtividade" title="Ver gráfico de produtividade"><div class="kpi-icon">📏</div><div class="kpi-value" id="kpiMedia">—</div><div class="kpi-label">Duração Média (min)</div></button>
+        <button type="button" class="kpi-card" data-kpi-action="ver-clientes" title="Ver ranking de clientes"><div class="kpi-icon">👤</div><div class="kpi-value" id="kpiClientes">—</div><div class="kpi-label">Clientes Atendidos</div></button>
+        <button type="button" class="kpi-card" data-kpi-action="ver-encarregados" title="Ver gráfico por encarregado"><div class="kpi-icon">🧑‍💼</div><div class="kpi-value" id="kpiEncarregados">—</div><div class="kpi-label">Encarregados Ativos</div></button>
+        <button type="button" class="kpi-card warn" data-kpi-action="pasta-sem" title="Filtrar serviços sem pasta"><div class="kpi-icon">📁</div><div class="kpi-value" id="kpiSemPasta">—</div><div class="kpi-label">Sem Pasta Vinculada</div></button>
+      </div>
+
+      <div class="chart-grid">
+        <div class="card chart-card">
+          <h3>📈 Evolução (últimas semanas)</h3>
+          <p class="chart-sub">Serviços por semana, no período selecionado</p>
+          <canvas id="chartEvolucao"></canvas>
+        </div>
+
+        <div class="card chart-card">
+          <h3>🏷️ Serviços por Categoria</h3>
+          <canvas id="chartCategoria"></canvas>
+        </div>
+
+        <div class="card chart-card">
+          <h3>🧑‍💼 Serviços por Encarregado</h3>
+          <p class="chart-sub">Quantidade de serviços, top 10</p>
+          <canvas id="chartEncarregado"></canvas>
+        </div>
+
+        <div class="card chart-card" id="cardProdutividade">
+          <h3>⚡ Produtividade por Encarregado</h3>
+          <p class="chart-sub">Horas totais registradas, top 10</p>
+          <canvas id="chartProdutividade"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-grid" style="grid-template-columns:1fr">
+        <div class="card chart-card" id="cardClientes">
+          <h3>👥 Clientes com Mais Horas de Serviço</h3>
+          <p class="chart-sub">Ordenado por duração total; mostra a(s) pasta(s) relacionada(s), quando houver</p>
+          <table class="dash-table">
+            <thead><tr><th>Cliente</th><th>Serviços</th><th>Horas</th><th>Pasta(s)</th></tr></thead>
+            <tbody id="tabelaClientes"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div class="modal-overlay" id="infoModalOverlay">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <button class="modal-close" id="infoModalClose" type="button" aria-label="Fechar">✕</button>
+    <h2 class="modal-title">Sobre este relatório</h2>
+    <div class="modal-body">
+      <p>Dashboard dos serviços registrados: carga de trabalho por categoria e por encarregado, evolução ao longo do tempo e ranking de clientes por horas de serviço. O período pode ser ajustado na lateral (1, 2, 3 ou 6 meses, ou datas específicas).</p>
+      <p style="color:var(--muted);font-size:.85rem;margin-top:10px">Este relatório apenas consulta informações — ele não altera, cria ou apaga nada nas pastas ou processos.</p>
+      <h3 style="margin:14px 0 8px">Se algo der errado no login</h3>
+      <ul>
+        <li>Confira se o e-mail está completo e sem espaço no fim.</li>
+        <li>Teste o mesmo acesso direto no sistema. Se não entrar lá, a senha é o problema.</li>
+        <li>Se entrar no sistema mas não aqui, avise o suporte: pode ser permissão de perfil.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========== Modal de informação (tela de login) ========== */
+(function(){
+  const overlay = document.getElementById('infoModalOverlay');
+  const btn = document.getElementById('infoLoginBtn');
+  const closeBtn = document.getElementById('infoModalClose');
+  if(!overlay || !btn) return;
+  const open = ()=> overlay.classList.add('open');
+  const close = ()=> overlay.classList.remove('open');
+  btn.addEventListener('click', open);
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && overlay.classList.contains('open')) close(); });
+})();
+
+/* ========== Mostrar/ocultar senha ========== */
+(function(){
+  const toggleSenhaBtn = document.getElementById('toggleSenha');
+  const senhaInput = document.getElementById('senha');
+  const eyeIcon = document.getElementById('eyeIcon');
+  const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+  const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.4 18.4 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/>';
+  if(toggleSenhaBtn){
+    toggleSenhaBtn.addEventListener('click',()=>{
+      const showing = senhaInput.type === 'text';
+      senhaInput.type = showing ? 'password' : 'text';
+      eyeIcon.innerHTML = showing ? EYE_OPEN : EYE_OFF;
+      toggleSenhaBtn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+      toggleSenhaBtn.title = showing ? 'Mostrar senha' : 'Ocultar senha';
+    });
+  }
+})();
+
+/* ========== Dicas rotativas (tela de carregamento) ========== */
+const DICAS = [
+  'Para melhorar a qualidade dos seus cadastros, nas configurações do Lawyer Eleven, configure a obrigatoriedade dos principais campos.',
+  'Crie campos extras específicos para as informações mais importantes do seu escritório.',
+  'Organize sua carteira de clientes com o Lawyer Eleven.',
+  'Se identificar cadastros duplicados, utilize a função "Unificar" no botão Ações.'
+];
+let dicaIndex = 0, dicaTimer = null;
+function iniciarDicas(){
+  const el = document.getElementById('dicaTexto');
+  function mostrar(){
+    el.classList.remove('show');
+    setTimeout(()=>{
+      el.innerHTML = '<span class="dica-title">Dica</span>' + DICAS[dicaIndex];
+      el.classList.add('show');
+      dicaIndex = (dicaIndex + 1) % DICAS.length;
+    }, 250);
+  }
+  mostrar();
+  dicaTimer = setInterval(mostrar, 4500);
+}
+function pararDicas(){ if(dicaTimer){ clearInterval(dicaTimer); dicaTimer = null; } }
+
+/* =========================================================
+   DADOS / API
+   ========================================================= */
+let BEARER_TOKEN = null;
+let TODOS_ATENDIMENTOS = [];
+let ATENDIMENTOS_FILTRADOS = [];
+let FILTRO_PASTA = 'TODOS'; // TODOS | COM | SEM
+const CHARTS = {};
+
+const LOGIN_URL = "https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum";
+const ATENDIMENTOS_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/atendimentos";
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const senha = document.getElementById('senha').value.trim();
+  const resultado = document.getElementById('resultado');
+  if(!email || !senha){ resultado.innerHTML = '<span style="color:red">Informe e-mail e senha</span>'; return; }
+  resultado.innerHTML = '🔄 Realizando login...';
+  try{
+    const creds = btoa(email + ':' + senha);
+    const r = await fetch(LOGIN_URL, { headers: { 'Authorization': 'Basic ' + creds } });
+    if(!r.ok) throw new Error('Falha no login');
+    BEARER_TOKEN = (r.headers.get('authorization') || '').replace(/^(Bearer|Basic)\s/i, '').trim();
+    document.getElementById('loginScreen').parentElement.style.display = 'none';
+    document.getElementById('dashboardScreen').style.display = 'block';
+    iniciarDicas();
+    carregarAtendimentos();
+  }catch(err){
+    resultado.innerHTML = '<span style="color:red">'+err.message+'</span>';
+  }
+});
+
+document.getElementById('btnSairDash').addEventListener('click', ()=> location.reload());
+
+async function buscarPaginado(url, body, quantidade, ordenacao, onProgress, maxPaginas){
+  let inicio = 0, todos = [], totalEsperado = null, pagina = 0;
+  const limitePaginas = maxPaginas || 250; // trava de segurança (250 x 200 = até 50.000 registros)
+  while(true){
+    const r = await fetch(`${url}?inicio=${inicio}&quantidade=${quantidade}&ordenacao=${ordenacao}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if(!r.ok){
+      const texto = await r.text().catch(()=> '');
+      throw new Error(`A API respondeu ${r.status} (${r.statusText}). ${texto ? 'Detalhe: ' + texto.slice(0,200) : ''}`);
+    }
+    const j = await r.json();
+    const itens = j.itens || [];
+    if(totalEsperado === null) totalEsperado = j.total ?? j.totalItens ?? j.count ?? null;
+    todos.push(...itens);
+    if(onProgress) onProgress(todos.length, totalEsperado);
+    pagina++;
+    if(totalEsperado !== null && todos.length >= totalEsperado) break;
+    if(itens.length < quantidade) break;
+    if(pagina >= limitePaginas) break;
+    inicio += quantidade;
+  }
+  return todos;
+}
+
+function inicioDoDiaISO(d){ const x = new Date(d); x.setHours(0,0,0,0); return x.toISOString(); }
+function fimDoDiaISO(d){ const x = new Date(d); x.setHours(23,59,59,999); return x.toISOString(); }
+
+async function carregarAtendimentos(){
+  const fill = document.getElementById('fillCarregamento');
+  const texto = document.getElementById('textoCarregamento');
+
+  const hoje = new Date();
+  const tresMesesAtras = new Date(hoje);
+  tresMesesAtras.setMonth(tresMesesAtras.getMonth() - 3);
+
+  /* dataInicio fica null aqui — não sei se a API aceita um intervalo {valorMinimo,valorMaximo}
+     nesse campo específico (só foi confirmado pra dataCadastro, em outro endpoint). O corte
+     dos últimos 3 meses é feito no navegador, usando o dataInicio que já vem em cada registro. */
+  const body = {
+    "descricao": null, "duracao": null, "dataInicio": null,
+    "idsCategorias": [], "idsClientes": [], "idsEncarregados": [], "idsPastas": []
+  };
+
+  try{
+    TODOS_ATENDIMENTOS = await buscarPaginado(ATENDIMENTOS_URL, body, 200, 'ULTIMA_MODIFICACAO_DESC', (atual, total)=>{
+      if(total){
+        const pct = Math.min(100, Math.round((atual/total)*100));
+        fill.style.width = pct+'%';
+        texto.textContent = `Carregando serviços... ${atual} / ${total}`;
+      }else{
+        texto.textContent = `Carregando serviços... ${atual}`;
+      }
+    });
+
+    pararDicas();
+    document.getElementById('loadingCard').style.display = 'none';
+    document.getElementById('dashHeader').style.display = 'block';
+    document.getElementById('dashBody').style.display = 'flex';
+
+    /* Datas padrão do filtro = janela dos 3 meses já carregados */
+    document.getElementById('fDataMin').value = tresMesesAtras.toISOString().slice(0,10);
+    document.getElementById('fDataMax').value = hoje.toISOString().slice(0,10);
+
+    popularOpcoesFiltro();
+    aplicarFiltros();
+  }catch(err){
+    texto.textContent = 'Erro ao carregar serviços: ' + err.message;
+  }
+}
+
+/* =========================================================
+   EXTRAÇÃO DE CAMPOS
+   ========================================================= */
+function nomeCategoria(a){ return a.categoria && a.categoria.descricao || 'Sem categoria'; }
+/* Nomes costumam vir em CAIXA ALTA do sistema — padroniza pra Título (primeira
+   letra maiúscula em cada palavra), mantendo conectores comuns em minúsculo. */
+const CONECTORES_NOME = ['de','da','do','das','dos','e'];
+function formatarNome(s){
+  if(!s) return s;
+  return String(s).toLowerCase().split(' ').map((palavra,i)=>{
+    if(!palavra) return palavra;
+    if(i > 0 && CONECTORES_NOME.includes(palavra)) return palavra;
+    return palavra.charAt(0).toUpperCase() + palavra.slice(1);
+  }).join(' ');
+}
+function nomeEncarregado(a){ return formatarNome(a.encarregado && a.encarregado.descricao) || 'Sem encarregado'; }
+function nomeCliente(a){ return formatarNome(a.cliente && a.cliente.descricao) || null; }
+function idCliente(a){ return a.cliente && a.cliente.id || null; }
+function temPasta(a){ return !!(a.pasta && a.pasta.id); }
+function nomePasta(a){ return a.pasta && a.pasta.descricao || null; }
+function duracaoMin(a){ return typeof a.duracao === 'number' ? a.duracao : 0; }
+
+function urlCliente(id){
+  return `https://eleven.alkasoft.com.br/auth/clientes/${id}/detalhamento`;
+}
+
+/* =========================================================
+   FILTROS
+   ========================================================= */
+document.querySelectorAll('[data-filtro-pasta]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-filtro-pasta]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    FILTRO_PASTA = btn.dataset.filtroPasta;
+    aplicarFiltros();
+  });
+});
+
+document.querySelectorAll('[data-periodo-rapido]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-periodo-rapido]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const meses = parseInt(btn.dataset.periodoRapido, 10);
+    const hoje = new Date();
+    const inicio = new Date(hoje);
+    inicio.setMonth(inicio.getMonth() - meses);
+    document.getElementById('fDataMin').value = inicio.toISOString().slice(0,10);
+    document.getElementById('fDataMax').value = hoje.toISOString().slice(0,10);
+    aplicarFiltros();
+  });
+});
+
+['fDataMin','fDataMax','fCategoria','fEncarregado'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', ()=>{
+    document.querySelectorAll('[data-periodo-rapido]').forEach(b=>b.classList.remove('active'));
+    aplicarFiltros();
+  });
+});
+document.getElementById('fCliente').addEventListener('input', aplicarFiltros);
+
+document.getElementById('btnLimparFiltros').addEventListener('click', ()=>{
+  FILTRO_PASTA = 'TODOS';
+  document.querySelectorAll('[data-filtro-pasta]').forEach(b=>b.classList.toggle('active', b.dataset.filtroPasta==='TODOS'));
+  document.getElementById('fCategoria').value = '';
+  document.getElementById('fEncarregado').value = '';
+  document.getElementById('fCliente').value = '';
+  document.querySelector('[data-periodo-rapido="3"]').click();
+});
+
+function popularOpcoesFiltro(){
+  const categorias = new Set(), encarregados = new Set();
+  TODOS_ATENDIMENTOS.forEach(a=>{
+    categorias.add(nomeCategoria(a));
+    encarregados.add(nomeEncarregado(a));
+  });
+  const selCat = document.getElementById('fCategoria');
+  const selEnc = document.getElementById('fEncarregado');
+  [...categorias].sort().forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; selCat.appendChild(o); });
+  [...encarregados].sort().forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; selEnc.appendChild(o); });
+}
+
+function aplicarFiltros(){
+  const min = document.getElementById('fDataMin').value;
+  const max = document.getElementById('fDataMax').value;
+  const categoria = document.getElementById('fCategoria').value;
+  const encarregado = document.getElementById('fEncarregado').value;
+  const clienteTexto = document.getElementById('fCliente').value.trim().toLowerCase();
+
+  ATENDIMENTOS_FILTRADOS = TODOS_ATENDIMENTOS.filter(a=>{
+    if(FILTRO_PASTA === 'COM' && !temPasta(a)) return false;
+    if(FILTRO_PASTA === 'SEM' && temPasta(a)) return false;
+
+    if(a.dataInicio){
+      const d = a.dataInicio.slice(0,10);
+      if(min && d < min) return false;
+      if(max && d > max) return false;
+    }
+
+    if(categoria && nomeCategoria(a) !== categoria) return false;
+    if(encarregado && nomeEncarregado(a) !== encarregado) return false;
+    if(clienteTexto){
+      const nome = (nomeCliente(a) || '').toLowerCase();
+      if(!nome.includes(clienteTexto)) return false;
+    }
+
+    return true;
+  });
+
+  renderTudo();
+}
+
+/* Cards de indicadores clicáveis */
+function scrollParaCard(elId){
+  const el = document.getElementById(elId);
+  if(el) el.closest('.card').scrollIntoView({ behavior:'smooth', block:'center' });
+}
+document.querySelectorAll('[data-kpi-action]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    switch(btn.dataset.kpiAction){
+      case 'reset':
+        document.getElementById('btnLimparFiltros').click();
+        break;
+      case 'ver-produtividade':
+        scrollParaCard('cardProdutividade');
+        break;
+      case 'ver-clientes':
+        scrollParaCard('cardClientes');
+        break;
+      case 'ver-encarregados':
+        scrollParaCard('chartEncarregado');
+        break;
+      case 'pasta-sem':
+        document.querySelector('[data-filtro-pasta="SEM"]').click();
+        break;
+    }
+  });
+});
+
+/* =========================================================
+   RENDERIZAÇÃO
+   ========================================================= */
+function renderTudo(){
+  const lista = ATENDIMENTOS_FILTRADOS;
+  renderKpis(lista);
+  renderGraficos(lista);
+  renderClientes(lista);
+}
+
+function renderKpis(lista){
+  const total = lista.length;
+  const minutosTotal = lista.reduce((a,x)=>a+duracaoMin(x),0);
+  const horasTotal = minutosTotal/60;
+  const mediaMin = total ? Math.round(minutosTotal/total) : 0;
+  const clientesUnicos = new Set(lista.map(idCliente).filter(Boolean));
+  const encarregadosUnicos = new Set(lista.map(nomeEncarregado));
+  const semPasta = lista.filter(a=>!temPasta(a));
+
+  document.getElementById('kpiTotal').textContent = total.toLocaleString('pt-BR');
+  document.getElementById('kpiHoras').textContent = horasTotal.toLocaleString('pt-BR',{maximumFractionDigits:1});
+  document.getElementById('kpiMedia').textContent = mediaMin.toLocaleString('pt-BR');
+  document.getElementById('kpiClientes').textContent = clientesUnicos.size.toLocaleString('pt-BR');
+  document.getElementById('kpiEncarregados').textContent = encarregadosUnicos.size.toLocaleString('pt-BR');
+  document.getElementById('kpiSemPasta').textContent = semPasta.length.toLocaleString('pt-BR');
+}
+
+function destruirGrafico(id){
+  if(CHARTS[id]){ CHARTS[id].destroy(); delete CHARTS[id]; }
+}
+
+function opcoesBase(semDados, escalaY, horizontal){
+  return {
+    responsive:true,
+    maintainAspectRatio:true,
+    indexAxis: horizontal ? 'y' : 'x',
+    plugins:{ legend:{ display:false }, tooltip:{ enabled:!semDados } },
+    scales:{
+      x:{ ticks:{ color:'#8b93a7' }, grid:{ color:'rgba(255,255,255,.05)' } },
+      y:{ ticks:{ color:'#8b93a7' }, grid:{ color:'rgba(255,255,255,.05)' }, beginAtZero:true, ...(escalaY||{}) }
+    }
+  };
+}
+
+function renderGraficos(lista){
+  /* Evolução por semana */
+  const porSemana = {};
+  lista.forEach(a=>{
+    if(!a.dataInicio) return;
+    const d = new Date(a.dataInicio);
+    if(isNaN(d)) return;
+    const inicioSemana = new Date(d);
+    inicioSemana.setDate(d.getDate() - d.getDay());
+    const chave = inicioSemana.toISOString().slice(0,10);
+    porSemana[chave] = (porSemana[chave]||0) + 1;
+  });
+  const semanasOrdenadas = Object.keys(porSemana).sort();
+  destruirGrafico('chartEvolucao');
+  CHARTS.chartEvolucao = new Chart(document.getElementById('chartEvolucao'), {
+    type:'line',
+    data:{
+      labels: semanasOrdenadas.map(s=>{ const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}); }),
+      datasets:[{ label:'Serviços', data: semanasOrdenadas.map(s=>porSemana[s]), borderColor:'#37d6a8', backgroundColor:'rgba(55,214,168,.15)', fill:true, tension:.3 }]
+    },
+    options: opcoesBase(semanasOrdenadas.length === 0)
+  });
+
+  /* Por categoria */
+  const porCategoria = {};
+  lista.forEach(a=>{ const c = nomeCategoria(a); porCategoria[c] = (porCategoria[c]||0)+1; });
+  const catLabels = Object.keys(porCategoria).sort((a,b)=>porCategoria[b]-porCategoria[a]);
+  destruirGrafico('chartCategoria');
+  CHARTS.chartCategoria = new Chart(document.getElementById('chartCategoria'), {
+    type:'bar',
+    data:{ labels: catLabels, datasets:[{ label:'Serviços', data: catLabels.map(l=>porCategoria[l]), backgroundColor:'#4f8fef' }] },
+    options: opcoesBase(catLabels.length === 0, {}, true)
+  });
+
+  /* Por encarregado — quantidade, top 10 */
+  const porEncarregado = {};
+  lista.forEach(a=>{ const e = nomeEncarregado(a); porEncarregado[e] = (porEncarregado[e]||0)+1; });
+  const encLabels = Object.keys(porEncarregado).sort((a,b)=>porEncarregado[b]-porEncarregado[a]).slice(0,10);
+  destruirGrafico('chartEncarregado');
+  CHARTS.chartEncarregado = new Chart(document.getElementById('chartEncarregado'), {
+    type:'bar',
+    data:{ labels: encLabels, datasets:[{ label:'Serviços', data: encLabels.map(l=>porEncarregado[l]), backgroundColor:'#37d6a8' }] },
+    options: opcoesBase(encLabels.length === 0, {}, true)
+  });
+
+  /* Produtividade — horas totais por encarregado, top 10 */
+  const horasPorEncarregado = {};
+  lista.forEach(a=>{ const e = nomeEncarregado(a); horasPorEncarregado[e] = (horasPorEncarregado[e]||0) + duracaoMin(a); });
+  const prodLabels = Object.keys(horasPorEncarregado).sort((a,b)=>horasPorEncarregado[b]-horasPorEncarregado[a]).slice(0,10);
+  destruirGrafico('chartProdutividade');
+  CHARTS.chartProdutividade = new Chart(document.getElementById('chartProdutividade'), {
+    type:'bar',
+    data:{ labels: prodLabels, datasets:[{ label:'Horas', data: prodLabels.map(l=>+(horasPorEncarregado[l]/60).toFixed(1)), backgroundColor:'#ffab4a' }] },
+    options: opcoesBase(prodLabels.length === 0, {}, true)
+  });
+}
+
+function renderClientes(lista){
+  const porCliente = {};
+  lista.forEach(a=>{
+    const id = idCliente(a);
+    if(!id) return;
+    if(!porCliente[id]) porCliente[id] = { id, nome: nomeCliente(a) || '—', minutos:0, qtd:0, pastas: new Set() };
+    porCliente[id].minutos += duracaoMin(a);
+    porCliente[id].qtd += 1;
+    if(temPasta(a)) porCliente[id].pastas.add(nomePasta(a));
+  });
+  const ranking = Object.values(porCliente).sort((a,b)=>b.minutos-a.minutos).slice(0,15);
+
+  const tbody = document.getElementById('tabelaClientes');
+  if(!ranking.length){ tbody.innerHTML = '<tr><td colspan="4" class="muted-small">Sem dados para o filtro atual.</td></tr>'; return; }
+  tbody.innerHTML = ranking.map(c=>`
+    <tr>
+      <td><a class="link-small" href="${urlCliente(c.id)}" target="_blank" rel="noopener">${escapeHtml(c.nome)}</a></td>
+      <td>${c.qtd}</td>
+      <td>${(c.minutos/60).toLocaleString('pt-BR',{maximumFractionDigits:1})}</td>
+      <td class="muted-small">${c.pastas.size ? escapeHtml([...c.pastas].join(', ')) : 'Sem pasta vinculada'}</td>
+    </tr>
+  `).join('');
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+</script>
+</body>
+</html>
