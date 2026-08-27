@@ -315,7 +315,7 @@ document.getElementById('btnGerar').onclick=async()=>{
     const perc=Math.min(100,(i+grupo.length)/pastas.length*100);
     progress(perc.toFixed(1),`Verificando ${Math.min(i+grupo.length,pastas.length)}/${pastas.length}`);
   }
-  progress(100,'Concluído!');a
+  progress(100,'Concluído!');
   inativas.sort((a,b)=>(b.diasSemMov||0)-(a.diasSemMov||0));
   statusDiv.innerHTML=`<strong style="color:green">✅ Concluído!</strong> ${inativas.length} pastas inativas.`;
   gerarRelatorioFinal(inativas);

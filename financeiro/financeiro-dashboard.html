@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Eleven · Dashboard Financeiro</title>
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<style>
+/* ===================== Dashboard — widget específico deste relatório, sem equivalente no style.css ===================== */
+
+#dashboardScreen{
+  width:100%;
+  max-width:1400px;
+  margin:0 auto;
+  padding:24px 16px 60px;
+  align-self:flex-start;
+}
+
+.dash-header{
+  position:relative;
+  text-align:center;
+  margin-bottom:26px;
+  padding-top:6px;
+}
+.dash-header .brand-mark{margin:0 0 10px}
+.dash-header h1{margin:0 0 4px;font-size:1.3rem}
+.dash-header p{margin:0 auto;color:var(--muted);font-size:.82rem;max-width:480px}
+.dash-header #btnSairDash{ position:absolute; top:0; right:0; width:auto; }
+
+.dash-body{ display:flex; align-items:flex-start; gap:20px; }
+
+.dash-filters{
+  width:250px;
+  flex-shrink:0;
+  position:sticky;
+  top:16px;
+  align-self:flex-start;
+}
+.dash-filters h2{font-size:.95rem;margin:0 0 14px}
+
+.tipo-btn-row{ display:flex; gap:6px; margin-top:6px; }
+.filters-section-title + .tipo-btn-row{ margin-top:0; }
+.tipo-btn-row .filter-btn{ flex:1; padding:7px 4px; font-size:.76rem; text-align:center; white-space:nowrap; }
+
+.campo-indisponivel{ opacity:.4; pointer-events:none; }
+
+.dash-filters h2{ display:flex; align-items:center; gap:8px; }
+
+.filters-section{ padding:15px 0; border-bottom:1px solid var(--border); }
+.filters-section:first-of-type{ padding-top:0; }
+.filters-section:last-of-type{ border-bottom:none; padding-bottom:0; }
+
+.filters-section-title{
+  display:block;
+  font-size:.68rem;
+  font-weight:700;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin:0 0 10px;
+}
+
+.filters-hint{ margin:8px 0 0; color:var(--muted); font-size:.7rem; line-height:1.4; }
+
+.dash-filters .field-box{ background:rgba(255,255,255,.02); }
+
+.date-range-row{ display:flex; gap:8px; }
+.date-range-row .field{ margin-bottom:0; flex:1; min-width:0; }
+.date-range-row .field label{ font-size:.68rem; }
+.date-range-row .field input[type="date"]{ width:100%; min-width:0; padding:8px 6px; font-size:.78rem; }
+
+.dash-main{flex:1;min-width:0}
+
+.kpi-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+  margin-bottom:22px;
+}
+@media (max-width:1000px){ .kpi-grid{ grid-template-columns:repeat(2,1fr); } }
+@media (max-width:480px){ .kpi-grid{ grid-template-columns:1fr; } }
+
+.kpi-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:16px;
+  text-align:left;
+  font-family:inherit;
+  cursor:pointer;
+  width:100%;
+  transition:border-color .15s ease,transform .1s ease,background .15s ease;
+}
+.kpi-card:hover{ border-color:var(--brand); background:var(--card-2); }
+.kpi-card:active{ transform:scale(.98); }
+.kpi-card:focus-visible{ outline:2px solid var(--brand); outline-offset:2px; }
+.kpi-card.receita .kpi-value{ color:var(--success); }
+.kpi-card.despesa .kpi-value{ color:var(--danger); }
+.kpi-card.neutro .kpi-value{ color:var(--blue-light); }
+
+.kpi-icon{font-size:1.1rem;margin-bottom:6px}
+.kpi-value{font-size:1.35rem;font-weight:700;color:var(--ink);line-height:1.15}
+.kpi-label{font-size:.78rem;color:var(--muted);margin-top:4px}
+
+.chart-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(360px,1fr));
+  gap:16px;
+  margin-bottom:22px;
+}
+.chart-card{padding:18px}
+.chart-card h3{margin:0 0 4px;font-size:.95rem}
+.chart-card .chart-sub{margin:0 0 12px;font-size:.78rem;color:var(--muted)}
+.chart-card canvas{max-height:260px}
+
+.dash-table{width:100%;border-collapse:collapse;font-size:.85rem}
+.dash-table th{text-align:left;color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;padding:0 0 8px;border-bottom:1px solid var(--border)}
+.dash-table td{padding:8px 0;border-bottom:1px solid var(--border)}
+.dash-table tr:last-child td{border-bottom:none}
+.dash-table .muted-small{color:var(--muted);font-size:.78rem}
+.dash-table .valor-pos{color:var(--success);font-weight:600}
+.dash-table .valor-neg{color:var(--danger);font-weight:600}
+
+.extrato-wrap{max-height:420px;overflow-y:auto}
+.extrato-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+
+.empty-dash{padding:30px;text-align:center;color:var(--muted);font-size:.85rem}
+
+/* ---------- Tela de carregamento ---------- */
+.loading-card{ max-width:460px; margin:60px auto; text-align:center; padding:36px 32px; }
+.loading-ring{ width:44px; height:44px; margin:4px auto 18px; border-radius:50%; border:3px solid var(--border-strong); border-top-color:var(--brand); animation:dash-spin .9s linear infinite; }
+@keyframes dash-spin{ to{ transform:rotate(360deg); } }
+.loading-card .progress-wrap{ display:block; margin-top:4px; }
+
+.dica-box{
+  margin-top:24px; padding:14px 16px; border-radius:10px;
+  background:rgba(55,214,168,.08); border:1px solid rgba(55,214,168,.25);
+  text-align:left; display:flex; gap:10px; align-items:flex-start; min-height:64px;
+}
+.dica-box .dica-icon{font-size:1.1rem;flex-shrink:0}
+.dica-box .dica-text{font-size:.85rem;color:var(--ink);line-height:1.45;opacity:0;transition:opacity .35s ease}
+.dica-box .dica-text.show{opacity:1}
+.dica-box .dica-title{display:block;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--brand);margin-bottom:4px}
+
+@media (max-width:860px){
+  .dash-body{flex-direction:column}
+  .dash-filters{width:100%;position:static;max-height:none}
+  .dash-header #btnSairDash{position:static;margin-top:12px}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div id="loginScreen" class="card login-card center">
+    <button type="button" class="info-icon" id="infoLoginBtn" aria-label="Sobre este relatório" title="Sobre este relatório">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" font-family="Arial, Helvetica, sans-serif" fill="#08111a">i</text></svg>
+    </button>
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <p class="subtitle">Acessar Relatório: Dashboard Financeiro</p>
+    <form id="loginForm" style="width:100%">
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input type="text" id="email" class="form-control" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <div class="password-wrap">
+          <input type="password" id="senha" class="form-control" required autocomplete="current-password">
+          <button type="button" class="password-toggle" id="toggleSenha" aria-label="Mostrar senha" title="Mostrar senha">
+            <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn" style="margin-top:6px">Entrar</button>
+    </form>
+    <div id="resultado" class="subtitle" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<div id="dashboardScreen" style="display:none">
+
+  <div class="card loading-card" id="loadingCard">
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <div class="loading-ring"></div>
+    <div class="progress-wrap" style="display:block">
+      <div class="progress"><div class="fill" id="fillCarregamento" style="width:0%"></div></div>
+      <div class="progress-text" id="textoCarregamento">Carregando movimentos financeiros...</div>
+    </div>
+    <div class="dica-box">
+      <span class="dica-icon">💡</span>
+      <span class="dica-text" id="dicaTexto"><span class="dica-title">Dica</span></span>
+    </div>
+  </div>
+
+  <div class="dash-header" style="display:none" id="dashHeader">
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <h1>Dashboard Financeiro</h1>
+    <p>Receitas, despesas, previsões e extrato — escolha o período na lateral.</p>
+    <button id="btnSairDash" class="btn btn-danger btn-outline-inline">Sair</button>
+  </div>
+
+  <div class="dash-body" id="dashBody" style="display:none">
+
+    <aside class="dash-filters card">
+      <h2>🔎 Filtros</h2>
+
+      <div class="filters-section">
+        <span class="filters-section-title">Visualização</span>
+        <div class="tipo-btn-row">
+          <button type="button" class="filter-btn" data-modo-visao="PREVISTOS">Previstos</button>
+          <button type="button" class="filter-btn active" data-modo-visao="REALIZADOS">Realizados</button>
+        </div>
+        <div class="tipo-btn-row">
+          <button type="button" class="filter-btn" data-modo-visao="TODOS">Completo (todos)</button>
+        </div>
+      </div>
+
+      <div class="filters-section">
+        <span class="filters-section-title">Período</span>
+        <div class="tipo-btn-row">
+          <button type="button" class="filter-btn" data-periodo-rapido="1">1 mês</button>
+          <button type="button" class="filter-btn" data-periodo-rapido="2">2 meses</button>
+        </div>
+        <div class="tipo-btn-row">
+          <button type="button" class="filter-btn active" data-periodo-rapido="3">3 meses</button>
+          <button type="button" class="filter-btn" data-periodo-rapido="6">6 meses</button>
+        </div>
+        <div class="tipo-btn-row">
+          <button type="button" class="filter-btn" data-periodo-rapido="0">Todo o período</button>
+        </div>
+        <p class="filters-hint" id="periodoRapidoAlvo">Aplicado à data de pagamento</p>
+
+        <div class="field-box" style="margin-top:10px">
+          <span class="field-box-label">Data de vencimento</span>
+          <div class="date-range-row">
+            <div class="field">
+              <label for="fVencMin">Mín</label>
+              <input type="date" id="fVencMin" class="form-control">
+            </div>
+            <div class="field">
+              <label for="fVencMax">Máx</label>
+              <input type="date" id="fVencMax" class="form-control">
+            </div>
+          </div>
+        </div>
+
+        <div class="field-box" id="campoDataPagamento" style="margin-top:10px">
+          <span class="field-box-label">Data de pagamento</span>
+          <div class="date-range-row">
+            <div class="field">
+              <label for="fPagMin">Mín</label>
+              <input type="date" id="fPagMin" class="form-control">
+            </div>
+            <div class="field">
+              <label for="fPagMax">Máx</label>
+              <input type="date" id="fPagMax" class="form-control">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="filters-section">
+        <span class="filters-section-title">Tipo e Classificação</span>
+        <div class="tipo-btn-row">
+          <button type="button" class="filter-btn active" data-filtro-tipo="TODOS">Todos</button>
+          <button type="button" class="filter-btn" data-filtro-tipo="RECEITA">Receitas</button>
+          <button type="button" class="filter-btn" data-filtro-tipo="DESPESA">Despesas</button>
+        </div>
+
+        <div class="field" id="campoConta" style="margin-top:10px">
+          <label>Conta</label>
+          <select id="fConta" class="form-control"><option value="">Todas</option></select>
+        </div>
+
+        <div class="field" style="margin-top:10px">
+          <label>Categoria</label>
+          <select id="fCategoria" class="form-control"><option value="">Todas</option></select>
+        </div>
+
+        <div class="field" style="margin-top:10px">
+          <label>Plano de Contas</label>
+          <select id="fPlano" class="form-control"><option value="">Todos</option></select>
+        </div>
+      </div>
+
+      <div class="filters-section">
+        <span class="filters-section-title">Cliente</span>
+        <div class="field">
+          <label for="fCliente">Buscar por nome</label>
+          <input type="text" id="fCliente" class="form-control" placeholder="Digite parte do nome...">
+        </div>
+      </div>
+
+      <button type="button" id="btnLimparFiltros" class="btn btn-outline-inline" style="width:100%">Limpar filtros</button>
+
+      <p class="filters-hint" style="margin-top:14px">Saldo inicial/final consideram todo o histórico da conta, não só o período selecionado.</p>
+    </aside>
+
+    <main class="dash-main">
+
+      <div class="kpi-grid">
+        <button type="button" class="kpi-card receita" data-resumo-card="receita" title="Ver lançamentos"><div class="kpi-icon">📈</div><div class="kpi-value" id="kpiReceita">—</div><div class="kpi-label">Receita (período)</div></button>
+        <button type="button" class="kpi-card despesa" data-resumo-card="despesa" title="Ver lançamentos"><div class="kpi-icon">📉</div><div class="kpi-value" id="kpiDespesa">—</div><div class="kpi-label">Despesa (período)</div></button>
+        <button type="button" class="kpi-card" data-resumo-card="saldo-periodo" title="Ver lançamentos"><div class="kpi-icon">⚖️</div><div class="kpi-value" id="kpiSaldoPeriodo">—</div><div class="kpi-label">Saldo do Período</div></button>
+        <button type="button" class="kpi-card neutro" data-resumo-card="saldo-final" title="Ver lançamentos"><div class="kpi-icon">🏦</div><div class="kpi-value" id="kpiSaldoFinal">—</div><div class="kpi-label">Saldo Final da Conta</div></button>
+
+        <button type="button" class="kpi-card" data-resumo-card="saldo-inicial" title="Ver lançamentos"><div class="kpi-icon">🔖</div><div class="kpi-value" id="kpiSaldoInicial">—</div><div class="kpi-label">Saldo Inicial da Conta</div></button>
+        <button type="button" class="kpi-card receita" data-resumo-card="a-receber" title="Ver lançamentos"><div class="kpi-icon">⏳</div><div class="kpi-value" id="kpiAReceber">—</div><div class="kpi-label">A Receber (futuro)</div></button>
+        <button type="button" class="kpi-card despesa" data-resumo-card="a-pagar" title="Ver lançamentos"><div class="kpi-icon">⏳</div><div class="kpi-value" id="kpiAPagar">—</div><div class="kpi-label">A Pagar (futuro)</div></button>
+        <button type="button" class="kpi-card" data-resumo-card="lancamentos" title="Ver lançamentos"><div class="kpi-icon">🧾</div><div class="kpi-value" id="kpiQtdLancamentos">—</div><div class="kpi-label">Lançamentos (período)</div></button>
+      </div>
+
+      <div class="card chart-card" id="cardResumoMes" style="margin-bottom:22px">
+        <h3>📅 Resumo do Mês</h3>
+        <p class="chart-sub" id="resumoMesSub">Situação das cobranças — independente dos filtros da lateral</p>
+        <div class="kpi-grid" style="margin-bottom:0">
+          <button type="button" class="kpi-card neutro" data-resumo-card="mes-pagas" title="Ver lançamentos"><div class="kpi-icon">✅</div><div class="kpi-value" id="resumoPagas">—</div><div class="kpi-label" id="resumoPagasLabel">Pagas no mês</div></button>
+          <button type="button" class="kpi-card receita" data-resumo-card="mes-a-receber" title="Ver lançamentos"><div class="kpi-icon">⏳</div><div class="kpi-value" id="resumoAReceber">—</div><div class="kpi-label" id="resumoAReceberLabel">A receber no mês</div></button>
+          <button type="button" class="kpi-card despesa" id="btnResumoAtrasadas" title="Ver movimentações em atraso"><div class="kpi-icon">⚠️</div><div class="kpi-value" id="resumoAtrasadas">—</div><div class="kpi-label">Atrasadas (inadimplência) — total em aberto</div></button>
+          <button type="button" class="kpi-card neutro" data-resumo-card="mes-primeiro-pgto" title="Ver lançamentos"><div class="kpi-icon">🆕</div><div class="kpi-value" id="resumoPrimeiroPgto">—</div><div class="kpi-label" id="resumoPrimeiroPgtoLabel">1º pagamento (clientes novos)</div></button>
+        </div>
+        <p class="muted-small" style="margin-top:12px;color:var(--muted);font-size:.72rem;line-height:1.4">⚠️ Formas de pagamento (boleto, cartão, depósito) não aparecem nos dados retornados pela API de movimentos — não há esse campo confirmado. Se existir um campo específico para isso, me diga qual para eu incluir esse detalhamento.</p>
+      </div>
+
+      <div class="chart-grid">
+        <div class="card chart-card">
+          <h3>📈 Evolução Mensal (Realizado)</h3>
+          <p class="chart-sub">Receita x Despesa por mês de pagamento</p>
+          <canvas id="chartEvolucao"></canvas>
+        </div>
+
+        <div class="card chart-card" id="cardPrevisao">
+          <h3>⏳ Previsão Mensal (A Vencer)</h3>
+          <p class="chart-sub">Movimentos futuros por mês de vencimento</p>
+          <canvas id="chartPrevisao"></canvas>
+        </div>
+
+        <div class="card chart-card">
+          <h3>🏷️ Por Categoria</h3>
+          <canvas id="chartCategoria"></canvas>
+        </div>
+
+        <div class="card chart-card">
+          <h3>🏦 Por Conta</h3>
+          <p class="chart-sub" id="contaChartSub">Saldo movimentado por conta no período</p>
+          <canvas id="chartConta"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-grid" style="grid-template-columns:1fr 1fr">
+        <div class="card chart-card" id="cardClientes">
+          <h3>👥 Clientes com Mais Receitas e Despesas</h3>
+          <table class="dash-table">
+            <thead><tr><th>Cliente</th><th>Receita</th><th>Despesa</th><th>Saldo</th></tr></thead>
+            <tbody id="tabelaClientes"></tbody>
+          </table>
+        </div>
+
+        <div class="card chart-card" id="cardPastas">
+          <h3>📁 Pastas com Mais Receitas e Despesas</h3>
+          <table class="dash-table">
+            <thead><tr><th>Pasta</th><th>Receita</th><th>Despesa</th><th>Saldo</th></tr></thead>
+            <tbody id="tabelaPastas"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="chart-grid" style="grid-template-columns:1fr">
+        <div class="card chart-card" id="cardExtrato">
+          <div class="extrato-header">
+            <div>
+              <h3 style="margin:0">🧾 Extrato</h3>
+              <p class="chart-sub" id="extratoSub" style="margin:2px 0 0">Movimentos realizados no período, com saldo acumulado</p>
+            </div>
+            <button type="button" id="btnExportarExcel" class="btn btn-outline-inline">⬇️ Baixar Excel</button>
+          </div>
+          <div class="extrato-wrap">
+            <table class="dash-table">
+              <thead><tr><th>Data</th><th>Categoria</th><th>Cliente</th><th>Pasta</th><th>Conta</th><th>Valor</th><th>Saldo</th></tr></thead>
+              <tbody id="tabelaExtrato"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div class="modal-overlay" id="infoModalOverlay">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <button class="modal-close" id="infoModalClose" type="button" aria-label="Fechar">✕</button>
+    <h2 class="modal-title">Sobre este relatório</h2>
+    <div class="modal-body">
+      <p>Dashboard financeiro do escritório: receitas e despesas realizadas, previsão de movimentos futuros, saldo por conta, extrato detalhado e ranking de clientes e pastas por valores movimentados.</p>
+      <p style="color:var(--muted);font-size:.85rem;margin-top:10px">Este relatório apenas consulta informações — ele não altera, cria ou apaga nada nas pastas ou processos.</p>
+      <h3 style="margin:14px 0 8px">Se algo der errado no login</h3>
+      <ul>
+        <li>Confira se o e-mail está completo e sem espaço no fim.</li>
+        <li>Teste o mesmo acesso direto no sistema. Se não entrar lá, a senha é o problema.</li>
+        <li>Se entrar no sistema mas não aqui, avise o suporte: pode ser permissão de perfil.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="atrasadosModalOverlay">
+  <div class="modal-box" role="dialog" aria-modal="true" style="max-width:640px">
+    <button class="modal-close" id="atrasadosModalClose" type="button" aria-label="Fechar">✕</button>
+    <h2 class="modal-title">⚠️ Cobranças em Atraso</h2>
+    <div class="modal-body">
+      <p id="atrasadosResumo" style="margin:0 0 12px"></p>
+      <div style="max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:10px">
+        <table class="dash-table" style="font-size:.82rem">
+          <thead>
+            <tr>
+              <th style="padding:8px 10px">Vencimento</th>
+              <th style="padding:8px 10px">Dias</th>
+              <th style="padding:8px 10px">Cliente</th>
+              <th style="padding:8px 10px">Pasta</th>
+              <th style="padding:8px 10px">Valor</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaAtrasados"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="resumoCardModalOverlay">
+  <div class="modal-box" role="dialog" aria-modal="true" style="max-width:680px">
+    <button class="modal-close" id="resumoCardModalClose" type="button" aria-label="Fechar">✕</button>
+    <h2 class="modal-title" id="resumoCardTitulo">Resumo</h2>
+    <div class="modal-body">
+      <p id="resumoCardResumo" style="margin:0 0 12px"></p>
+      <div style="max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:10px">
+        <table class="dash-table" style="font-size:.82rem">
+          <thead id="resumoCardThead"></thead>
+          <tbody id="resumoCardTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========== Modal de informação (tela de login) ========== */
+(function(){
+  const overlay = document.getElementById('infoModalOverlay');
+  const btn = document.getElementById('infoLoginBtn');
+  const closeBtn = document.getElementById('infoModalClose');
+  if(!overlay || !btn) return;
+  const open = ()=> overlay.classList.add('open');
+  const close = ()=> overlay.classList.remove('open');
+  btn.addEventListener('click', open);
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && overlay.classList.contains('open')) close(); });
+})();
+
+/* ========== Mostrar/ocultar senha ========== */
+(function(){
+  const toggleSenhaBtn = document.getElementById('toggleSenha');
+  const senhaInput = document.getElementById('senha');
+  const eyeIcon = document.getElementById('eyeIcon');
+  const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+  const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.4 18.4 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/>';
+  if(toggleSenhaBtn){
+    toggleSenhaBtn.addEventListener('click',()=>{
+      const showing = senhaInput.type === 'text';
+      senhaInput.type = showing ? 'password' : 'text';
+      eyeIcon.innerHTML = showing ? EYE_OPEN : EYE_OFF;
+      toggleSenhaBtn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+      toggleSenhaBtn.title = showing ? 'Mostrar senha' : 'Ocultar senha';
+    });
+  }
+})();
+
+/* ========== Dicas rotativas (tela de carregamento) ========== */
+const DICAS = [
+  'Para melhorar a qualidade dos seus cadastros, nas configurações do Lawyer Eleven, configure a obrigatoriedade dos principais campos.',
+  'Crie campos extras específicos para as informações mais importantes do seu escritório.',
+  'Organize sua carteira de clientes com o Lawyer Eleven.',
+  'Se identificar cadastros duplicados, utilize a função "Unificar" no botão Ações.'
+];
+let dicaIndex = 0, dicaTimer = null;
+function iniciarDicas(){
+  const el = document.getElementById('dicaTexto');
+  function mostrar(){
+    el.classList.remove('show');
+    setTimeout(()=>{
+      el.innerHTML = '<span class="dica-title">Dica</span>' + DICAS[dicaIndex];
+      el.classList.add('show');
+      dicaIndex = (dicaIndex + 1) % DICAS.length;
+    }, 250);
+  }
+  mostrar();
+  dicaTimer = setInterval(mostrar, 4500);
+}
+function pararDicas(){ if(dicaTimer){ clearInterval(dicaTimer); dicaTimer = null; } }
+
+/* =========================================================
+   DADOS / API
+   ========================================================= */
+let BEARER_TOKEN = null;
+let TODOS_FUTUROS = [];
+let REALIZADOS_DO_PERIODO = []; // último resultado do servidor p/ dataPagamento+conta atuais
+let ULTIMA_CHAVE_PERIODO = null;
+let REALIZADOS_FILTRADOS = [];
+let FUTUROS_FILTRADOS = [];
+let LISTA_ATIVA = [];
+let FILTRO_TIPO = 'TODOS'; // TODOS | RECEITA | DESPESA
+let MODO_VISAO = 'REALIZADOS'; // REALIZADOS | PREVISTOS
+let CONTAS_LISTA = [];
+let PLANOS_DE_CONTAS = [];
+let CONTAS_POR_ID = {};
+let PAGAS_DO_MES = [];
+let PRIMEIRO_PGTO_LISTA = [];
+const CHARTS = {};
+
+const LOGIN_URL = "https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum";
+const FUTUROS_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/movimentos-futuros";
+const REALIZADOS_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/movimentos-realizados";
+const TOTALIZADOR_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/movimentos-realizados/totalizador";
+const CONTAS_URL = "https://app-api-prod.alkasoft.com.br/api/v1/financeiros/contas";
+const PLANOS_URL = "https://app-api-prod.alkasoft.com.br/api/v1/financeiros/planos-de-contas";
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const senha = document.getElementById('senha').value.trim();
+  const resultado = document.getElementById('resultado');
+  if(!email || !senha){ resultado.innerHTML = '<span style="color:red">Informe e-mail e senha</span>'; return; }
+  resultado.innerHTML = '🔄 Realizando login...';
+  try{
+    const creds = btoa(email + ':' + senha);
+    const r = await fetch(LOGIN_URL, { headers: { 'Authorization': 'Basic ' + creds } });
+    if(!r.ok) throw new Error('Falha no login');
+    BEARER_TOKEN = (r.headers.get('authorization') || '').replace(/^(Bearer|Basic)\s/i, '').trim();
+    document.getElementById('loginScreen').parentElement.style.display = 'none';
+    document.getElementById('dashboardScreen').style.display = 'block';
+    iniciarDicas();
+    carregarDados();
+  }catch(err){
+    resultado.innerHTML = '<span style="color:red">'+err.message+'</span>';
+  }
+});
+
+document.getElementById('btnSairDash').addEventListener('click', ()=> location.reload());
+
+async function buscarPaginado(url, body, quantidade, ordenacao, onProgress, maxPaginas){
+  let inicio = 0, todos = [], totalEsperado = null, pagina = 0;
+  const limitePaginas = maxPaginas || 250; // trava de segurança (250 x 100 = até 25.000 registros)
+  while(true){
+    const r = await fetch(`${url}?inicio=${inicio}&quantidade=${quantidade}&ordenacao=${ordenacao}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if(!r.ok){
+      const texto = await r.text().catch(()=> '');
+      throw new Error(`A API respondeu ${r.status} (${r.statusText}). ${texto ? 'Detalhe: ' + texto.slice(0,200) : ''}`);
+    }
+    const j = await r.json();
+    const itens = j.itens || [];
+    if(totalEsperado === null) totalEsperado = j.quantidadeTotal ?? j.total ?? j.totalItens ?? j.count ?? null;
+    todos.push(...itens);
+    if(onProgress) onProgress(todos.length, totalEsperado);
+    pagina++;
+    if(totalEsperado !== null && todos.length >= totalEsperado) break;
+    if(itens.length < quantidade) break;
+    if(pagina >= limitePaginas) break;
+    inicio += quantidade;
+  }
+  return todos;
+}
+
+async function buscarPaginadoGet(url, quantidade, maxPaginas){
+  let inicio = 0, todos = [], totalEsperado = null, pagina = 0;
+  const limitePaginas = maxPaginas || 250;
+  while(true){
+    const r = await fetch(`${url}?inicio=${inicio}&quantidade=${quantidade}`, {
+      headers: { 'Authorization': `Bearer ${BEARER_TOKEN}` }
+    });
+    if(!r.ok){
+      const texto = await r.text().catch(()=> '');
+      throw new Error(`A API respondeu ${r.status} (${r.statusText}). ${texto ? 'Detalhe: ' + texto.slice(0,200) : ''}`);
+    }
+    const j = await r.json();
+    const itens = j.itens || [];
+    if(totalEsperado === null) totalEsperado = j.quantidadeTotal ?? j.total ?? null;
+    todos.push(...itens);
+    pagina++;
+    if(totalEsperado !== null && todos.length >= totalEsperado) break;
+    if(itens.length < quantidade) break;
+    if(pagina >= limitePaginas) break;
+    inicio += quantidade;
+  }
+  return todos;
+}
+
+async function buscarContas(){
+  const r = await fetch(CONTAS_URL, { headers: { 'Authorization': `Bearer ${BEARER_TOKEN}` } });
+  if(!r.ok){
+    const texto = await r.text().catch(()=> '');
+    throw new Error(`Falha ao buscar contas: ${r.status} (${r.statusText}). ${texto ? 'Detalhe: ' + texto.slice(0,200) : ''}`);
+  }
+  return await r.json();
+}
+
+function construirIndiceContas(){
+  CONTAS_POR_ID = {};
+  CONTAS_LISTA.forEach(c=>{ CONTAS_POR_ID[c.id] = c; });
+}
+
+function bodyRealizadosBase(){
+  return {
+    clientesOuEnvolvidos: [], descricao: null, filtrosCamposExtras: [],
+    dataPagamento: null, dataVencimento: null, desconto: {},
+    idsClientes: [], idsContas: [], idsEnvolvidos: [], idsPastasProcessuais: [],
+    idsPlanosDeContas: [], juros: {}, multa: {}, valor: {},
+    valorOriginal: {}, valorPostergado: {}
+  };
+}
+
+/* Mesma regra do relatório R de referência (confirmada pelo próprio usuário):
+   saldo(conta, dataX) = saldoInicial cadastrado na conta + o total que a API
+   devolve em /movimentos-realizados/totalizador para essa conta, filtrando só
+   por dataPagamento.valorMaximo = dataX (inclusive, sem piso nenhum de data —
+   o totalizador real não filtra por dataDoSaldoInicial). */
+async function totalizadorConta(contaId, valorMaximoInclusive){
+  const body = bodyRealizadosBase();
+  body.idsContas = [contaId];
+  if(valorMaximoInclusive) body.dataPagamento = { valorMaximo: valorMaximoInclusive, valorMinimo: null };
+  const r = await fetch(TOTALIZADOR_URL, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if(!r.ok){
+    const texto = await r.text().catch(()=> '');
+    throw new Error(`Totalizador ${r.status} (${r.statusText}). ${texto ? 'Detalhe: ' + texto.slice(0,200) : ''}`);
+  }
+  const j = await r.json();
+  return typeof j.valor === 'number' ? j.valor : 0;
+}
+
+/* dataLimiteInclusiva=null significa "sem limite superior" (saldo atual, com
+   tudo que já aconteceu). contaIdFiltro='' soma todas as contas. */
+async function saldoContasAteData(contaIdFiltro, dataLimiteInclusiva){
+  const contas = contaIdFiltro ? CONTAS_LISTA.filter(c=>String(c.id)===contaIdFiltro) : CONTAS_LISTA;
+  let total = 0;
+  for(const c of contas){
+    const base = typeof c.saldoInicial === 'number' ? c.saldoInicial : 0;
+    const soma = await totalizadorConta(c.id, dataLimiteInclusiva);
+    total += base + soma;
+  }
+  return total;
+}
+function somaSaldosIniciais(contaIdFiltro){
+  const contas = contaIdFiltro ? CONTAS_LISTA.filter(c=>String(c.id)===contaIdFiltro) : CONTAS_LISTA;
+  return contas.reduce((a,c)=>a + (typeof c.saldoInicial === 'number' ? c.saldoInicial : 0), 0);
+}
+function diaAnterior(dataStr){
+  const d = new Date(dataStr + 'T00:00:00');
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0,10);
+}
+
+async function carregarDados(){
+  const texto = document.getElementById('textoCarregamento');
+
+  /* Futuros continuam sendo buscados por inteiro e filtrados no navegador —
+     não temos confirmação de que /movimentos-futuros aceita intervalo de
+     data. Já /movimentos-realizados ACEITA dataPagamento{valorMinimo,
+     valorMaximo} + idsContas — confirmado pelo próprio usuário com uma
+     consulta real — então os realizados são buscados sob demanda, filtrados
+     no servidor pelo período/conta atuais (ver aplicarFiltros). */
+  const bodyFuturos = {
+    "clientesOuEnvolvidos": [], "descricao": null, "filtrosCamposExtras": [],
+    "dataVencimento": null, "idsClientes": [], "idsEnvolvidos": [],
+    "idsPastasProcessuais": [], "idsPlanosDeContas": [], "valor": {}
+  };
+
+  let futurosProgresso = 0;
+  function atualizarBarra(){
+    texto.textContent = `Carregando movimentos futuros... (${futurosProgresso})`;
+  }
+
+  try{
+    const [futuros, contas, planos] = await Promise.all([
+      buscarPaginado(FUTUROS_URL, bodyFuturos, 100, 'DATA_DE_VENCIMENTO_ASC', (atual)=>{ futurosProgresso = atual; atualizarBarra(); }),
+      buscarContas(),
+      buscarPaginadoGet(PLANOS_URL, 200)
+    ]);
+    TODOS_FUTUROS = futuros;
+    CONTAS_LISTA = contas;
+    PLANOS_DE_CONTAS = planos;
+    construirIndiceContas();
+
+    pararDicas();
+    document.getElementById('loadingCard').style.display = 'none';
+    document.getElementById('dashHeader').style.display = 'block';
+    document.getElementById('dashBody').style.display = 'flex';
+
+    popularOpcoesFiltro();
+    await carregarResumoMes();
+    document.querySelector('[data-periodo-rapido="3"]').click();
+  }catch(err){
+    texto.textContent = 'Erro ao carregar dados: ' + err.message;
+  }
+}
+
+/* =========================================================
+   EXTRAÇÃO DE CAMPOS
+   ========================================================= */
+const CONECTORES_NOME = ['de','da','do','das','dos','e'];
+function formatarNome(s){
+  if(!s) return s;
+  return String(s).toLowerCase().split(' ').map((palavra,i)=>{
+    if(!palavra) return palavra;
+    if(i > 0 && CONECTORES_NOME.includes(palavra)) return palavra;
+    return palavra.charAt(0).toUpperCase() + palavra.slice(1);
+  }).join(' ');
+}
+function formatarData(iso){
+  if(!iso) return '—';
+  const s = String(iso).slice(0,10);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
+}
+function formatarMoeda(v){
+  return (v||0).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+}
+
+function valorDe(m){ return typeof m.valor === 'number' ? m.valor : 0; }
+function ehReceita(m){ return valorDe(m) > 0; }
+function ehDespesa(m){ return valorDe(m) < 0; }
+function nomeCategoria(m){ return (m.descricao && m.descricao.descricao || '').trim() || 'Sem categoria'; }
+function nomeConta(m){ return (m.conta && m.conta.descricao || '').trim() || 'Sem conta'; }
+function idConta(m){ return m.conta ? m.conta.id : null; }
+function nomePlanoConta(m){ return (m.planoDeContas && m.planoDeContas.descricao || '').trim() || 'Sem plano de contas'; }
+function pessoaDe(m){ return m.cliente || m.envolvido || null; }
+function nomeCliente(m){ const p = pessoaDe(m); return p ? formatarNome(p.descricao) : null; }
+function idCliente(m){ const p = pessoaDe(m); return p ? p.id : null; }
+function nomePasta(m){ return (m.pastaProcessual && m.pastaProcessual.descricao || '').trim() || null; }
+function idPasta(m){ return m.pastaProcessual ? m.pastaProcessual.id : null; }
+
+/* =========================================================
+   FILTROS
+   ========================================================= */
+document.querySelectorAll('[data-filtro-tipo]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-filtro-tipo]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    FILTRO_TIPO = btn.dataset.filtroTipo;
+    aplicarFiltros();
+  });
+});
+
+document.querySelectorAll('[data-modo-visao]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-modo-visao]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    MODO_VISAO = btn.dataset.modoVisao;
+    const previstos = MODO_VISAO === 'PREVISTOS';
+    const completo = MODO_VISAO === 'TODOS';
+    document.getElementById('campoDataPagamento').classList.toggle('campo-indisponivel', previstos);
+    document.getElementById('campoConta').classList.toggle('campo-indisponivel', previstos);
+    document.getElementById('periodoRapidoAlvo').textContent = previstos
+      ? 'Aplicado à data de vencimento'
+      : completo
+        ? 'Aplicado à data de vencimento (previstos) e de pagamento (realizados)'
+        : 'Aplicado à data de pagamento';
+
+    const campoAlvo = previstos ? document.getElementById('fVencMin') : document.getElementById('fPagMin');
+    const rapidoAtivo = document.querySelector('[data-periodo-rapido].active');
+    if(!campoAlvo.value && rapidoAtivo){ rapidoAtivo.click(); }
+    else{ aplicarFiltros(); }
+  });
+});
+
+document.querySelectorAll('[data-periodo-rapido]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-periodo-rapido]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const meses = parseInt(btn.dataset.periodoRapido, 10);
+    let min = '', max = '';
+    if(meses > 0){
+      const hoje = new Date();
+      const inicio = new Date(hoje);
+      inicio.setMonth(inicio.getMonth() - meses);
+      min = inicio.toISOString().slice(0,10);
+      max = hoje.toISOString().slice(0,10);
+    }
+    if(MODO_VISAO === 'PREVISTOS'){
+      document.getElementById('fVencMin').value = min;
+      document.getElementById('fVencMax').value = max;
+    }else if(MODO_VISAO === 'TODOS'){
+      document.getElementById('fVencMin').value = min;
+      document.getElementById('fVencMax').value = max;
+      document.getElementById('fPagMin').value = min;
+      document.getElementById('fPagMax').value = max;
+    }else{
+      document.getElementById('fPagMin').value = min;
+      document.getElementById('fPagMax').value = max;
+    }
+    aplicarFiltros();
+  });
+});
+
+['fVencMin','fVencMax','fPagMin','fPagMax','fConta','fCategoria','fPlano'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', ()=>{
+    document.querySelectorAll('[data-periodo-rapido]').forEach(b=>b.classList.remove('active'));
+    aplicarFiltros();
+  });
+});
+document.getElementById('fCliente').addEventListener('input', aplicarFiltros);
+
+document.getElementById('btnLimparFiltros').addEventListener('click', ()=>{
+  FILTRO_TIPO = 'TODOS';
+  document.querySelectorAll('[data-filtro-tipo]').forEach(b=>b.classList.toggle('active', b.dataset.filtroTipo==='TODOS'));
+  document.getElementById('fConta').value = '';
+  document.getElementById('fCategoria').value = '';
+  document.getElementById('fPlano').value = '';
+  document.getElementById('fCliente').value = '';
+  document.getElementById('fVencMin').value = '';
+  document.getElementById('fVencMax').value = '';
+  document.getElementById('fPagMin').value = '';
+  document.getElementById('fPagMax').value = '';
+  document.querySelector('[data-periodo-rapido="3"]').click();
+});
+
+/* Resumo do mês — sempre com base no mês corrente, independente dos filtros
+   da lateral (é um retrato fixo, não um recorte). Busca dedicada ao servidor
+   (dataPagamento do mês corrente), não depende do período escolhido na
+   lateral. "Atrasadas" é o total em aberto até hoje, não só do mês. */
+const NOMES_MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+async function carregarResumoMes(){
+  const hoje = new Date();
+  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0,10);
+  const hojeStr = hoje.toISOString().slice(0,10);
+  const nomeMes = NOMES_MESES[hoje.getMonth()] + '/' + hoje.getFullYear();
+  const sub = document.getElementById('resumoMesSub');
+
+  try{
+    const bodyMes = bodyRealizadosBase();
+    bodyMes.dataPagamento = { valorMaximo: hojeStr, valorMinimo: inicioMes };
+    const itensDoServidorMes = await buscarPaginado(REALIZADOS_URL, bodyMes, 100, 'DATA_DE_VENCIMENTO_ASC');
+    /* Revalida no cliente o intervalo de dataPagamento, mesma cautela do
+       período principal (ver aplicarFiltros). */
+    const pagasDoMes = itensDoServidorMes.filter(m=>{
+      const dp = m.dataPagamento;
+      return dp && dp >= inicioMes && dp <= hojeStr;
+    });
+    acumularCategorias(pagasDoMes);
+
+    const receitasDoMes = pagasDoMes.filter(ehReceita);
+    PAGAS_DO_MES = receitasDoMes;
+    const pagas = receitasDoMes.length;
+    const aReceber = TODOS_FUTUROS.filter(m=>ehReceita(m) && m.dataVencimento && m.dataVencimento.slice(0,7)===hojeStr.slice(0,7)).length;
+    const atrasadas = TODOS_FUTUROS.filter(m=>ehReceita(m) && m.dataVencimento && m.dataVencimento < hojeStr).length;
+
+    /* 1º pagamento de clientes novos: para cada cliente que pagou este mês,
+       consulta se existe algum pagamento dele ANTES do início do mês — se não
+       existir, essa é a primeira cobrança que ele efetivamente pagou. */
+    const idsClientesDoMes = [...new Set(receitasDoMes.map(idCliente).filter(id=>id != null))];
+    const diaAnteriorMes = diaAnterior(inicioMes);
+    const mapaEhPrimeiro = {};
+    await Promise.all(idsClientesDoMes.map(async (idCli)=>{
+      const bodyCheck = bodyRealizadosBase();
+      bodyCheck.dataPagamento = { valorMaximo: diaAnteriorMes, valorMinimo: null };
+      bodyCheck.idsClientes = [idCli];
+      try{
+        const r = await fetch(`${REALIZADOS_URL}?inicio=0&ordenacao=DATA_DE_VENCIMENTO_ASC&quantidade=1`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyCheck)
+        });
+        if(!r.ok) return; // não derruba o resumo inteiro por causa de 1 cliente
+        const j = await r.json();
+        const total = j.quantidadeTotal ?? (j.itens || []).length;
+        mapaEhPrimeiro[idCli] = !total; // sem pagamento anterior = é o primeiro
+      }catch(e){ /* ignora esse cliente */ }
+    }));
+
+    /* Guarda, para cada cliente novo, só o pagamento mais antigo dele dentro
+       do mês (é esse que representa "o primeiro pagamento"). */
+    const primeiraDoMesPorCliente = {};
+    receitasDoMes.forEach(m=>{
+      const id = idCliente(m);
+      if(id == null) return;
+      if(!primeiraDoMesPorCliente[id] || m.dataPagamento < primeiraDoMesPorCliente[id].dataPagamento) primeiraDoMesPorCliente[id] = m;
+    });
+    PRIMEIRO_PGTO_LISTA = Object.keys(mapaEhPrimeiro).filter(id=>mapaEhPrimeiro[id]).map(id=>primeiraDoMesPorCliente[id]).filter(Boolean);
+    const primeiroPgto = PRIMEIRO_PGTO_LISTA.length;
+
+    if(sub) sub.textContent = `Cobranças de ${nomeMes} — independente dos filtros da lateral`;
+    document.getElementById('resumoPagasLabel').textContent = `Pagas em ${nomeMes}`;
+    document.getElementById('resumoAReceberLabel').textContent = `A receber em ${nomeMes}`;
+    document.getElementById('resumoPrimeiroPgtoLabel').textContent = `1º pagamento em ${nomeMes} (clientes novos)`;
+
+    document.getElementById('resumoPagas').textContent = pagas.toLocaleString('pt-BR');
+    document.getElementById('resumoAReceber').textContent = aReceber.toLocaleString('pt-BR');
+    document.getElementById('resumoAtrasadas').textContent = atrasadas.toLocaleString('pt-BR');
+    document.getElementById('resumoPrimeiroPgto').textContent = primeiroPgto.toLocaleString('pt-BR');
+  }catch(err){
+    if(sub) sub.textContent = 'Erro ao carregar resumo do mês: ' + err.message;
+  }
+}
+
+/* ========== Modal de cobranças em atraso ========== */
+function listaAtrasados(){
+  const hojeStr = new Date().toISOString().slice(0,10);
+  return TODOS_FUTUROS
+    .filter(m=>ehReceita(m) && m.dataVencimento && m.dataVencimento < hojeStr)
+    .sort((a,b)=> a.dataVencimento < b.dataVencimento ? -1 : a.dataVencimento > b.dataVencimento ? 1 : 0);
+}
+function diasEmAtraso(dataVencimento){
+  const hoje = new Date(new Date().toISOString().slice(0,10) + 'T00:00:00');
+  const venc = new Date(String(dataVencimento).slice(0,10) + 'T00:00:00');
+  return Math.round((hoje - venc) / 86400000);
+}
+function abrirModalAtrasados(){
+  const itens = listaAtrasados();
+  const total = itens.reduce((a,m)=>a+valorDe(m),0);
+  document.getElementById('atrasadosResumo').textContent = itens.length
+    ? `${itens.length.toLocaleString('pt-BR')} cobrança(s) em aberto, vencidas até hoje, somando ${formatarMoeda(total)}.`
+    : 'Nenhuma cobrança em atraso no momento.';
+  const tbody = document.getElementById('tabelaAtrasados');
+  tbody.innerHTML = itens.length ? itens.map(m=>`
+    <tr>
+      <td style="padding:8px 10px">${formatarData(m.dataVencimento)}</td>
+      <td style="padding:8px 10px" class="valor-neg">${diasEmAtraso(m.dataVencimento)}</td>
+      <td style="padding:8px 10px">${escapeHtml(nomeCliente(m) || '—')}</td>
+      <td style="padding:8px 10px" class="muted-small">${escapeHtml(nomePasta(m) || '—')}</td>
+      <td style="padding:8px 10px" class="valor-pos">${formatarMoeda(valorDe(m))}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="5" class="muted-small" style="padding:8px 10px">Nenhuma cobrança em atraso.</td></tr>';
+  document.getElementById('atrasadosModalOverlay').classList.add('open');
+}
+(function(){
+  const overlay = document.getElementById('atrasadosModalOverlay');
+  const btn = document.getElementById('btnResumoAtrasadas');
+  const closeBtn = document.getElementById('atrasadosModalClose');
+  const close = ()=> overlay.classList.remove('open');
+  btn.addEventListener('click', abrirModalAtrasados);
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && overlay.classList.contains('open')) close(); });
+})();
+
+function popularOpcoesFiltro(){
+  const selConta = document.getElementById('fConta');
+  [...CONTAS_LISTA].sort((a,b)=>a.descricao.localeCompare(b.descricao,'pt-BR')).forEach(c=>{
+    const o=document.createElement('option'); o.value=c.id; o.textContent=c.descricao; selConta.appendChild(o);
+  });
+
+  const selPlano = document.getElementById('fPlano');
+  [...PLANOS_DE_CONTAS].sort((a,b)=>(a.enumeracao||'').localeCompare(b.enumeracao||'', undefined, {numeric:true})).forEach(p=>{
+    const o=document.createElement('option'); o.value=p.descricao; o.textContent=p.descricao; selPlano.appendChild(o);
+  });
+
+  /* Categoria não tem endpoint próprio (como Conta e Plano de Contas), então
+     as opções vão sendo acumuladas conforme os movimentos são carregados. */
+  acumularCategorias(TODOS_FUTUROS);
+}
+
+function acumularCategorias(lista){
+  const selCat = document.getElementById('fCategoria');
+  const existentes = new Set([...selCat.options].map(o=>o.value));
+  const novas = new Set();
+  lista.forEach(m=>{ const c = nomeCategoria(m); if(!existentes.has(c)) novas.add(c); });
+  [...novas].sort().forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; selCat.appendChild(o); });
+}
+
+/* =========================================================
+   POPUP GENÉRICO — resumo de movimentações por card clicado
+   ========================================================= */
+const COLUNAS_MOV = [
+  { titulo:'Data', valor:m=> formatarData(m.dataPagamento || m.dataVencimento) + (m.dataPagamento ? '' : ' (previsto)') },
+  { titulo:'Categoria', valor:m=>escapeHtml(nomeCategoria(m)) },
+  { titulo:'Cliente', valor:m=>escapeHtml(nomeCliente(m) || '—') },
+  { titulo:'Pasta', valor:m=>escapeHtml(nomePasta(m) || '—'), classe:'muted-small' },
+  { titulo:'Valor', valor:m=>formatarMoeda(valorDe(m)), classe:m=>valorDe(m)>=0?'valor-pos':'valor-neg' }
+];
+
+function renderResumoCardModal(titulo, resumoTexto, itens, colunas){
+  document.getElementById('resumoCardTitulo').textContent = titulo;
+  document.getElementById('resumoCardResumo').textContent = resumoTexto || '';
+  document.getElementById('resumoCardThead').innerHTML = '<tr>' + colunas.map(c=>`<th style="padding:8px 10px">${c.titulo}</th>`).join('') + '</tr>';
+  const tbody = document.getElementById('resumoCardTbody');
+  tbody.innerHTML = itens.length ? itens.map(m=>{
+    return '<tr>' + colunas.map(c=>{
+      const classe = typeof c.classe === 'function' ? c.classe(m) : (c.classe || '');
+      return `<td style="padding:8px 10px" class="${classe}">${c.valor(m)}</td>`;
+    }).join('') + '</tr>';
+  }).join('') : `<tr><td colspan="${colunas.length}" class="muted-small" style="padding:8px 10px">Sem lançamentos.</td></tr>`;
+  document.getElementById('resumoCardModalOverlay').classList.add('open');
+}
+function abrirResumoCardCarregando(titulo){
+  document.getElementById('resumoCardTitulo').textContent = titulo;
+  document.getElementById('resumoCardResumo').textContent = 'Carregando lançamentos...';
+  document.getElementById('resumoCardThead').innerHTML = '';
+  document.getElementById('resumoCardTbody').innerHTML = '';
+  document.getElementById('resumoCardModalOverlay').classList.add('open');
+}
+
+/* Busca os lançamentos reais (não só o total) de uma ou todas as contas até
+   uma data — usado para "abrir" o que compõe o Saldo Inicial/Final. */
+async function buscarItensContaAteData(contaIdFiltro, valorMaximoInclusive){
+  const contas = contaIdFiltro ? CONTAS_LISTA.filter(c=>String(c.id)===contaIdFiltro) : CONTAS_LISTA;
+  let todos = [];
+  for(const c of contas){
+    const body = bodyRealizadosBase();
+    body.idsContas = [c.id];
+    if(valorMaximoInclusive) body.dataPagamento = { valorMaximo: valorMaximoInclusive, valorMinimo: null };
+    const itens = await buscarPaginado(REALIZADOS_URL, body, 100, 'DATA_DE_VENCIMENTO_ASC');
+    todos = todos.concat(itens);
+  }
+  return todos;
+}
+
+(function(){
+  const overlay = document.getElementById('resumoCardModalOverlay');
+  const closeBtn = document.getElementById('resumoCardModalClose');
+  const close = ()=> overlay.classList.remove('open');
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && overlay.classList.contains('open')) close(); });
+})();
+
+document.querySelectorAll('[data-resumo-card]').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    const pagMin = document.getElementById('fPagMin').value;
+    const pagMax = document.getElementById('fPagMax').value;
+    const contaFiltro = document.getElementById('fConta').value;
+
+    switch(btn.dataset.resumoCard){
+      case 'receita': {
+        const itens = LISTA_ATIVA.filter(ehReceita);
+        renderResumoCardModal('📈 Receita (Período)', `${itens.length} lançamento(s) — total ${document.getElementById('kpiReceita').textContent}`, itens, COLUNAS_MOV);
+        break;
+      }
+      case 'despesa': {
+        const itens = LISTA_ATIVA.filter(ehDespesa);
+        renderResumoCardModal('📉 Despesa (Período)', `${itens.length} lançamento(s) — total ${document.getElementById('kpiDespesa').textContent}`, itens, COLUNAS_MOV);
+        break;
+      }
+      case 'saldo-periodo':
+      case 'lancamentos':
+        renderResumoCardModal('🧾 Lançamentos do Período', `${LISTA_ATIVA.length} lançamento(s) — saldo do período ${document.getElementById('kpiSaldoPeriodo').textContent}`, LISTA_ATIVA, COLUNAS_MOV);
+        break;
+      case 'a-receber': {
+        const itens = TODOS_FUTUROS.filter(m=>valorDe(m) > 0);
+        renderResumoCardModal('⏳ A Receber (Futuro)', `${itens.length} lançamento(s) — total ${document.getElementById('kpiAReceber').textContent}`, itens, COLUNAS_MOV);
+        break;
+      }
+      case 'a-pagar': {
+        const itens = TODOS_FUTUROS.filter(m=>valorDe(m) < 0);
+        renderResumoCardModal('⏳ A Pagar (Futuro)', `${itens.length} lançamento(s) — total ${document.getElementById('kpiAPagar').textContent}`, itens, COLUNAS_MOV);
+        break;
+      }
+      case 'saldo-inicial': {
+        abrirResumoCardCarregando('🔖 Composição do Saldo Inicial');
+        const limite = pagMin ? diaAnterior(pagMin) : null;
+        try{
+          const itens = await buscarItensContaAteData(contaFiltro, limite);
+          const base = somaSaldosIniciais(contaFiltro);
+          renderResumoCardModal('🔖 Composição do Saldo Inicial',
+            `Saldo cadastrado da(s) conta(s): ${formatarMoeda(base)} + ${itens.length} lançamento(s) até ${limite ? formatarData(limite) : 'hoje'} = ${document.getElementById('kpiSaldoInicial').textContent}`,
+            itens, COLUNAS_MOV);
+        }catch(err){
+          renderResumoCardModal('🔖 Composição do Saldo Inicial', 'Erro ao buscar lançamentos: ' + err.message, [], COLUNAS_MOV);
+        }
+        break;
+      }
+      case 'saldo-final': {
+        abrirResumoCardCarregando('🏦 Composição do Saldo Final');
+        const limite = pagMax || null;
+        try{
+          const itens = await buscarItensContaAteData(contaFiltro, limite);
+          const base = somaSaldosIniciais(contaFiltro);
+          renderResumoCardModal('🏦 Composição do Saldo Final',
+            `Saldo cadastrado da(s) conta(s): ${formatarMoeda(base)} + ${itens.length} lançamento(s) até ${limite ? formatarData(limite) : 'hoje'} = ${document.getElementById('kpiSaldoFinal').textContent}`,
+            itens, COLUNAS_MOV);
+        }catch(err){
+          renderResumoCardModal('🏦 Composição do Saldo Final', 'Erro ao buscar lançamentos: ' + err.message, [], COLUNAS_MOV);
+        }
+        break;
+      }
+      case 'mes-pagas':
+        renderResumoCardModal('✅ ' + document.getElementById('resumoPagasLabel').textContent, `${PAGAS_DO_MES.length} cobrança(s) paga(s)`, PAGAS_DO_MES, COLUNAS_MOV);
+        break;
+      case 'mes-a-receber': {
+        const mesAtual = new Date().toISOString().slice(0,7);
+        const itens = TODOS_FUTUROS.filter(m=>ehReceita(m) && m.dataVencimento && m.dataVencimento.slice(0,7)===mesAtual);
+        renderResumoCardModal('⏳ ' + document.getElementById('resumoAReceberLabel').textContent, `${itens.length} cobrança(s) a receber`, itens, COLUNAS_MOV);
+        break;
+      }
+      case 'mes-primeiro-pgto':
+        renderResumoCardModal('🆕 ' + document.getElementById('resumoPrimeiroPgtoLabel').textContent, `${PRIMEIRO_PGTO_LISTA.length} cliente(s) novo(s)`, PRIMEIRO_PGTO_LISTA, COLUNAS_MOV);
+        break;
+    }
+  });
+});
+
+async function aplicarFiltros(){
+  const vencMin = document.getElementById('fVencMin').value;
+  const vencMax = document.getElementById('fVencMax').value;
+  const pagMin = document.getElementById('fPagMin').value;
+  const pagMax = document.getElementById('fPagMax').value;
+  const conta = document.getElementById('fConta').value;
+  const categoria = document.getElementById('fCategoria').value;
+  const plano = document.getElementById('fPlano').value;
+  const clienteTexto = document.getElementById('fCliente').value.trim().toLowerCase();
+
+  /* dataPagamento{valorMinimo,valorMaximo} + idsContas são filtros CONFIRMADOS
+     no servidor para /movimentos-realizados (o usuário testou e confirmou com
+     uma consulta real). Buscar assim, em vez de trazer tudo e filtrar no
+     navegador, evita truncar um histórico grande e garante que os movimentos
+     batem exatamente com o que a API retorna para esse período/conta. Só
+     refaz a busca quando período ou conta realmente mudam. */
+  const chavePeriodo = JSON.stringify([pagMin, pagMax, conta]);
+  if(chavePeriodo !== ULTIMA_CHAVE_PERIODO){
+    const kpiQtd = document.getElementById('kpiQtdLancamentos');
+    if(kpiQtd) kpiQtd.textContent = '...';
+    try{
+      const bodyPeriodo = bodyRealizadosBase();
+      bodyPeriodo.dataPagamento = (pagMin || pagMax) ? { valorMaximo: pagMax || null, valorMinimo: pagMin || null } : null;
+      bodyPeriodo.idsContas = conta ? [Number(conta)] : [];
+      let itensDoServidor = await buscarPaginado(REALIZADOS_URL, bodyPeriodo, 100, 'DATA_DE_VENCIMENTO_ASC');
+
+      /* Revalida no cliente o que o servidor deveria ter filtrado (conta e
+         intervalo de dataPagamento) — se a API devolver registros fora desse
+         recorte por qualquer motivo, isso corta o excesso antes de somar. */
+      REALIZADOS_DO_PERIODO = itensDoServidor.filter(m=>{
+        if(conta && String(idConta(m)) !== conta) return false;
+        const dp = m.dataPagamento;
+        if(pagMin && (!dp || dp < pagMin)) return false;
+        if(pagMax && (!dp || dp > pagMax)) return false;
+        return true;
+      });
+
+      acumularCategorias(REALIZADOS_DO_PERIODO);
+      ULTIMA_CHAVE_PERIODO = chavePeriodo;
+    }catch(err){
+      alert('Erro ao buscar movimentos realizados: ' + err.message);
+      return;
+    }
+  }
+
+  function passaFiltrosComuns(m){
+    const dv = m.dataVencimento;
+    if(vencMin && (!dv || dv < vencMin)) return false;
+    if(vencMax && (!dv || dv > vencMax)) return false;
+    if(FILTRO_TIPO === 'RECEITA' && !ehReceita(m)) return false;
+    if(FILTRO_TIPO === 'DESPESA' && !ehDespesa(m)) return false;
+    if(categoria && nomeCategoria(m) !== categoria) return false;
+    if(plano && nomePlanoConta(m) !== plano) return false;
+    if(clienteTexto){
+      const nome = (nomeCliente(m) || '').toLowerCase();
+      if(!nome.includes(clienteTexto)) return false;
+    }
+    return true;
+  }
+
+  /* REALIZADOS_DO_PERIODO já veio filtrado pelo servidor (dataPagamento +
+     conta); aqui só aplicamos os filtros que não são garantidos no servidor. */
+  REALIZADOS_FILTRADOS = REALIZADOS_DO_PERIODO.filter(passaFiltrosComuns);
+
+  /* Futuros não têm conta/data de pagamento, então os filtros comuns
+     (vencimento/tipo/categoria/plano/cliente) bastam. */
+  FUTUROS_FILTRADOS = TODOS_FUTUROS.filter(passaFiltrosComuns);
+
+  if(MODO_VISAO === 'PREVISTOS') LISTA_ATIVA = FUTUROS_FILTRADOS;
+  else if(MODO_VISAO === 'TODOS') LISTA_ATIVA = REALIZADOS_FILTRADOS.concat(FUTUROS_FILTRADOS);
+  else LISTA_ATIVA = REALIZADOS_FILTRADOS;
+
+  await renderTudo();
+}
+
+/* =========================================================
+   RENDERIZAÇÃO
+   ========================================================= */
+async function renderTudo(){
+  await renderKpis();
+  renderGraficos();
+  renderClientesEPastas();
+  await renderExtrato();
+}
+
+async function renderKpis(){
+  const lista = LISTA_ATIVA;
+  const receita = lista.filter(ehReceita).reduce((a,m)=>a+valorDe(m),0);
+  const despesa = Math.abs(lista.filter(ehDespesa).reduce((a,m)=>a+valorDe(m),0));
+  const saldoPeriodo = receita - despesa;
+
+  /* Saldo inicial/final da conta usam sempre Realizados + os saldos reais de
+     /financeiros/contas, e a data de pagamento — é um saldo bancário, então
+     não muda com o modo de visualização (Previstos/Realizados). */
+  const pagMin = document.getElementById('fPagMin').value;
+  const pagMax = document.getElementById('fPagMax').value;
+  const contaFiltro = document.getElementById('fConta').value;
+
+  document.getElementById('kpiSaldoInicial').textContent = '...';
+  document.getElementById('kpiSaldoFinal').textContent = '...';
+
+  const [saldoInicial, saldoFinal] = await Promise.all([
+    pagMin ? saldoContasAteData(contaFiltro, diaAnterior(pagMin)) : Promise.resolve(somaSaldosIniciais(contaFiltro)),
+    saldoContasAteData(contaFiltro, pagMax || null)
+  ]);
+
+  const aReceber = TODOS_FUTUROS.filter(m=>valorDe(m) > 0).reduce((a,m)=>a+valorDe(m),0);
+  const aPagar = Math.abs(TODOS_FUTUROS.filter(m=>valorDe(m) < 0).reduce((a,m)=>a+valorDe(m),0));
+
+  document.getElementById('kpiReceita').textContent = formatarMoeda(receita);
+  document.getElementById('kpiDespesa').textContent = formatarMoeda(despesa);
+  document.getElementById('kpiSaldoPeriodo').textContent = formatarMoeda(saldoPeriodo);
+  document.getElementById('kpiSaldoInicial').textContent = formatarMoeda(saldoInicial);
+  document.getElementById('kpiSaldoFinal').textContent = formatarMoeda(saldoFinal);
+  document.getElementById('kpiAReceber').textContent = formatarMoeda(aReceber);
+  document.getElementById('kpiAPagar').textContent = formatarMoeda(aPagar);
+  document.getElementById('kpiQtdLancamentos').textContent = lista.length.toLocaleString('pt-BR');
+}
+
+function destruirGrafico(id){
+  if(CHARTS[id]){ CHARTS[id].destroy(); delete CHARTS[id]; }
+}
+
+function opcoesBase(semDados, horizontal){
+  return {
+    responsive:true,
+    maintainAspectRatio:true,
+    indexAxis: horizontal ? 'y' : 'x',
+    plugins:{ legend:{ display:false }, tooltip:{ enabled:!semDados } },
+    scales:{
+      x:{ ticks:{ color:'#8b93a7' }, grid:{ color:'rgba(255,255,255,.05)' } },
+      y:{ ticks:{ color:'#8b93a7' }, grid:{ color:'rgba(255,255,255,.05)' }, beginAtZero:true }
+    }
+  };
+}
+function formatarMesLabel(data){
+  const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  return nomes[data.getMonth()] + '/' + String(data.getFullYear()).slice(2);
+}
+
+function renderGraficos(){
+  const lista = LISTA_ATIVA;
+
+  /* Evolução mensal (realizado) — sempre baseada em Realizados, independente
+     do modo de visualização, pois o gráfico de Previsão já cobre os futuros. */
+  const porMes = {};
+  REALIZADOS_FILTRADOS.forEach(m=>{
+    if(!m.dataPagamento) return;
+    const chave = m.dataPagamento.slice(0,7);
+    if(!porMes[chave]) porMes[chave] = { receita:0, despesa:0 };
+    if(ehReceita(m)) porMes[chave].receita += valorDe(m);
+    else if(ehDespesa(m)) porMes[chave].despesa += Math.abs(valorDe(m));
+  });
+  const mesesOrdenados = Object.keys(porMes).sort();
+  destruirGrafico('chartEvolucao');
+  CHARTS.chartEvolucao = new Chart(document.getElementById('chartEvolucao'), {
+    type:'line',
+    data:{
+      labels: mesesOrdenados.map(k=>{ const [a,m]=k.split('-'); return formatarMesLabel(new Date(+a,+m-1,1)); }),
+      datasets:[
+        { label:'Receita', data: mesesOrdenados.map(k=>porMes[k].receita), borderColor:'#2fa876', backgroundColor:'rgba(47,168,118,.15)', fill:true, tension:.3 },
+        { label:'Despesa', data: mesesOrdenados.map(k=>porMes[k].despesa), borderColor:'#ff5c72', backgroundColor:'rgba(255,92,114,.15)', fill:true, tension:.3 }
+      ]
+    },
+    options: { ...opcoesBase(mesesOrdenados.length===0), plugins:{ legend:{ display:true, labels:{ color:'#8b93a7' } }, tooltip:{ enabled:true } } }
+  });
+
+  /* Previsão mensal (futuros, todos — não filtrados por conta/categoria/cliente) */
+  const porMesPrev = {};
+  TODOS_FUTUROS.forEach(m=>{
+    if(!m.dataVencimento) return;
+    const chave = m.dataVencimento.slice(0,7);
+    if(!porMesPrev[chave]) porMesPrev[chave] = { receber:0, pagar:0 };
+    if(valorDe(m) > 0) porMesPrev[chave].receber += valorDe(m);
+    else porMesPrev[chave].pagar += Math.abs(valorDe(m));
+  });
+  const mesesPrev = Object.keys(porMesPrev).sort();
+  destruirGrafico('chartPrevisao');
+  CHARTS.chartPrevisao = new Chart(document.getElementById('chartPrevisao'), {
+    type:'bar',
+    data:{
+      labels: mesesPrev.map(k=>{ const [a,m]=k.split('-'); return formatarMesLabel(new Date(+a,+m-1,1)); }),
+      datasets:[
+        { label:'A Receber', data: mesesPrev.map(k=>porMesPrev[k].receber), backgroundColor:'#2fa876' },
+        { label:'A Pagar', data: mesesPrev.map(k=>porMesPrev[k].pagar), backgroundColor:'#ff5c72' }
+      ]
+    },
+    options: { ...opcoesBase(mesesPrev.length===0), plugins:{ legend:{ display:true, labels:{ color:'#8b93a7' } }, tooltip:{ enabled:true } } }
+  });
+
+  /* Por categoria — saldo (receita - despesa) */
+  const porCategoria = {};
+  lista.forEach(m=>{ const c = nomeCategoria(m); porCategoria[c] = (porCategoria[c]||0) + valorDe(m); });
+  const catLabels = Object.keys(porCategoria).sort((a,b)=>Math.abs(porCategoria[b])-Math.abs(porCategoria[a])).slice(0,10);
+  destruirGrafico('chartCategoria');
+  CHARTS.chartCategoria = new Chart(document.getElementById('chartCategoria'), {
+    type:'bar',
+    data:{ labels: catLabels, datasets:[{ label:'Saldo', data: catLabels.map(l=>porCategoria[l]), backgroundColor: catLabels.map(l=>porCategoria[l]>=0?'#2fa876':'#ff5c72') }] },
+    options: opcoesBase(catLabels.length===0, true)
+  });
+
+  /* Por conta — não se aplica a Previstos, pois movimentos futuros não têm conta vinculada */
+  const contaSub = document.getElementById('contaChartSub');
+  const porConta = {};
+  if(MODO_VISAO !== 'PREVISTOS'){
+    if(contaSub) contaSub.textContent = MODO_VISAO === 'TODOS'
+      ? 'Saldo movimentado por conta no período (apenas realizados — previstos não têm conta)'
+      : 'Saldo movimentado por conta no período';
+    REALIZADOS_FILTRADOS.forEach(m=>{ const c = nomeConta(m); porConta[c] = (porConta[c]||0) + valorDe(m); });
+  }else if(contaSub){
+    contaSub.textContent = 'Não disponível no modo Previstos — movimentos futuros não têm conta vinculada';
+  }
+  const contaLabels = Object.keys(porConta).sort((a,b)=>Math.abs(porConta[b])-Math.abs(porConta[a]));
+  destruirGrafico('chartConta');
+  CHARTS.chartConta = new Chart(document.getElementById('chartConta'), {
+    type:'bar',
+    data:{ labels: contaLabels, datasets:[{ label:'Saldo', data: contaLabels.map(l=>porConta[l]), backgroundColor: contaLabels.map(l=>porConta[l]>=0?'#4f8fef':'#ffab4a') }] },
+    options: opcoesBase(contaLabels.length===0, true)
+  });
+}
+
+function renderClientesEPastas(){
+  const lista = LISTA_ATIVA;
+
+  const porCliente = {};
+  lista.forEach(m=>{
+    const id = idCliente(m);
+    if(!id) return;
+    if(!porCliente[id]) porCliente[id] = { nome: nomeCliente(m) || '—', receita:0, despesa:0 };
+    if(ehReceita(m)) porCliente[id].receita += valorDe(m);
+    else if(ehDespesa(m)) porCliente[id].despesa += Math.abs(valorDe(m));
+  });
+  const rankingClientes = Object.values(porCliente).sort((a,b)=>(b.receita+b.despesa)-(a.receita+a.despesa)).slice(0,15);
+  const tbodyClientes = document.getElementById('tabelaClientes');
+  tbodyClientes.innerHTML = rankingClientes.length ? rankingClientes.map(c=>`
+    <tr>
+      <td>${escapeHtml(c.nome)}</td>
+      <td class="valor-pos">${formatarMoeda(c.receita)}</td>
+      <td class="valor-neg">${formatarMoeda(c.despesa)}</td>
+      <td>${formatarMoeda(c.receita - c.despesa)}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="4" class="muted-small">Sem dados para o filtro atual.</td></tr>';
+
+  const porPasta = {};
+  lista.forEach(m=>{
+    const id = idPasta(m);
+    if(!id) return;
+    if(!porPasta[id]) porPasta[id] = { nome: nomePasta(m) || '—', receita:0, despesa:0 };
+    if(ehReceita(m)) porPasta[id].receita += valorDe(m);
+    else if(ehDespesa(m)) porPasta[id].despesa += Math.abs(valorDe(m));
+  });
+  const rankingPastas = Object.values(porPasta).sort((a,b)=>(b.receita+b.despesa)-(a.receita+a.despesa)).slice(0,15);
+  const tbodyPastas = document.getElementById('tabelaPastas');
+  tbodyPastas.innerHTML = rankingPastas.length ? rankingPastas.map(p=>`
+    <tr>
+      <td>${escapeHtml(p.nome)}</td>
+      <td class="valor-pos">${formatarMoeda(p.receita)}</td>
+      <td class="valor-neg">${formatarMoeda(p.despesa)}</td>
+      <td>${formatarMoeda(p.receita - p.despesa)}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="4" class="muted-small">Sem dados para o filtro atual.</td></tr>';
+}
+
+async function renderExtrato(){
+  const tbody = document.getElementById('tabelaExtrato');
+  const sub = document.getElementById('extratoSub');
+
+  if(MODO_VISAO === 'PREVISTOS'){
+    if(sub) sub.textContent = 'Movimentos futuros no período, ordenados por vencimento (sem saldo de conta — não se aplica a previsões)';
+    const ordenado = [...LISTA_ATIVA].sort((a,b)=>{
+      const da = a.dataVencimento || '', db = b.dataVencimento || '';
+      return da < db ? -1 : da > db ? 1 : (a.id - b.id);
+    });
+    if(!ordenado.length){ tbody.innerHTML = '<tr><td colspan="7" class="muted-small">Sem lançamentos para o filtro atual.</td></tr>'; return; }
+    tbody.innerHTML = ordenado.map(m=>`
+      <tr>
+        <td>${formatarData(m.dataVencimento)}</td>
+        <td>${escapeHtml(nomeCategoria(m))}</td>
+        <td>${escapeHtml(nomeCliente(m) || '—')}</td>
+        <td class="muted-small">${escapeHtml(nomePasta(m) || '—')}</td>
+        <td class="muted-small">—</td>
+        <td class="${valorDe(m)>=0?'valor-pos':'valor-neg'}">${formatarMoeda(valorDe(m))}</td>
+        <td class="muted-small">—</td>
+      </tr>
+    `).join('');
+    return;
+  }
+
+  const pagMin = document.getElementById('fPagMin').value;
+  const contaFiltro = document.getElementById('fConta').value;
+
+  if(MODO_VISAO === 'TODOS'){
+    if(sub) sub.textContent = 'Realizados e previstos juntos, ordenados por data (pagamento quando já realizado, vencimento quando previsto) — saldo acumulado considera só os realizados';
+    let saldoCorrente = pagMin ? await saldoContasAteData(contaFiltro, diaAnterior(pagMin)) : somaSaldosIniciais(contaFiltro);
+    const ordenado = [...LISTA_ATIVA].sort((a,b)=>{
+      const da = a.dataPagamento || a.dataVencimento || '', db = b.dataPagamento || b.dataVencimento || '';
+      return da < db ? -1 : da > db ? 1 : (a.id - b.id);
+    });
+    if(!ordenado.length){ tbody.innerHTML = '<tr><td colspan="7" class="muted-small">Sem lançamentos para o filtro atual.</td></tr>'; return; }
+    tbody.innerHTML = ordenado.map(m=>{
+      const realizado = !!m.dataPagamento;
+      if(realizado) saldoCorrente += valorDe(m);
+      return `
+        <tr>
+          <td>${formatarData(m.dataPagamento || m.dataVencimento)}${realizado ? '' : ' <span class="muted-small">(previsto)</span>'}</td>
+          <td>${escapeHtml(nomeCategoria(m))}</td>
+          <td>${escapeHtml(nomeCliente(m) || '—')}</td>
+          <td class="muted-small">${escapeHtml(nomePasta(m) || '—')}</td>
+          <td class="muted-small">${realizado ? escapeHtml(nomeConta(m)) : '—'}</td>
+          <td class="${valorDe(m)>=0?'valor-pos':'valor-neg'}">${formatarMoeda(valorDe(m))}</td>
+          <td class="${realizado?'':'muted-small'}">${realizado ? formatarMoeda(saldoCorrente) : '—'}</td>
+        </tr>
+      `;
+    }).join('');
+    return;
+  }
+
+  if(sub) sub.textContent = 'Movimentos realizados no período, com saldo acumulado';
+
+  let saldoCorrente = pagMin ? await saldoContasAteData(contaFiltro, diaAnterior(pagMin)) : somaSaldosIniciais(contaFiltro);
+
+  const ordenado = [...LISTA_ATIVA].sort((a,b)=>{
+    const da = a.dataPagamento || '', db = b.dataPagamento || '';
+    return da < db ? -1 : da > db ? 1 : (a.id - b.id);
+  });
+
+  if(!ordenado.length){ tbody.innerHTML = '<tr><td colspan="7" class="muted-small">Sem lançamentos para o filtro atual.</td></tr>'; return; }
+
+  const linhas = ordenado.map(m=>{
+    saldoCorrente += valorDe(m);
+    return { m, saldo: saldoCorrente };
+  });
+
+  tbody.innerHTML = linhas.map(({m,saldo})=>`
+    <tr>
+      <td>${formatarData(m.dataPagamento)}</td>
+      <td>${escapeHtml(nomeCategoria(m))}</td>
+      <td>${escapeHtml(nomeCliente(m) || '—')}</td>
+      <td class="muted-small">${escapeHtml(nomePasta(m) || '—')}</td>
+      <td class="muted-small">${escapeHtml(nomeConta(m))}</td>
+      <td class="${valorDe(m)>=0?'valor-pos':'valor-neg'}">${formatarMoeda(valorDe(m))}</td>
+      <td>${formatarMoeda(saldo)}</td>
+    </tr>
+  `).join('');
+}
+
+document.getElementById('btnExportarExcel').addEventListener('click', async ()=>{
+  let planilha;
+
+  if(MODO_VISAO === 'PREVISTOS'){
+    const ordenado = [...LISTA_ATIVA].sort((a,b)=>{
+      const da = a.dataVencimento || '', db = b.dataVencimento || '';
+      return da < db ? -1 : da > db ? 1 : (a.id - b.id);
+    });
+    planilha = ordenado.map(m=>({
+      'Data de Vencimento': formatarData(m.dataVencimento),
+      'Categoria': nomeCategoria(m),
+      'Plano de Contas': nomePlanoConta(m),
+      'Cliente': nomeCliente(m) || '',
+      'Pasta': nomePasta(m) || '',
+      'Valor': valorDe(m)
+    }));
+  }else if(MODO_VISAO === 'TODOS'){
+    const pagMin = document.getElementById('fPagMin').value;
+    const contaFiltro = document.getElementById('fConta').value;
+    let saldoCorrente = pagMin ? await saldoContasAteData(contaFiltro, diaAnterior(pagMin)) : somaSaldosIniciais(contaFiltro);
+
+    const ordenado = [...LISTA_ATIVA].sort((a,b)=>{
+      const da = a.dataPagamento || a.dataVencimento || '', db = b.dataPagamento || b.dataVencimento || '';
+      return da < db ? -1 : da > db ? 1 : (a.id - b.id);
+    });
+
+    planilha = ordenado.map(m=>{
+      const realizado = !!m.dataPagamento;
+      if(realizado) saldoCorrente += valorDe(m);
+      return {
+        'Data': formatarData(m.dataPagamento || m.dataVencimento),
+        'Situação': realizado ? 'Realizado' : 'Previsto',
+        'Categoria': nomeCategoria(m),
+        'Plano de Contas': nomePlanoConta(m),
+        'Cliente': nomeCliente(m) || '',
+        'Pasta': nomePasta(m) || '',
+        'Conta': realizado ? nomeConta(m) : '',
+        'Valor': valorDe(m),
+        'Saldo': realizado ? saldoCorrente : ''
+      };
+    });
+  }else{
+    const pagMin = document.getElementById('fPagMin').value;
+    const contaFiltro = document.getElementById('fConta').value;
+    let saldoCorrente = pagMin ? await saldoContasAteData(contaFiltro, diaAnterior(pagMin)) : somaSaldosIniciais(contaFiltro);
+
+    const ordenado = [...LISTA_ATIVA].sort((a,b)=>{
+      const da = a.dataPagamento || '', db = b.dataPagamento || '';
+      return da < db ? -1 : da > db ? 1 : (a.id - b.id);
+    });
+
+    planilha = ordenado.map(m=>{
+      saldoCorrente += valorDe(m);
+      return {
+        'Data': formatarData(m.dataPagamento),
+        'Categoria': nomeCategoria(m),
+        'Plano de Contas': nomePlanoConta(m),
+        'Cliente': nomeCliente(m) || '',
+        'Pasta': nomePasta(m) || '',
+        'Conta': nomeConta(m),
+        'Valor': valorDe(m),
+        'Saldo': saldoCorrente
+      };
+    });
+  }
+
+  if(!planilha.length){ alert('Não há lançamentos para exportar com os filtros atuais.'); return; }
+
+  /* Linha de total ao final — soma da coluna Valor, com as demais colunas de
+     texto em branco (exceto a primeira, que recebe o rótulo "TOTAL"). */
+  const totalValor = planilha.reduce((a,l)=>a + (typeof l.Valor === 'number' ? l.Valor : 0), 0);
+  const chaves = Object.keys(planilha[0]);
+  const linhaTotal = {};
+  chaves.forEach((chave, i)=>{
+    if(i === 0) linhaTotal[chave] = 'TOTAL';
+    else if(chave === 'Valor') linhaTotal[chave] = totalValor;
+    else linhaTotal[chave] = '';
+  });
+  planilha.push(linhaTotal);
+
+  const ws = XLSX.utils.json_to_sheet(planilha);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Extrato');
+  const nomeArquivo = MODO_VISAO === 'PREVISTOS' ? 'Previsao_Financeiro_Eleven.xlsx'
+    : MODO_VISAO === 'TODOS' ? 'Completo_Financeiro_Eleven.xlsx'
+    : 'Extrato_Financeiro_Eleven.xlsx';
+  XLSX.writeFile(wb, nomeArquivo);
+});
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+</script>
+</body>
+</html>
