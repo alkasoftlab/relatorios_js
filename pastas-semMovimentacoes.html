@@ -313,7 +313,7 @@ document.getElementById('btnGerar').onclick=async()=>{
         /* AJUSTE: pasta sem processos vinculados ou sem nenhum movimento encontrado
            conta como "sem movimento desde sempre" e deve aparecer no relatório,
            conforme descrito no texto de ajuda. Antes, era descartada aqui. */
-        inativas.push({...p, origem:null, numero:'Não informado', dataMov:null, processoId:null, dataEntradaProcesso:null, diasSemMov:null});
+        inativas.push({...p, origem:null, numero:'Não informado', dataMov:null, processoId:null, pastaId:p.id, dataEntradaProcesso:null, diasSemMov:null});
         return;
       }
       const dias=info.dataMov?diffDaysFromToday(info.dataMov):null;
@@ -383,8 +383,9 @@ function gerarRelatorioFinal(rows){
   .chart-legend{display:flex;gap:16px;margin-top:10px;font-size:.78rem;color:var(--muted);flex-wrap:wrap;}
   .chart-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle;}
   .chart-wrap.top{width:95%;max-width:1000px;margin:0 auto 26px;}
-  .charts-grid{width:95%;max-width:1000px;margin:0 auto 26px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;}
+  .charts-grid{width:95%;max-width:1000px;margin:0 auto 26px;display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
   .charts-grid canvas{max-height:240px}
+  @media(max-width:700px){.charts-grid{grid-template-columns:1fr}}
   @media print{
     body{background:#fff;color:#000}
     .actions,.help-note{display:none}
@@ -419,8 +420,9 @@ function gerarRelatorioFinal(rows){
 
   <div class="charts-grid">
     <div class="chart-wrap"><div class="chart-title">Por Categoria</div><canvas id="chartCategoria"></canvas></div>
-    <div class="chart-wrap"><div class="chart-title">Judicial × Extrajudicial</div><canvas id="chartOrigem"></canvas></div>
     <div class="chart-wrap"><div class="chart-title">Por Encarregado</div><canvas id="chartEncarregado"></canvas></div>
+    <div class="chart-wrap"><div class="chart-title">Judicial × Extrajudicial</div><canvas id="chartOrigem"></canvas></div>
+    <div class="chart-wrap"><div class="chart-title">Com Processo × Sem Processo</div><canvas id="chartComSem"></canvas></div>
   </div>
 
   <p class="help-note" style="max-width:700px;margin:0 auto 18px;font-size:.85rem">
@@ -441,6 +443,7 @@ function gerarRelatorioFinal(rows){
   <tbody id="tabelaBody"></tbody></table>
   <script>const rows=${JSON.stringify(rows)};
   const SITE_BASE_R='${SITE_BASE}';
+  const PASTA_BASE_R='https://lawyereleven.alkasoft.com.br/auth/';
   let FILTRO=null, ULTIMA_LISTA=rows;
 
   /* ===== Datas (mesma lógica de parseDateKeepDay/formatBRFromUnknown da tela principal) ===== */
@@ -461,12 +464,12 @@ function gerarRelatorioFinal(rows){
       let link=null;
       if(r.processoId){
         link=r.origem==='JUD'?(SITE_BASE_R+'processos-judiciais/'+r.processoId+'/detalhamento'):(SITE_BASE_R+'processos-extrajudiciais/'+r.processoId+'/detalhamento');
-      }else if(r.pastaId){link=SITE_BASE_R+'pastas/'+r.pastaId+'/detalhamento';}
+      }else if(r.pastaId){link=PASTA_BASE_R+'pastas/'+r.pastaId+'/detalhamento';}
       const num=r.numero||'Não informado';
       const dias=r.diasSemMov??'--';
       const cor=(dias>=180)?'red':(dias>=90?'orange':'green');
       const dataMov=r.dataMov?formatarDataR(r.dataMov):'<em>Sem movimentos</em>';
-      const origemCompleta=(r.origem==='JUD'?'Judicial':(r.origem==='EXTRA'?'Extrajudicial':'--'));
+      const origemCompleta=(r.origem==='JUD'?'Judicial':(r.origem==='EXTRA'?'Extrajudicial':'Sem processos'));
       const encarregado=((r.encarregado&&r.encarregado.descricao)||'--').split(' ').slice(0,2).join(' ');
       const cel=link?('<a href="'+link+'" target="_blank" rel="noopener">'+num+'</a>'):num;
       return '<tr><td>'+origemCompleta+'</td><td>'+cel+'</td><td>'+((r.categoria&&r.categoria.descricao)||'--')+'</td><td>'+encarregado+'</td><td>'+formatarDataR(r.dataEntradaProcesso)+'</td><td>'+dataMov+'</td><td><span class="badge '+cor+'">'+dias+'</span></td></tr>';
@@ -488,6 +491,7 @@ function gerarRelatorioFinal(rows){
         return!r.origem;
       }
       if(tipo==='encarregado')return((r.encarregado&&r.encarregado.descricao)||'Sem encarregado').split(' ').slice(0,2).join(' ')===valor;
+      if(tipo==='comSemProcesso')return valor==='com'?!!r.origem:!r.origem;
       if(tipo==='dias'){
         const d=r.diasSemMov??0;
         if(valor==='green')return d<90;
@@ -510,42 +514,98 @@ function gerarRelatorioFinal(rows){
   const csv=head+lista.map(r=>[(r.origem==='JUD'?'Judicial':(r.origem==='EXTRA'?'Extrajudicial':'')),r.numero,(r.categoria?.descricao||''),(r.encarregado?.descricao||'').split(' ').slice(0,2).join(' '),(r.dataEntradaProcesso||''),(r.dataMov||''),r.diasSemMov??''].join(';')).join('\\n');
   const blob=new Blob(["\\uFEFF"+csv],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='relatorio_pastas_inativas_${selectedDays}dias.csv';a.click();}
 
-  /* ===== Gráficos: categoria, judicial x extrajudicial, encarregado ===== */
+  /* ===== Gráficos: categoria, judicial x extrajudicial, com/sem processo, encarregado ===== */
   const porCategoria={};
   rows.forEach(r=>{const c=(r.categoria&&r.categoria.descricao)||'Sem categoria';porCategoria[c]=(porCategoria[c]||0)+1;});
   const catLabels=Object.keys(porCategoria).sort((a,b)=>porCategoria[b]-porCategoria[a]).slice(0,10);
 
-  const porOrigem={Judicial:0,Extrajudicial:0,'Sem processo':0};
+  const porOrigem={Judicial:0,Extrajudicial:0,'Sem processos':0};
   rows.forEach(r=>{
     if(r.origem==='JUD')porOrigem.Judicial++;
     else if(r.origem==='EXTRA')porOrigem.Extrajudicial++;
-    else porOrigem['Sem processo']++;
+    else porOrigem['Sem processos']++;
   });
+
+  const comProcesso=rows.filter(r=>r.origem).length;
+  const semProcesso=rows.length-comProcesso;
 
   const porEncarregado={};
   rows.forEach(r=>{const e=((r.encarregado&&r.encarregado.descricao)||'Sem encarregado').split(' ').slice(0,2).join(' ');porEncarregado[e]=(porEncarregado[e]||0)+1;});
   const encLabels=Object.keys(porEncarregado).sort((a,b)=>porEncarregado[b]-porEncarregado[a]).slice(0,10);
 
   const corTexto='#8b93a7',corGrid='rgba(255,255,255,.06)';
-  function baseOpts(horizontal){
-    return{responsive:true,maintainAspectRatio:true,indexAxis:horizontal?'y':'x',
-      plugins:{legend:{display:false}},
-      scales:{x:{ticks:{color:corTexto},grid:{color:corGrid}},y:{ticks:{color:corTexto},grid:{color:corGrid},beginAtZero:true}}};
+  const corBrand='#37d6a8',corBrand2='#4f8fef',corMuted='#5a6478';
+  /* Cores por barra: o "balde" de itens sem informação (Sem categoria/Sem
+     encarregado) fica em cinza neutro, para não competir visualmente com as
+     categorias reais — mesmo quando é, de longe, a maior barra. */
+  function coresPor(labels,corReal){
+    return labels.map(l=>/^Sem /.test(l)?corMuted:corReal);
   }
-  new Chart(document.getElementById('chartCategoria'),{
+  /* Cada rótulo já traz a contagem entre parênteses, assim o valor fica
+     legível mesmo quando a barra é curta demais para caber ao lado. */
+  function comContagem(labels,mapa){ return labels.map(l=>l+' ('+mapa[l]+')'); }
+
+  function baseOpts(horizontal,valores){
+    const max=Math.max(1,...valores);
+    const usarLog=max>0 && Math.max(...valores)/Math.max(1,Math.min(...valores.filter(v=>v>0)))>=30;
+    return{responsive:true,maintainAspectRatio:true,indexAxis:horizontal?'y':'x',
+      plugins:{legend:{display:false},tooltip:{callbacks:{title:(items)=>items[0].label.replace(/\\s\\(\\d+\\)$/,'')}}},
+      onHover:(evt,elements)=>{evt.native.target.style.cursor=elements.length?'pointer':'default';},
+      scales:{
+        x:{ticks:{color:corTexto},grid:{color:corGrid},type:(horizontal&&usarLog)?'logarithmic':'linear',beginAtZero:!usarLog},
+        y:{ticks:{color:corTexto},grid:{color:corGrid},beginAtZero:true}
+      }};
+  }
+
+  const catValores=catLabels.map(c=>porCategoria[c]);
+  const chartCategoria=new Chart(document.getElementById('chartCategoria'),{
     type:'bar',
-    data:{labels:catLabels,datasets:[{label:'Pastas',data:catLabels.map(c=>porCategoria[c]),backgroundColor:'#37d6a8'}]},
-    options:baseOpts(true)
+    data:{labels:comContagem(catLabels,porCategoria),datasets:[{label:'Pastas',data:catValores,backgroundColor:coresPor(catLabels,corBrand)}]},
+    options:{...baseOpts(true,catValores),onClick:(evt,elements)=>{
+      if(!elements.length)return;
+      const label=catLabels[elements[0].index];
+      aplicarFiltro('categoria',label,'Categoria = '+label);
+    }}
   });
-  new Chart(document.getElementById('chartOrigem'),{
+
+  const origemLabels=Object.keys(porOrigem);
+  const chartOrigem=new Chart(document.getElementById('chartOrigem'),{
     type:'doughnut',
-    data:{labels:Object.keys(porOrigem),datasets:[{data:Object.values(porOrigem),backgroundColor:['#4f8fef','#ffab4a','#8b93a7']}]},
-    options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'bottom',labels:{color:corTexto}}}}
+    data:{labels:comContagem(origemLabels,porOrigem),datasets:[{data:Object.values(porOrigem),backgroundColor:[corBrand2,'#ffab4a',corMuted]}]},
+    options:{responsive:true,maintainAspectRatio:true,
+      plugins:{legend:{position:'bottom',labels:{color:corTexto}}},
+      onHover:(evt,elements)=>{evt.native.target.style.cursor=elements.length?'pointer':'default';},
+      onClick:(evt,elements)=>{
+        if(!elements.length)return;
+        const label=origemLabels[elements[0].index];
+        aplicarFiltro('origem',label,'Origem = '+label);
+      }
+    }
   });
-  new Chart(document.getElementById('chartEncarregado'),{
+
+  const chartComSem=new Chart(document.getElementById('chartComSem'),{
+    type:'doughnut',
+    data:{labels:['Com processo ('+comProcesso+')','Sem processo ('+semProcesso+')'],datasets:[{data:[comProcesso,semProcesso],backgroundColor:[corBrand,corMuted]}]},
+    options:{responsive:true,maintainAspectRatio:true,
+      plugins:{legend:{position:'bottom',labels:{color:corTexto}}},
+      onHover:(evt,elements)=>{evt.native.target.style.cursor=elements.length?'pointer':'default';},
+      onClick:(evt,elements)=>{
+        if(!elements.length)return;
+        const comOuSem=elements[0].index===0?'com':'sem';
+        aplicarFiltro('comSemProcesso',comOuSem,comOuSem==='com'?'Com processo vinculado':'Sem processo vinculado');
+      }
+    }
+  });
+
+  const encValores=encLabels.map(e=>porEncarregado[e]);
+  const chartEncarregado=new Chart(document.getElementById('chartEncarregado'),{
     type:'bar',
-    data:{labels:encLabels,datasets:[{label:'Pastas',data:encLabels.map(e=>porEncarregado[e]),backgroundColor:'#4f8fef'}]},
-    options:baseOpts(true)
+    data:{labels:comContagem(encLabels,porEncarregado),datasets:[{label:'Pastas',data:encValores,backgroundColor:coresPor(encLabels,corBrand2)}]},
+    options:{...baseOpts(true,encValores),onClick:(evt,elements)=>{
+      if(!elements.length)return;
+      const label=encLabels[elements[0].index];
+      aplicarFiltro('encarregado',label,'Encarregado = '+label);
+    }}
   });
   </sc`+`ript></body></html>`;
   const w=window.open('','_blank');w.document.write(html);w.document.close();
