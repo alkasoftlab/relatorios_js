@@ -51,8 +51,11 @@
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;width:100%">
       <button id="btnGerar" class="btn" style="max-width:250px;">Gerar Relatório</button>
     </div>
-    <div class="progress-bar" style="display:none"><div id="progressFill" class="progress-fill">0%</div></div>
-    <div id="statusRelatorio" style="margin-top:10px;color:#444;font-weight:500"></div>
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress"><div class="fill" id="progressFill" style="width:0%"></div></div>
+      <div class="progress-text" id="progressText">0%</div>
+    </div>
+    <div id="statusRelatorio" style="margin-top:10px;color:var(--muted);font-weight:500"></div>
   </div>
 </div>
 
@@ -171,7 +174,9 @@ document.addEventListener('keydown', (e) => {
 })();
 
 /* =========================================================
-   A PARTIR DAQUI: SCRIPT ORIGINAL, SEM ALTERAÇÕES DE LÓGICA
+   A PARTIR DAQUI: SCRIPT ORIGINAL
+   (com dois ajustes: fallback para pastas sem processos vinculados,
+   e endpoint de movimentos judiciais atualizado)
    ========================================================= */
 let BEARER_TOKEN=null, selectedDays=30;
 const LOGIN_URL="https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum";
@@ -181,9 +186,9 @@ const MOVX="https://busca-avancada-api-prod.alkasoft.com.br/api/v1/movimentos-ex
 const APP_BASE='https://busca-avancada-api-prod.alkasoft.com.br/api/v1/pastas-processuais';
 const SITE_BASE='https://eleven.alkasoft.com.br/auth/';
 
-function progress(p,t){document.querySelector('.progress-bar').style.display='block';
+function progress(p,t){document.getElementById('progressWrap').style.display='block';
   document.getElementById('progressFill').style.width=p+'%';
-  document.getElementById('progressFill').textContent=t||p+'%';
+  document.getElementById('progressText').textContent=t||p+'%';
 }
 
 /* ===== LOGIN ===== */
@@ -230,20 +235,13 @@ async function getProcessosDaPasta(pastaId,tipo){
   const h={Authorization:'Bearer '+BEARER_TOKEN,'Content-Type':'application/json'};
   if(tipo==='EXTRA'){
     const url='https://busca-avancada-api-prod.alkasoft.com.br/api/v1/processos-extrajudiciais?inicio=0&ordenacao=DATA_ENTRADA_DESC&quantidade=10';
-    const body={"idsPastasProcessuais":[pastaId]};
+    const body={"idsPastas":[pastaId]};
     const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(body)});
     if(!r.ok)return[];const j=await r.json();
     return(j.itens||[]).map(p=>({id:p.id,numero:p.protocolo||p.numero||p.identificador?.descricao||'Não informado',dataEntrada:p.dataEntrada||null}));
   }else{
-    const url='https://busca-avancada-api-prod.alkasoft.com.br/api/v1/processos-judiciais?inicio=0&ordenacao=DATA_ENTRADA_DESC&quantidade=10';
-    const body={
-      comarca:null,filtrosCamposExtras:[],numeroCNJ:null,tribunal:null,
-      unidadeJudicial:null,dataConclusao:null,dataEntrada:null,idsAreas:[],
-      idsClientesPasta:[],idsEncarregadosPasta:[],idsJuizes:[],idsPartes:[],
-      idsPartesContrariasPasta:[],idsPastasProcessuais:[pastaId],idsSituacoes:[],
-      idsTiposAcoes:[],instancias:[],tiposVinculacoes:[]
-    };
-    const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(body)});
+    const url=`${APP_BASE}/${pastaId}/processos-judiciais`;
+    const r=await fetch(url,{headers:h});
     if(!r.ok)return[];
     const j=await r.json();const itens=j?.itens||[];
     return itens.map(p=>({id:p.id,numero:p.numeroCNJ||p.numeroProcesso||p.numero||p.identificador?.descricao||'Não informado',dataEntrada:p.dataEntrada||null}));
@@ -251,9 +249,13 @@ async function getProcessosDaPasta(pastaId,tipo){
 }
 
 /* ===== MOVIMENTOS ===== */
+/* AJUSTE: endpoint de movimentos judiciais agora usa ordenacao=DATA_CADASTRO_DESC
+   e quantidade=100 (era DATA_MOVIMENTO_DESC / quantidade=10), conforme solicitado. */
 async function buscarUltimoMov(tipo,idsProcArray,pastaId,h){
-  const url=(tipo==='JUD'?`${MOVJ}?inicio=0&ordenacao=DATA_MOVIMENTO_DESC&quantidade=10`:`${MOVX}?inicio=0&ordenacao=DATA_MOVIMENTO_DESC&quantidade=10`);
-  const body={idsPastasProcessuais:[pastaId],idsProcessos:idsProcArray||[]};
+  const url=(tipo==='JUD'
+    ?`${MOVJ}?inicio=0&ordenacao=DATA_CADASTRO_DESC&quantidade=100`
+    :`${MOVX}?inicio=0&ordenacao=DATA_MOVIMENTO_DESC&quantidade=10`);
+  const body={idsPastas:[pastaId],idsProcessos:idsProcArray||[]};
   const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(body)});if(!r.ok)return null;
   const j=await r.json();if(!j||!Array.isArray(j.itens)||j.itens.length===0)return{data:null,processoId:null};
   const mov=j.itens.sort((a,b)=>(new Date(b.dataMovimento))-new Date(a.dataMovimento))[0];
@@ -307,7 +309,13 @@ document.getElementById('btnGerar').onclick=async()=>{
     const grupo=pastas.slice(i,i+lote);
     await Promise.all(grupo.map(async(p)=>{
       const info=await ultimaMov(p.id);
-      if(!info)return;
+      if(!info){
+        /* AJUSTE: pasta sem processos vinculados ou sem nenhum movimento encontrado
+           conta como "sem movimento desde sempre" e deve aparecer no relatório,
+           conforme descrito no texto de ajuda. Antes, era descartada aqui. */
+        inativas.push({...p, origem:null, numero:'Não informado', dataMov:null, processoId:null, dataEntradaProcesso:null, diasSemMov:null});
+        return;
+      }
       const dias=info.dataMov?diffDaysFromToday(info.dataMov):null;
       if(dias===null||dias>selectedDays)
         inativas.push({...p,...info,diasSemMov:dias});
@@ -335,46 +343,55 @@ function gerarRelatorioFinal(rows){
   const pctOrange=tot?Math.round(qtdOrange/tot*100):0;
   const pctGreen=tot?Math.max(0,100-pctRed-pctOrange):0;
 
-  const tab=rows.map(r=>{
-    let link=null;
-    if(r.processoId){
-      link=r.origem==='JUD'?`${SITE_BASE}processos-judiciais/${r.processoId}/detalhamento`:`${SITE_BASE}processos-extrajudiciais/${r.processoId}/detalhamento`;
-    }else if(r.pastaId){link=`${SITE_BASE}pastas/${r.pastaId}/detalhamento`;}
-    const num=r.numero||'Não informado';
-    const dias=r.diasSemMov??'--';
-    const cor=(dias>=180)?'red':(dias>=90?'orange':'green');
-    const dataMov=r.dataMov?formatBRFromUnknown(r.dataMov):'<em>Sem movimentos</em>';
-    const origemCompleta=(r.origem==='JUD'?'Judicial':'Extrajudicial');
-    const encarregado=(r.encarregado?.descricao||'--').split(' ').slice(0,2).join(' ');
-    const cel=`<a href="${link}" target="_blank" rel="noopener">${num}</a>`;
-    return `<tr><td>${origemCompleta}</td><td>${cel}</td><td>${r.categoria?.descricao||'--'}</td><td>${encarregado}</td><td>${formatBRFromUnknown(r.dataEntradaProcesso)}</td><td>${dataMov}</td><td><span class="badge ${cor}">${dias}</span></td></tr>`;
-  }).join('');
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório</title>
+  <sc`+`ript src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></sc`+`ript>
   <style>
-  :root{--brand:#667eea;--muted:#6c757d;--danger:#d21d2b;--orange:#b45309;--ok:#0f5132;}
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#f8f9fa;margin:0;padding:30px;text-align:center}
-  table{margin:0 auto;border-collapse:collapse;width:95%;max-width:1000px;font-size:.9rem;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 5px 15px rgba(0,0,0,.05)}
-  th,td{padding:10px 12px;border-bottom:1px solid #eee;text-align:center}
-  th{background:#667eea;color:#fff}th:nth-child(2),td:nth-child(2){min-width:260px;text-align:left;}
-  .actions{margin-bottom:20px;text-align:center}
+  :root{--brand:#37d6a8;--brand-2:#4f8fef;--muted:#8b93a7;--ink:#e7eaf1;--card:#131924;--card-2:#1a2130;
+  --success:#2fa876;--danger:#ff5c72;--orange:#ffab4a;--border:#242c3d;--border-strong:#313b52;--bg:#0a0e15;}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink);margin:0;padding:30px 20px;text-align:center}
+  h2{margin:0 0 6px;font-weight:700}
+  p{color:var(--muted)}
+  a{color:var(--brand-2)}
+  table{margin:0 auto;border-collapse:collapse;width:95%;max-width:1000px;font-size:.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  th,td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:center;color:var(--ink)}
+  th{background:var(--card-2);font-weight:700;border-bottom:2px solid var(--brand)}
+  th:nth-child(2),td:nth-child(2){min-width:260px;text-align:left;}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:var(--card-2)}
+  .actions{margin:20px 0;display:flex;gap:10px;justify-content:center}
   .badge{padding:4px 8px;border-radius:999px;font-size:.8rem;font-weight:700;}
-  .badge.red{background:#ffe8ea;color:#d21d2b;}
-  .badge.orange{background:#fff3e6;color:#b45309;}
-  .badge.green{background:#e7f8ed;color:#0f5132;}
+  .badge.red{background:rgba(255,92,114,.15);color:var(--danger);}
+  .badge.orange{background:rgba(255,171,74,.15);color:var(--orange);}
+  .badge.green{background:rgba(62,207,142,.15);color:var(--success);}
   .stats-wrap{width:95%;max-width:1000px;margin:0 auto 22px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;}
-  .stat-card{flex:1;min-width:140px;background:#fff;border-radius:10px;box-shadow:0 5px 15px rgba(0,0,0,.05);padding:16px;}
-  .stat-card .num{font-size:1.6rem;font-weight:800;}
+  .stat-card{flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:16px;}
+  .stat-card .num{font-size:1.6rem;font-weight:800;color:var(--ink)}
   .stat-card .lbl{font-size:.8rem;color:var(--muted);margin-top:2px;}
   .stat-card.red .num{color:var(--danger)}
   .stat-card.orange .num{color:var(--orange)}
-  .stat-card.green .num{color:var(--ok)}
-  .chart-wrap{width:95%;max-width:1000px;margin:0 auto 26px;background:#fff;border-radius:10px;box-shadow:0 5px 15px rgba(0,0,0,.05);padding:18px 20px;text-align:left;}
-  .chart-title{font-size:.85rem;font-weight:700;color:#444;margin-bottom:10px;}
-  .chart-bar{display:flex;height:26px;border-radius:6px;overflow:hidden;background:#eee;}
-  .chart-bar span{display:flex;align-items:center;justify-content:center;color:#fff;font-size:.75rem;font-weight:700;white-space:nowrap;}
-  .chart-legend{display:flex;gap:16px;margin-top:10px;font-size:.78rem;color:#555;flex-wrap:wrap;}
+  .stat-card.green .num{color:var(--success)}
+  .chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:18px 20px;text-align:left;}
+  .chart-title{font-size:.85rem;font-weight:700;color:var(--ink);margin-bottom:10px;}
+  .chart-bar{display:flex;height:26px;border-radius:6px;overflow:hidden;background:var(--card-2);}
+  .chart-bar span{display:flex;align-items:center;justify-content:center;color:#08111a;font-size:.75rem;font-weight:700;white-space:nowrap;cursor:pointer;transition:filter .15s ease;}
+  .chart-bar span:hover{filter:brightness(1.15)}
+  .charts-grid canvas{cursor:pointer}
+  .filtro-bar{display:none;width:95%;max-width:1000px;margin:0 auto 14px;padding:10px 16px;background:var(--card-2);border:1px solid var(--border-strong);border-radius:10px;align-items:center;justify-content:space-between;gap:10px;}
+  .filtro-bar span{font-size:.85rem;color:var(--ink)}
+  .filtro-bar button{padding:6px 12px;border:none;border-radius:8px;background:var(--danger);color:#fff;font-weight:700;cursor:pointer;font-size:.8rem}
+  .chart-legend{display:flex;gap:16px;margin-top:10px;font-size:.78rem;color:var(--muted);flex-wrap:wrap;}
   .chart-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle;}
-  @media print{.actions,.help-note{display:none}}
+  .chart-wrap.top{width:95%;max-width:1000px;margin:0 auto 26px;}
+  .charts-grid{width:95%;max-width:1000px;margin:0 auto 26px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;}
+  .charts-grid canvas{max-height:240px}
+  @media print{
+    body{background:#fff;color:#000}
+    .actions,.help-note{display:none}
+    table,.stat-card,.chart-wrap{background:#fff;border-color:#ddd;box-shadow:none;color:#000}
+    th{background:#eee;color:#000;border-bottom:2px solid #667eea}
+    td,p,h2{color:#000}
+  }
   </style></head><body>
   <h2>📋 Relatório de Pastas sem movimentos processuais (${selectedDays} dias)</h2>
   <p>Gerado em: ${hoje} — Total: <strong>${tot}</strong> pastas</p>
@@ -386,35 +403,151 @@ function gerarRelatorioFinal(rows){
     <div class="stat-card red"><div class="num">${qtdRed}</div><div class="lbl">180 dias ou mais</div></div>
   </div>
 
-  <div class="chart-wrap">
+  <div class="chart-wrap top">
     <div class="chart-title">Distribuição por tempo de inatividade</div>
     <div class="chart-bar">
-      ${pctGreen>0?`<span style="width:${pctGreen}%;background:#0f5132">${pctGreen}%</span>`:''}
-      ${pctOrange>0?`<span style="width:${pctOrange}%;background:#b45309">${pctOrange}%</span>`:''}
-      ${pctRed>0?`<span style="width:${pctRed}%;background:#d21d2b">${pctRed}%</span>`:''}
+      ${pctGreen>0?`<span onclick="aplicarFiltro('dias','green','Até 89 dias')" style="width:${pctGreen}%;background:var(--success)">${pctGreen}%</span>`:''}
+      ${pctOrange>0?`<span onclick="aplicarFiltro('dias','orange','90 a 179 dias')" style="width:${pctOrange}%;background:var(--orange)">${pctOrange}%</span>`:''}
+      ${pctRed>0?`<span onclick="aplicarFiltro('dias','red','180 dias ou mais')" style="width:${pctRed}%;background:var(--danger)">${pctRed}%</span>`:''}
     </div>
     <div class="chart-legend">
-      <span><i style="background:#0f5132"></i>Até 89 dias (${qtdGreen})</span>
-      <span><i style="background:#b45309"></i>90 a 179 dias (${qtdOrange})</span>
-      <span><i style="background:#d21d2b"></i>180 dias ou mais (${qtdRed})</span>
+      <span><i style="background:var(--success)"></i>Até 89 dias (${qtdGreen})</span>
+      <span><i style="background:var(--orange)"></i>90 a 179 dias (${qtdOrange})</span>
+      <span><i style="background:var(--danger)"></i>180 dias ou mais (${qtdRed})</span>
     </div>
   </div>
 
-  <p class="help-note" style="max-width:700px;margin:0 auto 18px;font-size:.85rem;color:#777">
-    💡 Quanto mais avermelhada a barra, maior a proporção de pastas há muito tempo sem qualquer movimentação.
+  <div class="charts-grid">
+    <div class="chart-wrap"><div class="chart-title">Por Categoria</div><canvas id="chartCategoria"></canvas></div>
+    <div class="chart-wrap"><div class="chart-title">Judicial × Extrajudicial</div><canvas id="chartOrigem"></canvas></div>
+    <div class="chart-wrap"><div class="chart-title">Por Encarregado</div><canvas id="chartEncarregado"></canvas></div>
+  </div>
+
+  <p class="help-note" style="max-width:700px;margin:0 auto 18px;font-size:.85rem">
+    💡 Quanto mais avermelhada a barra, maior a proporção de pastas há muito tempo sem qualquer movimentação. Clique em qualquer barra ou fatia dos gráficos para filtrar a tabela abaixo.
   </p>
 
-  <div style="margin:20px 0;display:flex;gap:10px;justify-content:center">
-    <button onclick="window.print()" style="padding:10px 14px;border:none;border-radius:10px;background:#6c757d;color:#fff;font-weight:700;cursor:pointer">🖨️ Imprimir</button>
-    <button onclick="baixarCSV()" style="padding:10px 14px;border:none;border-radius:10px;background:#667eea;color:#fff;font-weight:700;cursor:pointer">⬇️ Baixar arquivo</button>
-    <button onclick="window.close()" style="padding:10px 14px;border:none;border-radius:10px;background:#d21d2b;color:#fff;font-weight:700;cursor:pointer">❌ Fechar</button>
+  <div class="filtro-bar" id="filtroBar">
+    <span id="filtroTexto"></span>
+    <button onclick="limparFiltro()">✕ Limpar filtro</button>
+  </div>
+
+  <div class="actions">
+    <button onclick="window.print()" style="padding:10px 14px;border:1px solid var(--border-strong);border-radius:10px;background:var(--card-2);color:var(--ink);font-weight:700;cursor:pointer">🖨️ Imprimir</button>
+    <button onclick="baixarCSV()" style="padding:10px 14px;border:none;border-radius:10px;background:var(--success);color:#fff;font-weight:700;cursor:pointer">⬇️ Baixar arquivo</button>
+    <button onclick="window.close()" style="padding:10px 14px;border:none;border-radius:10px;background:var(--danger);color:#fff;font-weight:700;cursor:pointer">❌ Fechar</button>
   </div>
   <table><thead><tr><th>Extra / Jud </th><th>Protocolo / Número</th><th>Categoria</th><th>Encarregado</th><th>Data Entrada</th><th>Última Movimentação</th><th>Dias sem Movimento</th></tr></thead>
-  <tbody>${tab||'<tr><td colspan="7" style="padding:40px;color:green">Nenhuma pasta inativa</td></tr>'}</tbody></table>
-  <script>function baixarCSV(){const rows=${JSON.stringify(rows)};
+  <tbody id="tabelaBody"></tbody></table>
+  <script>const rows=${JSON.stringify(rows)};
+  const SITE_BASE_R='${SITE_BASE}';
+  let FILTRO=null, ULTIMA_LISTA=rows;
+
+  /* ===== Datas (mesma lógica de parseDateKeepDay/formatBRFromUnknown da tela principal) ===== */
+  function parseDataR(v){
+    if(!v)return null;const s=String(v);
+    let m=s.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);if(m)return new Date(+m[1],+m[2]-1,+m[3]);
+    m=s.match(/^(\\d{2})\\/(\\d{2})\\/(\\d{4})/);if(m)return new Date(+m[3],+m[2]-1,+m[1]);
+    const t=Date.parse(s);return isNaN(t)?null:new Date(t);
+  }
+  function formatarDataR(v){const d=parseDataR(v);return d?d.toLocaleDateString('pt-BR'):'';}
+
+  /* ===== Renderização da tabela (chamada de novo a cada filtro) ===== */
+  function renderTabela(lista){
+    ULTIMA_LISTA=lista;
+    const tbody=document.getElementById('tabelaBody');
+    if(!lista.length){tbody.innerHTML='<tr><td colspan="7" style="padding:40px;color:var(--success)">Nenhuma pasta para esse filtro.</td></tr>';return;}
+    tbody.innerHTML=lista.map(r=>{
+      let link=null;
+      if(r.processoId){
+        link=r.origem==='JUD'?(SITE_BASE_R+'processos-judiciais/'+r.processoId+'/detalhamento'):(SITE_BASE_R+'processos-extrajudiciais/'+r.processoId+'/detalhamento');
+      }else if(r.pastaId){link=SITE_BASE_R+'pastas/'+r.pastaId+'/detalhamento';}
+      const num=r.numero||'Não informado';
+      const dias=r.diasSemMov??'--';
+      const cor=(dias>=180)?'red':(dias>=90?'orange':'green');
+      const dataMov=r.dataMov?formatarDataR(r.dataMov):'<em>Sem movimentos</em>';
+      const origemCompleta=(r.origem==='JUD'?'Judicial':(r.origem==='EXTRA'?'Extrajudicial':'--'));
+      const encarregado=((r.encarregado&&r.encarregado.descricao)||'--').split(' ').slice(0,2).join(' ');
+      const cel=link?('<a href="'+link+'" target="_blank" rel="noopener">'+num+'</a>'):num;
+      return '<tr><td>'+origemCompleta+'</td><td>'+cel+'</td><td>'+((r.categoria&&r.categoria.descricao)||'--')+'</td><td>'+encarregado+'</td><td>'+formatarDataR(r.dataEntradaProcesso)+'</td><td>'+dataMov+'</td><td><span class="badge '+cor+'">'+dias+'</span></td></tr>';
+    }).join('');
+  }
+  renderTabela(rows);
+
+  /* ===== Filtro clicável (gráficos + barra de distribuição) ===== */
+  function aplicarFiltro(tipo,valor,label){
+    if(FILTRO&&FILTRO.tipo===tipo&&FILTRO.valor===valor){limparFiltro();return;}
+    FILTRO={tipo,valor,label};
+    document.getElementById('filtroBar').style.display='flex';
+    document.getElementById('filtroTexto').textContent='🔍 Filtrando por: '+label;
+    const filtrado=rows.filter(r=>{
+      if(tipo==='categoria')return((r.categoria&&r.categoria.descricao)||'Sem categoria')===valor;
+      if(tipo==='origem'){
+        if(valor==='Judicial')return r.origem==='JUD';
+        if(valor==='Extrajudicial')return r.origem==='EXTRA';
+        return!r.origem;
+      }
+      if(tipo==='encarregado')return((r.encarregado&&r.encarregado.descricao)||'Sem encarregado').split(' ').slice(0,2).join(' ')===valor;
+      if(tipo==='dias'){
+        const d=r.diasSemMov??0;
+        if(valor==='green')return d<90;
+        if(valor==='orange')return d>=90&&d<180;
+        if(valor==='red')return d>=180;
+      }
+      return true;
+    });
+    renderTabela(filtrado);
+    document.querySelector('table').scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  function limparFiltro(){
+    FILTRO=null;
+    document.getElementById('filtroBar').style.display='none';
+    renderTabela(rows);
+  }
+
+  function baixarCSV(){const lista=ULTIMA_LISTA;
   const head='Origem;Protocolo;Categoria;Encarregado;DataEntrada;UltimaMovimentacao;DiasSemMovimento\\n';
-  const csv=head+rows.map(r=>[(r.origem==='JUD'?'Judicial':'Extrajudicial'),r.numero,(r.categoria?.descricao||''),(r.encarregado?.descricao||'').split(' ').slice(0,2).join(' '),(r.dataEntradaProcesso||''),(r.dataMov||''),r.diasSemMov??''].join(';')).join('\\n');
-  const blob=new Blob(["\\uFEFF"+csv],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='relatorio_pastas_inativas_${selectedDays}dias.csv';a.click();}</sc`+`ript></body></html>`;
+  const csv=head+lista.map(r=>[(r.origem==='JUD'?'Judicial':(r.origem==='EXTRA'?'Extrajudicial':'')),r.numero,(r.categoria?.descricao||''),(r.encarregado?.descricao||'').split(' ').slice(0,2).join(' '),(r.dataEntradaProcesso||''),(r.dataMov||''),r.diasSemMov??''].join(';')).join('\\n');
+  const blob=new Blob(["\\uFEFF"+csv],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='relatorio_pastas_inativas_${selectedDays}dias.csv';a.click();}
+
+  /* ===== Gráficos: categoria, judicial x extrajudicial, encarregado ===== */
+  const porCategoria={};
+  rows.forEach(r=>{const c=(r.categoria&&r.categoria.descricao)||'Sem categoria';porCategoria[c]=(porCategoria[c]||0)+1;});
+  const catLabels=Object.keys(porCategoria).sort((a,b)=>porCategoria[b]-porCategoria[a]).slice(0,10);
+
+  const porOrigem={Judicial:0,Extrajudicial:0,'Sem processo':0};
+  rows.forEach(r=>{
+    if(r.origem==='JUD')porOrigem.Judicial++;
+    else if(r.origem==='EXTRA')porOrigem.Extrajudicial++;
+    else porOrigem['Sem processo']++;
+  });
+
+  const porEncarregado={};
+  rows.forEach(r=>{const e=((r.encarregado&&r.encarregado.descricao)||'Sem encarregado').split(' ').slice(0,2).join(' ');porEncarregado[e]=(porEncarregado[e]||0)+1;});
+  const encLabels=Object.keys(porEncarregado).sort((a,b)=>porEncarregado[b]-porEncarregado[a]).slice(0,10);
+
+  const corTexto='#8b93a7',corGrid='rgba(255,255,255,.06)';
+  function baseOpts(horizontal){
+    return{responsive:true,maintainAspectRatio:true,indexAxis:horizontal?'y':'x',
+      plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:corTexto},grid:{color:corGrid}},y:{ticks:{color:corTexto},grid:{color:corGrid},beginAtZero:true}}};
+  }
+  new Chart(document.getElementById('chartCategoria'),{
+    type:'bar',
+    data:{labels:catLabels,datasets:[{label:'Pastas',data:catLabels.map(c=>porCategoria[c]),backgroundColor:'#37d6a8'}]},
+    options:baseOpts(true)
+  });
+  new Chart(document.getElementById('chartOrigem'),{
+    type:'doughnut',
+    data:{labels:Object.keys(porOrigem),datasets:[{data:Object.values(porOrigem),backgroundColor:['#4f8fef','#ffab4a','#8b93a7']}]},
+    options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'bottom',labels:{color:corTexto}}}}
+  });
+  new Chart(document.getElementById('chartEncarregado'),{
+    type:'bar',
+    data:{labels:encLabels,datasets:[{label:'Pastas',data:encLabels.map(e=>porEncarregado[e]),backgroundColor:'#4f8fef'}]},
+    options:baseOpts(true)
+  });
+  </sc`+`ript></body></html>`;
   const w=window.open('','_blank');w.document.write(html);w.document.close();
 }
 </script>
