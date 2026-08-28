@@ -6,7 +6,18 @@
 <title>Eleven · Tarefas e Subtarefas</title>
 <link rel="icon" type="image/png" href="../img/favicon.png">
 <link rel="stylesheet" href="../css/style.css">
-
+<style>
+/* Os 3 filtros de data (início/vencimento/finalização) são o mesmo tipo de
+   campo lado a lado — em 3 colunas próprias eles preenchem a linha por
+   inteiro, sem deixar buraco no grid de 2 colunas usado pelos demais filtros. */
+.filter-grid-dates{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:14px;
+  margin-bottom:14px;
+}
+@media(max-width:900px){ .filter-grid-dates{ grid-template-columns:1fr; } }
+</style>
 </head>
 <body>
 <div class="app">
@@ -48,7 +59,7 @@
     </h1>
 
     <div class="filter-section">
-      <div class="filter-grid">
+      <div class="filter-grid-dates">
         <div class="field-box">
           <label class="field-box-label">Data de início</label>
           <div class="date-inputs-row">
@@ -97,6 +108,9 @@
           </div>
           <input type="hidden" id="dataFinalizacaoMin"><input type="hidden" id="dataFinalizacaoMax">
         </div>
+      </div>
+
+      <div class="filter-grid">
         <div class="field-box">
           <label class="field-box-label">Situações <span class="required-mark">*</span></label>
           <div class="ms-wrapper" id="msSituacoes">
@@ -110,6 +124,12 @@
               </div>
             </div>
           </div>
+        </div>
+        <div class="field-box">
+          <label class="field-box-label">Categoria</label>
+          <select id="fCategoria" class="form-control">
+            <option value="">Todas as categorias</option>
+          </select>
         </div>
         <div class="field-box">
           <label class="field-box-label">Encarregados</label>
@@ -233,6 +253,7 @@ const DETALHE_TAREFA_URL='https://app-api-prod.alkasoft.com.br/api/v1/tarefas/{I
 const PROCESSOS_POR_PASTA='https://busca-avancada-api-prod.alkasoft.com.br/api/v1/processos-judiciais?inicio=0&ordenacao=DATA_ENTRADA_DESC&quantidade=10';
 const CONTATOS_URL='https://busca-avancada-api-prod.alkasoft.com.br/api/v1/contatos?inicio={INICIO}&ordenacao=NOME_ASC&quantidade={QTD}';
 const COLABORADORES_URL='https://busca-avancada-api-prod.alkasoft.com.br/api/v1/colaboradores?inicio={INICIO}&ordenacao=NOME_ASC&quantidade={QTD}';
+const CATEGORIAS_URL='https://app-api-prod.alkasoft.com.br/api/v1/tarefas/categorias';
 
 let BEARER_TOKEN=null;
 let dadosExport={superiores:[],subtarefas:[]};
@@ -343,7 +364,15 @@ document.addEventListener('keydown',(e)=>{ if(e.key==='Escape' && modalOverlay.c
 
 document.getElementById('infoLoginBtn').addEventListener('click',()=>{
   openModal('Sobre este relatório',
-    'Relatório completo de tarefas por período, situação e convidados, com hierarquia de subtarefas e exportação em Excel.',
+    '<p>Relatório completo de tarefas por período, situação e convidados, com hierarquia de subtarefas e exportação em Excel.</p>'+
+    '<p style="background:rgba(255,171,74,.12);border:1px solid rgba(255,171,74,.3);color:var(--orange);padding:10px 12px;border-radius:8px;margin-top:10px;line-height:1.4">⚠️ <strong>Importante:</strong> permita pop-ups para este site no navegador. O relatório abre em uma nova aba, e a maioria dos navegadores bloqueia isso por padrão.</p>'+
+    '<p style="color:var(--muted);font-size:.85rem;margin-top:10px">Este relatório apenas consulta informações — ele não altera, cria ou apaga nada nas pastas ou processos.</p>'+
+    '<h3 style="margin:14px 0 8px">Se algo der errado no login</h3>'+
+    '<ul>'+
+    '<li>Confira se o e-mail está completo e sem espaço no fim.</li>'+
+    '<li>Teste o mesmo acesso direto no sistema. Se não entrar lá, a senha é o problema.</li>'+
+    '<li>Se entrar no sistema mas não aqui, avise o suporte: pode ser permissão de perfil.</li>'+
+    '</ul>',
     'info');
 });
 document.getElementById('infoFiltrosBtn').addEventListener('click',()=>{
@@ -1196,6 +1225,40 @@ function filtrarPorConvidados(hier,selectedKeys){
   return hier.filter(t=>hierarquiaTemConvidadoRec(t,selectedKeys));
 }
 
+/* ========== Filtro por Categoria (opções via endpoint dedicado; filtro
+   aplicado no navegador — não há confirmação de que idsCategorias filtra
+   corretamente no servidor, então o corte é feito aqui por id). ========== */
+async function carregarCategorias(){
+  const sel = document.getElementById('fCategoria');
+  try{
+    const headers={};
+    if(BEARER_TOKEN) headers['Authorization']='Bearer '+BEARER_TOKEN;
+    const r = await fetch(CATEGORIAS_URL,{headers});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j = await r.json();
+    const itens = Array.isArray(j) ? j : (j.itens || []);
+    sel.innerHTML = '<option value="">Todas as categorias</option>' +
+      itens
+        .map(c=>({ id:c.id, nome:c.nome||c.descricao||'' }))
+        .filter(c=>c.nome)
+        .sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'))
+        .map(c=>`<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('');
+  }catch(err){
+    console.warn('Falha ao carregar categorias de tarefas:',err);
+    sel.innerHTML = '<option value="">Todas as categorias</option>';
+  }
+}
+function idCategoriaDe(t){ return t.categoria ? String(t.categoria.id) : null; }
+function hierarquiaTemCategoriaRec(t,idCategoria){
+  if(idCategoriaDe(t)===idCategoria) return true;
+  if(Array.isArray(t.subtarefas)) return t.subtarefas.some(s=>hierarquiaTemCategoriaRec(s,idCategoria));
+  return false;
+}
+function filtrarPorCategoria(hier,idCategoria){
+  if(!idCategoria) return hier;
+  return hier.filter(t=>hierarquiaTemCategoriaRec(t,idCategoria));
+}
+
 /* ========== Eventos UI: Login + Geração ========== */
 document.getElementById('loginForm').addEventListener('submit',async(e)=>{
   e.preventDefault();
@@ -1213,6 +1276,7 @@ document.getElementById('loginForm').addEventListener('submit',async(e)=>{
     }
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('dateScreen').style.display='block';
+    carregarCategorias();
   }catch(err){
     console.error(err);
     setResultado('<span style="color:red">E-mail ou senha inválidos</span>');
@@ -1278,12 +1342,19 @@ document.getElementById('btnGenerate').addEventListener('click',async()=>{
     const hier = montarHierarquia(detalhes);
     ordenarHierarquiaRec(hier);
 
+    /* Categoria vem do endpoint dedicado (carregada no login); o corte por
+       categoria é aplicado aqui no navegador, comparando por id. */
+    const categoriaSelecionada = document.getElementById('fCategoria').value;
+
     const selectedConvKeys = new Set(convState.selected.keys());
-    const hierFiltrado = filtrarPorConvidados(hier,selectedConvKeys);
+    let hierFiltrado = filtrarPorConvidados(hier,selectedConvKeys);
+    hierFiltrado = filtrarPorCategoria(hierFiltrado,categoriaSelecionada);
 
     progressShow(100,'Concluído');
     if(selectedConvKeys.size && !hierFiltrado.length){
       setStatus('Nenhuma tarefa encontrada para os convidados selecionados neste período.');
+    }else if(categoriaSelecionada && !hierFiltrado.length){
+      setStatus('Nenhuma tarefa encontrada para a categoria selecionada neste período.');
     }else{
       setStatus('Relatório gerado');
     }
@@ -1315,6 +1386,7 @@ async function exportToXLSX(dados, di, df){
         descricao: t.descricao,
         inicio: t.inicio,
         vencimento: t.vencimento,
+        finalizacao: t.finalizacao,
         categoria: t.categoria,
         encarregado: t.encarregado,
         situacao: t.situacao,
@@ -1333,6 +1405,7 @@ async function exportToXLSX(dados, di, df){
         descricao: s.descricao,
         inicio: s.inicio,
         vencimento: s.vencimento,
+        finalizacao: s.finalizacao,
         categoria: s.categoria,
         encarregado: s.encarregado,
         situacao: s.situacao,
@@ -1425,6 +1498,7 @@ function renderReport(hier,filtrosData,qtdConvidadosFiltro){
       descricao:t.descricao||'',
       inicio:t.dataHoraInicio||'',
       vencimento:t.dataHoraTermino||'',
+      finalizacao:t.dataHoraFinalizacao||t.dataFinalizacao||'',
       categoria:t.categoria?.nome||t.categoria?.descricao||'',
       encarregado:t.encarregado?.descricao||'',
       situacao:t.situacao?.descricao||t.situacao?.valor||'',
@@ -1457,7 +1531,7 @@ function renderReport(hier,filtrosData,qtdConvidadosFiltro){
     const table=document.createElement('table');table.className='table';
     const thead=document.createElement('thead');
     const trh=document.createElement('tr');
-    ['Tarefa Superior','Descrição','Início','Vencimento','Categoria','Encarregado','Situação','Cliente','CNJ','Convidados'].forEach(hd=>{
+    ['Tarefa Superior','Descrição','Início','Vencimento','Finalização','Categoria','Encarregado','Situação','Cliente','CNJ','Convidados'].forEach(hd=>{
       const th=document.createElement('th');th.textContent=hd;trh.appendChild(th);
     });
     thead.appendChild(trh);table.appendChild(thead);
@@ -1470,6 +1544,7 @@ function renderReport(hier,filtrosData,qtdConvidadosFiltro){
       t.descricao||'',
       t.dataHoraInicio?formatBR(t.dataHoraInicio):'',
       t.dataHoraTermino?formatBR(t.dataHoraTermino):'',
+      (t.dataHoraFinalizacao||t.dataFinalizacao)?formatBR(t.dataHoraFinalizacao||t.dataFinalizacao):'',
       t.categoria?.nome||t.categoria?.descricao||'',
       t.encarregado?.descricao||'',
       t.situacao?.descricao||t.situacao?.valor||'',
@@ -1487,7 +1562,7 @@ function renderReport(hier,filtrosData,qtdConvidadosFiltro){
         a.href=`https://eleven.alkasoft.com.br/auth/tarefas/${t.id}/detalhamento`;
         a.textContent=c||'—';
         td.appendChild(a);
-      }else if(ci===6){
+      }else if(ci===7){
         td.innerHTML=badgeColumnByDescricao({descricao:c});
       }else{
         td.textContent=c;
@@ -1506,6 +1581,7 @@ function renderReport(hier,filtrosData,qtdConvidadosFiltro){
         descricao:s.descricao||'',
         inicio:s.dataHoraInicio||'',
         vencimento:s.dataHoraTermino||'',
+        finalizacao:s.dataHoraFinalizacao||s.dataFinalizacao||'',
         categoria:s.categoria?.nome||s.categoria?.descricao||'',
         encarregado:s.encarregado?.descricao||'',
         situacao:s.situacao?.descricao||s.situacao?.valor||'',
@@ -1520,6 +1596,7 @@ function renderReport(hier,filtrosData,qtdConvidadosFiltro){
         s.descricao||'',
         s.dataHoraInicio?formatBR(s.dataHoraInicio):'',
         s.dataHoraTermino?formatBR(s.dataHoraTermino):'',
+        (s.dataHoraFinalizacao||s.dataFinalizacao)?formatBR(s.dataHoraFinalizacao||s.dataFinalizacao):'',
         s.categoria?.nome||s.categoria?.descricao||'',
         s.encarregado?.descricao||'',
         s.situacao?.descricao||s.situacao?.valor||'',
@@ -1537,7 +1614,7 @@ function renderReport(hier,filtrosData,qtdConvidadosFiltro){
           a.href=`https://eleven.alkasoft.com.br/auth/tarefas/${s.id}/detalhamento`;
           a.textContent=c||'—';
           td.appendChild(a);
-        }else if(ci===6){
+        }else if(ci===7){
           td.innerHTML=badgeColumnByDescricao({descricao:c});
         }else{
           td.textContent=c;
