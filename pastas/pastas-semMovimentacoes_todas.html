@@ -79,18 +79,18 @@ const AJUDA = {
         titulo: "Como funciona este relatório",
         subtitulo: "Leia antes de começar — leva 1 minuto",
         corpo: `
-            <p>Esta ferramenta consulta, dentro do sistema, todos os <strong>processos judiciais e extrajudiciais</strong> e verifica há quantos dias cada um está <strong>sem nenhuma movimentação</strong>. O objetivo é ajudar a encontrar processos "esquecidos", que podem precisar de atenção.</p>
+            <p>Esta ferramenta procura, dentro do sistema, todas as <strong>pastas processuais ativas</strong> e verifica há quantos dias cada uma está <strong>sem nenhuma movimentação</strong> (judicial ou extrajudicial). O objetivo é ajudar a encontrar pastas "esquecidas", que podem precisar de atenção.</p>
 
             <h3>As três etapas</h3>
             <ol class="passos">
                 <li><strong>Entrar</strong>Use o mesmo e-mail e senha do sistema. Nada é gravado neste computador: o acesso vale só enquanto a aba estiver aberta.</li>
-                <li><strong>Escolher o período</strong>Defina a partir de quantos dias sem movimentação um processo deve ser considerado inativo (30, 60, 90 ou 180 dias).</li>
-                <li><strong>Gerar o relatório</strong>A ferramenta consulta diretamente os processos judiciais e extrajudiciais com última movimentação anterior ao período escolhido e abre um relatório em uma nova aba, pronto para impressão ou download.</li>
+                <li><strong>Escolher o período</strong>Defina a partir de quantos dias sem movimentação uma pasta deve ser considerada inativa (30, 60, 90 ou 180 dias).</li>
+                <li><strong>Gerar o relatório</strong>A ferramenta varre todas as pastas, verifica a última movimentação de cada uma e abre um relatório em uma nova aba, pronto para impressão ou download.</li>
             </ol>
 
             <p style="background:rgba(255,171,74,.12);border:1px solid rgba(255,171,74,.3);color:var(--orange);padding:10px 12px;border-radius:8px;margin:12px 0;line-height:1.4">⚠️ <strong>Importante:</strong> permita pop-ups para este site no navegador. O relatório abre em uma nova aba, e a maioria dos navegadores bloqueia isso por padrão.</p>
 
-            <div class="nota">Este relatório apenas consulta informações — ele não altera, cria ou apaga nada nos processos.</div>
+            <div class="nota">Este relatório apenas consulta informações — ele não altera, cria ou apaga nada nas pastas ou processos.</div>
 
             <h3>Se algo der errado no login</h3>
             <ul>
@@ -104,10 +104,10 @@ const AJUDA = {
         titulo: "Como ler este relatório",
         subtitulo: "Período, cores e o que fazer com o resultado",
         corpo: `
-            <p>Ao clicar em <strong>Gerar Relatório</strong>, a ferramenta busca diretamente todos os <strong>processos judiciais</strong> e <strong>processos extrajudiciais</strong> cuja última movimentação está há mais dias do que o período escolhido (ou que nunca tiveram movimentação registrada).</p>
+            <p>Ao clicar em <strong>Gerar Relatório</strong>, a ferramenta busca todas as pastas não arquivadas e, para cada uma, encontra a data da <strong>movimentação mais recente</strong> — judicial ou extrajudicial, a que for mais nova. Pastas cuja última movimentação está há mais dias do que o período escolhido (ou que nunca tiveram movimentação) entram no relatório.</p>
 
             <h3>O que significa o período selecionado</h3>
-            <p>Ao escolher, por exemplo, <strong>90 dias</strong>, o relatório traz apenas os processos <em>sem</em> nenhuma movimentação nos últimos 90 dias.</p>
+            <p>Ao escolher, por exemplo, <strong>90 dias</strong>, o relatório traz apenas as pastas <em>sem</em> nenhuma movimentação nos últimos 90 dias.</p>
 
             <h3>Como interpretar as cores do relatório</h3>
             <table class="ajuda">
@@ -119,12 +119,12 @@ const AJUDA = {
 
             <h3>O que você pode fazer no relatório gerado</h3>
             <ul>
-                <li><strong>Clicar no número do processo</strong> para abrir o detalhamento direto no sistema.</li>
+                <li><strong>Clicar no número da pasta/processo</strong> para abrir o detalhamento direto no sistema.</li>
                 <li><strong>Imprimir</strong> a lista para revisão em reunião ou repasse à equipe.</li>
                 <li><strong>Baixar o arquivo (.csv)</strong> para conferir ou compartilhar em planilha.</li>
             </ul>
 
-            <div class="aviso">Somente processos judiciais ou extrajudiciais entram no relatório. Pastas sem nenhum processo vinculado não são mais exibidas.</div>
+            <div class="aviso">Uma pasta sem processos vinculados, ou sem nenhuma movimentação registrada, também aparece no relatório — ela conta como "sem movimento" desde sempre.</div>
         `
     }
 };
@@ -174,16 +174,16 @@ document.addEventListener('keydown', (e) => {
 })();
 
 /* =========================================================
-   A PARTIR DAQUI: LÓGICA DE BUSCA E GERAÇÃO DO RELATÓRIO
-   Agora consulta diretamente os endpoints de processos
-   (judiciais e extrajudiciais), filtrando no servidor por
-   dataUltimoMovimento.valorMaximo — não passa mais por pastas,
-   então pastas sem processo vinculado nunca aparecem.
+   A PARTIR DAQUI: SCRIPT ORIGINAL
+   (com dois ajustes: fallback para pastas sem processos vinculados,
+   e endpoint de movimentos judiciais atualizado)
    ========================================================= */
 let BEARER_TOKEN=null, selectedDays=30;
 const LOGIN_URL="https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum";
-const PROC_JUD_URL="https://busca-avancada-api-prod.alkasoft.com.br/api/v1/processos-judiciais";
-const PROC_EXTRA_URL="https://busca-avancada-api-prod.alkasoft.com.br/api/v1/processos-extrajudiciais";
+const PASTAS_URL="https://busca-avancada-api-prod.alkasoft.com.br/api/v1/pastas";
+const MOVJ="https://busca-avancada-api-prod.alkasoft.com.br/api/v1/movimentos-judiciais";
+const MOVX="https://busca-avancada-api-prod.alkasoft.com.br/api/v1/movimentos-extrajudiciais";
+const APP_BASE='https://busca-avancada-api-prod.alkasoft.com.br/api/v1/pastas-processuais';
 const SITE_BASE='https://eleven.alkasoft.com.br/auth/';
 
 function progress(p,t){document.getElementById('progressWrap').style.display='block';
@@ -213,89 +213,86 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
   }catch(e){resultado.innerHTML='<span style="color:red">'+e+'</span>';}
 });
 
-/* ===== FUNÇÕES AUXILIARES DE DATA ===== */
+/* ===== FUNÇÕES AUXILIARES ===== */
 function parseDateKeepDay(v){if(!v)return null;const s=String(v);const m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return new Date(m[1],m[2]-1,m[3]);const m2=s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);if(m2)return new Date(m2[3],m2[2]-1,m2[1]);const t=Date.parse(s);return isNaN(t)?null:new Date(t);}
 function diffDaysFromToday(v){const d=parseDateKeepDay(v);if(!d)return null;const n=new Date();return Math.floor((n-d)/86400000);}
 function formatBRFromUnknown(v){const d=parseDateKeepDay(v);return d?d.toLocaleDateString('pt-BR'):'';}
-function isoDateNDaysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().slice(0,10);}
 
-/* ===== BUSCA DE PROCESSOS INATIVOS (direto no endpoint, sem passar por pastas) ===== */
-async function buscarProcessosInativos(tipo, cutoffISO){
-  const h={Authorization:'Bearer '+BEARER_TOKEN,'Content-Type':'application/json'};
-  const base = tipo==='JUD' ? PROC_JUD_URL : PROC_EXTRA_URL;
-  const body = tipo==='JUD' ? {
-    comarca:null,
-    filtrosCamposExtras:[],
-    numeroCNJ:null,
-    tribunal:null,
-    unidadeJudicial:null,
-    dataConclusao:null,
-    dataEntrada:null,
-    dataUltimoMovimento:{valorMaximo:cutoffISO},
-    idsAreas:[],
-    idsClientesPasta:[],
-    idsEncarregadosPasta:[],
-    idsJuizes:[],
-    idsPartes:[],
-    idsPartesContrariasPasta:[],
-    idsPastasProcessuais:[],
-    idsSituacoes:[],
-    idsTiposAcoes:[],
-    instancias:[],
-    tiposVinculacoes:[]
-  } : {
-    filtrosCamposExtras:[],
-    protocolo:null,
-    dataConclusao:null,
-    dataEntrada:null,
-    dataUltimoMovimento:{valorMaximo:cutoffISO},
-    idsClientes:[],
-    idsEncarregados:[],
-    idsInstituicoes:[],
-    idsPartes:[],
-    idsPartesContrarias:[],
-    idsPastas:[],
-    idsSituacoes:[]
-  };
-
+/* ===== BUSCA DE PASTAS ===== */
+async function buscarPastas(){
   const out=[],q=100;let inicio=0;
   while(true){
-    const url=`${base}?inicio=${inicio}&ordenacao=DATA_ENTRADA_DESC&quantidade=${q}`;
-    const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(body)});
+    const url=`${PASTAS_URL}?inicio=${inicio}&ordenacao=ULTIMA_MODIFICACAO_DESC&quantidade=${q}`;
+    const r=await fetch(url,{method:'POST',headers:{Authorization:'Bearer '+BEARER_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({arquivada:"NAO_ARQUIVADAS"})});
     if(!r.ok) break;
-    const j=await r.json();
-    const itens=j.itens||[];
-    out.push(...itens.map(p=>mapearProcesso(p,tipo)));
-    if(itens.length<q) break;
-    inicio+=q;
+    const j=await r.json();out.push(...(j.itens||[]));if((j.itens||[]).length<q)break;inicio+=q;
   }
   return out;
 }
 
-/* Normaliza um item de processo (judicial ou extrajudicial) para o formato
-   usado pela tabela/gráficos do relatório. Os nomes de campos abaixo têm
-   fallbacks porque não temos o schema exato da resposta da API — vale
-   conferir no console do navegador (aba Rede) se "categoria"/"encarregado"
-   vierem vazios no seu ambiente e ajustar o caminho correspondente. */
-function mapearProcesso(p,tipo){
-  const numero = tipo==='JUD'
-    ? (p.numeroCNJ||p.numeroProcesso||p.numero||p.identificador?.descricao||'Não informado')
-    : (p.protocolo||p.numero||p.identificador?.descricao||'Não informado');
-  const categoria = p.categoria||p.pasta?.categoria||p.pastaProcessual?.categoria||null;
-  const encarregado = p.encarregado||p.pasta?.encarregado||p.pastaProcessual?.encarregado||null;
-  const pastaId = p.pasta?.id||p.idPastaProcessual||p.pastaProcessual?.id||null;
-  const dataMov = p.dataUltimoMovimento||null;
-  return{
-    origem: tipo,
-    numero,
-    categoria,
-    encarregado,
-    dataEntradaProcesso: p.dataEntrada||null,
-    dataMov,
-    processoId: p.id,
-    pastaId,
-    diasSemMov: dataMov?diffDaysFromToday(dataMov):null
-  };
+/* ===== PROCESSOS ===== */
+async function getProcessosDaPasta(pastaId,tipo){
+  const h={Authorization:'Bearer '+BEARER_TOKEN,'Content-Type':'application/json'};
+  if(tipo==='EXTRA'){
+    const url='https://busca-avancada-api-prod.alkasoft.com.br/api/v1/processos-extrajudiciais?inicio=0&ordenacao=DATA_ENTRADA_DESC&quantidade=10';
+    const body={"idsPastas":[pastaId]};
+    const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(body)});
+    if(!r.ok)return[];const j=await r.json();
+    return(j.itens||[]).map(p=>({id:p.id,numero:p.protocolo||p.numero||p.identificador?.descricao||'Não informado',dataEntrada:p.dataEntrada||null}));
+  }else{
+    const url=`${APP_BASE}/${pastaId}/processos-judiciais`;
+    const r=await fetch(url,{headers:h});
+    if(!r.ok)return[];
+    const j=await r.json();const itens=j?.itens||[];
+    return itens.map(p=>({id:p.id,numero:p.numeroCNJ||p.numeroProcesso||p.numero||p.identificador?.descricao||'Não informado',dataEntrada:p.dataEntrada||null}));
+  }
+}
+
+/* ===== MOVIMENTOS ===== */
+/* AJUSTE: endpoint de movimentos judiciais agora usa ordenacao=DATA_CADASTRO_DESC
+   e quantidade=100 (era DATA_MOVIMENTO_DESC / quantidade=10), conforme solicitado. */
+async function buscarUltimoMov(tipo,idsProcArray,pastaId,h){
+  const url=(tipo==='JUD'
+    ?`${MOVJ}?inicio=0&ordenacao=DATA_CADASTRO_DESC&quantidade=100`
+    :`${MOVX}?inicio=0&ordenacao=DATA_MOVIMENTO_DESC&quantidade=10`);
+  const body={idsPastas:[pastaId],idsProcessos:idsProcArray||[]};
+  const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(body)});if(!r.ok)return null;
+  const j=await r.json();if(!j||!Array.isArray(j.itens)||j.itens.length===0)return{data:null,processoId:null};
+  const mov=j.itens.sort((a,b)=>(new Date(b.dataMovimento))-new Date(a.dataMovimento))[0];
+  return{data:mov.dataMovimento,processoId:mov.processo?.id??mov.idProcesso??null};
+}
+
+/* ===== ÚLTIMA MOVIMENTAÇÃO ===== */
+async function ultimaMov(pastaId){
+  const h={Authorization:'Bearer '+BEARER_TOKEN,'Content-Type':'application/json'};
+  const [procsJ,procsX]=await Promise.all([
+    getProcessosDaPasta(pastaId,'JUD').catch(()=>[]),
+    getProcessosDaPasta(pastaId,'EXTRA').catch(()=>[])
+  ]);
+
+  if(procsJ.length===0&&procsX.length===0)return null;
+
+  const idsJ=procsJ.map(p=>p.id),idsX=procsX.map(p=>p.id);
+  const [mJ,mX]=await Promise.all([
+    buscarUltimoMov('JUD',idsJ,pastaId,h),
+    buscarUltimoMov('EXTRA',idsX,pastaId,h)
+  ]);
+
+  if(!mJ?.data && !mX?.data) return null;
+
+  let origem,dataMov,processoId,numero='Não informado',dataEntrada=null;
+  const dj=mJ.data?new Date(mJ.data):null,dx=mX.data?new Date(mX.data):null;
+  if(dj&&(!dx||dj>dx)){origem='JUD';dataMov=mJ.data;processoId=mJ.processoId;}
+  else if(dx){origem='EXTRA';dataMov=mX.data;processoId=mX.processoId;}
+
+  const listaOrigem=origem==='JUD'?procsJ:procsX;
+  const proc=listaOrigem.find(p=>String(p.id)===String(processoId))
+    ||procsJ.find(p=>String(p.id)===String(processoId))
+    ||procsX.find(p=>String(p.id)===String(processoId))
+    ||listaOrigem[0]||procsJ[0]||procsX[0];
+  if(proc){numero=proc.numero||'Não informado';dataEntrada=proc.dataEntrada||null;}
+
+  return{origem,numero,dataMov,processoId,pastaId,dataEntradaProcesso:dataEntrada};
 }
 
 /* ===== GERAÇÃO ===== */
@@ -304,21 +301,31 @@ document.getElementById('btnGerar').onclick=async()=>{
   const statusDiv=document.getElementById('statusRelatorio');
   document.getElementById('btnGerar').disabled=true;
   statusDiv.innerHTML='⏳ Processando, aguarde...';
-  progress(10,'Calculando período de corte...');
-  const cutoffISO=isoDateNDaysAgo(selectedDays);
-
-  progress(30,'Buscando processos judiciais...');
-  const jud=await buscarProcessosInativos('JUD',cutoffISO).catch(()=>[]);
-
-  progress(65,'Buscando processos extrajudiciais...');
-  const extra=await buscarProcessosInativos('EXTRA',cutoffISO).catch(()=>[]);
-
-  progress(90,'Consolidando resultados...');
-  const inativas=[...jud,...extra];
-  inativas.sort((a,b)=>(b.diasSemMov??0)-(a.diasSemMov??0));
-
+  progress(5,'Iniciando busca...');
+  const pastas=await buscarPastas();
+  progress(10,`${pastas.length} pastas encontradas`);
+  const inativas=[],lote=10;
+  for(let i=0;i<pastas.length;i+=lote){
+    const grupo=pastas.slice(i,i+lote);
+    await Promise.all(grupo.map(async(p)=>{
+      const info=await ultimaMov(p.id);
+      if(!info){
+        /* AJUSTE: pasta sem processos vinculados ou sem nenhum movimento encontrado
+           conta como "sem movimento desde sempre" e deve aparecer no relatório,
+           conforme descrito no texto de ajuda. Antes, era descartada aqui. */
+        inativas.push({...p, origem:null, numero:'Não informado', dataMov:null, processoId:null, pastaId:p.id, dataEntradaProcesso:null, diasSemMov:null});
+        return;
+      }
+      const dias=info.dataMov?diffDaysFromToday(info.dataMov):null;
+      if(dias===null||dias>selectedDays)
+        inativas.push({...p,...info,diasSemMov:dias});
+    }));
+    const perc=Math.min(100,(i+grupo.length)/pastas.length*100);
+    progress(perc.toFixed(1),`Verificando ${Math.min(i+grupo.length,pastas.length)}/${pastas.length}`);
+  }
   progress(100,'Concluído!');
-  statusDiv.innerHTML=`<strong style="color:green">✅ Concluído!</strong> ${inativas.length} processos inativos.`;
+  inativas.sort((a,b)=>(b.diasSemMov||0)-(a.diasSemMov||0));
+  statusDiv.innerHTML=`<strong style="color:green">✅ Concluído!</strong> ${inativas.length} pastas inativas.`;
   gerarRelatorioFinal(inativas);
   document.getElementById('btnGerar').disabled=false;
 }
@@ -376,10 +383,9 @@ function gerarRelatorioFinal(rows){
   .chart-legend{display:flex;gap:16px;margin-top:10px;font-size:.78rem;color:var(--muted);flex-wrap:wrap;}
   .chart-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle;}
   .chart-wrap.top{width:95%;max-width:1000px;margin:0 auto 26px;}
-  .charts-grid{width:95%;max-width:1200px;margin:0 auto 26px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
-  .charts-grid canvas{max-height:220px}
-  @media(max-width:900px){.charts-grid{grid-template-columns:repeat(2,1fr);max-width:1000px}}
-  @media(max-width:600px){.charts-grid{grid-template-columns:1fr}}
+  .charts-grid{width:95%;max-width:1000px;margin:0 auto 26px;display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+  .charts-grid canvas{max-height:240px}
+  @media(max-width:700px){.charts-grid{grid-template-columns:1fr}}
   @media print{
     body{background:#fff;color:#000}
     .actions,.help-note{display:none}
@@ -388,11 +394,11 @@ function gerarRelatorioFinal(rows){
     td,p,h2{color:#000}
   }
   </style></head><body>
-  <h2>📋 Relatório de Processos sem movimentação (${selectedDays} dias)</h2>
-  <p>Gerado em: ${hoje} — Total: <strong>${tot}</strong> processos</p>
+  <h2>📋 Relatório de Pastas sem movimentos processuais (${selectedDays} dias)</h2>
+  <p>Gerado em: ${hoje} — Total: <strong>${tot}</strong> pastas</p>
 
   <div class="stats-wrap">
-    <div class="stat-card"><div class="num">${tot}</div><div class="lbl">Total de processos inativos</div></div>
+    <div class="stat-card"><div class="num">${tot}</div><div class="lbl">Total de pastas inativas</div></div>
     <div class="stat-card green"><div class="num">${qtdGreen}</div><div class="lbl">Até 89 dias</div></div>
     <div class="stat-card orange"><div class="num">${qtdOrange}</div><div class="lbl">Entre 90 e 179 dias</div></div>
     <div class="stat-card red"><div class="num">${qtdRed}</div><div class="lbl">180 dias ou mais</div></div>
@@ -416,10 +422,11 @@ function gerarRelatorioFinal(rows){
     <div class="chart-wrap"><div class="chart-title">Por Categoria</div><canvas id="chartCategoria"></canvas></div>
     <div class="chart-wrap"><div class="chart-title">Por Encarregado</div><canvas id="chartEncarregado"></canvas></div>
     <div class="chart-wrap"><div class="chart-title">Judicial × Extrajudicial</div><canvas id="chartOrigem"></canvas></div>
+    <div class="chart-wrap"><div class="chart-title">Com Processo × Sem Processo</div><canvas id="chartComSem"></canvas></div>
   </div>
 
   <p class="help-note" style="max-width:700px;margin:0 auto 18px;font-size:.85rem">
-    💡 Quanto mais avermelhada a barra, maior a proporção de processos há muito tempo sem qualquer movimentação. Clique em qualquer barra ou fatia dos gráficos para filtrar a tabela abaixo.
+    💡 Quanto mais avermelhada a barra, maior a proporção de pastas há muito tempo sem qualquer movimentação. Clique em qualquer barra ou fatia dos gráficos para filtrar a tabela abaixo.
   </p>
 
   <div class="filtro-bar" id="filtroBar">
@@ -436,6 +443,7 @@ function gerarRelatorioFinal(rows){
   <tbody id="tabelaBody"></tbody></table>
   <script>const rows=${JSON.stringify(rows)};
   const SITE_BASE_R='${SITE_BASE}';
+  const PASTA_BASE_R='https://lawyereleven.alkasoft.com.br/auth/';
   let FILTRO=null, ULTIMA_LISTA=rows;
 
   /* ===== Datas (mesma lógica de parseDateKeepDay/formatBRFromUnknown da tela principal) ===== */
@@ -451,17 +459,17 @@ function gerarRelatorioFinal(rows){
   function renderTabela(lista){
     ULTIMA_LISTA=lista;
     const tbody=document.getElementById('tabelaBody');
-    if(!lista.length){tbody.innerHTML='<tr><td colspan="7" style="padding:40px;color:var(--success)">Nenhum processo para esse filtro.</td></tr>';return;}
+    if(!lista.length){tbody.innerHTML='<tr><td colspan="7" style="padding:40px;color:var(--success)">Nenhuma pasta para esse filtro.</td></tr>';return;}
     tbody.innerHTML=lista.map(r=>{
       let link=null;
       if(r.processoId){
         link=r.origem==='JUD'?(SITE_BASE_R+'processos-judiciais/'+r.processoId+'/detalhamento'):(SITE_BASE_R+'processos-extrajudiciais/'+r.processoId+'/detalhamento');
-      }
+      }else if(r.pastaId){link=PASTA_BASE_R+'pastas/'+r.pastaId+'/detalhamento';}
       const num=r.numero||'Não informado';
       const dias=r.diasSemMov??'--';
       const cor=(dias>=180)?'red':(dias>=90?'orange':'green');
       const dataMov=r.dataMov?formatarDataR(r.dataMov):'<em>Sem movimentos</em>';
-      const origemCompleta=(r.origem==='JUD'?'Judicial':'Extrajudicial');
+      const origemCompleta=(r.origem==='JUD'?'Judicial':(r.origem==='EXTRA'?'Extrajudicial':'Sem processos'));
       const encarregado=((r.encarregado&&r.encarregado.descricao)||'--').split(' ').slice(0,2).join(' ');
       const cel=link?('<a href="'+link+'" target="_blank" rel="noopener">'+num+'</a>'):num;
       return '<tr><td>'+origemCompleta+'</td><td>'+cel+'</td><td>'+((r.categoria&&r.categoria.descricao)||'--')+'</td><td>'+encarregado+'</td><td>'+formatarDataR(r.dataEntradaProcesso)+'</td><td>'+dataMov+'</td><td><span class="badge '+cor+'">'+dias+'</span></td></tr>';
@@ -477,8 +485,13 @@ function gerarRelatorioFinal(rows){
     document.getElementById('filtroTexto').textContent='🔍 Filtrando por: '+label;
     const filtrado=rows.filter(r=>{
       if(tipo==='categoria')return((r.categoria&&r.categoria.descricao)||'Sem categoria')===valor;
-      if(tipo==='origem')return valor==='Judicial'?r.origem==='JUD':r.origem==='EXTRA';
+      if(tipo==='origem'){
+        if(valor==='Judicial')return r.origem==='JUD';
+        if(valor==='Extrajudicial')return r.origem==='EXTRA';
+        return!r.origem;
+      }
       if(tipo==='encarregado')return((r.encarregado&&r.encarregado.descricao)||'Sem encarregado').split(' ').slice(0,2).join(' ')===valor;
+      if(tipo==='comSemProcesso')return valor==='com'?!!r.origem:!r.origem;
       if(tipo==='dias'){
         const d=r.diasSemMov??0;
         if(valor==='green')return d<90;
@@ -498,19 +511,23 @@ function gerarRelatorioFinal(rows){
 
   function baixarCSV(){const lista=ULTIMA_LISTA;
   const head='Origem;Protocolo;Categoria;Encarregado;DataEntrada;UltimaMovimentacao;DiasSemMovimento\\n';
-  const csv=head+lista.map(r=>[(r.origem==='JUD'?'Judicial':'Extrajudicial'),r.numero,(r.categoria?.descricao||''),(r.encarregado?.descricao||'').split(' ').slice(0,2).join(' '),(r.dataEntradaProcesso||''),(r.dataMov||''),r.diasSemMov??''].join(';')).join('\\n');
-  const blob=new Blob(["\\uFEFF"+csv],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='relatorio_processos_inativos_${selectedDays}dias.csv';a.click();}
+  const csv=head+lista.map(r=>[(r.origem==='JUD'?'Judicial':(r.origem==='EXTRA'?'Extrajudicial':'')),r.numero,(r.categoria?.descricao||''),(r.encarregado?.descricao||'').split(' ').slice(0,2).join(' '),(r.dataEntradaProcesso||''),(r.dataMov||''),r.diasSemMov??''].join(';')).join('\\n');
+  const blob=new Blob(["\\uFEFF"+csv],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='relatorio_pastas_inativas_${selectedDays}dias.csv';a.click();}
 
-  /* ===== Gráficos: categoria, judicial x extrajudicial, encarregado ===== */
+  /* ===== Gráficos: categoria, judicial x extrajudicial, com/sem processo, encarregado ===== */
   const porCategoria={};
   rows.forEach(r=>{const c=(r.categoria&&r.categoria.descricao)||'Sem categoria';porCategoria[c]=(porCategoria[c]||0)+1;});
   const catLabels=Object.keys(porCategoria).sort((a,b)=>porCategoria[b]-porCategoria[a]).slice(0,10);
 
-  const porOrigem={Judicial:0,Extrajudicial:0};
+  const porOrigem={Judicial:0,Extrajudicial:0,'Sem processos':0};
   rows.forEach(r=>{
     if(r.origem==='JUD')porOrigem.Judicial++;
-    else porOrigem.Extrajudicial++;
+    else if(r.origem==='EXTRA')porOrigem.Extrajudicial++;
+    else porOrigem['Sem processos']++;
   });
+
+  const comProcesso=rows.filter(r=>r.origem).length;
+  const semProcesso=rows.length-comProcesso;
 
   const porEncarregado={};
   rows.forEach(r=>{const e=((r.encarregado&&r.encarregado.descricao)||'Sem encarregado').split(' ').slice(0,2).join(' ');porEncarregado[e]=(porEncarregado[e]||0)+1;});
@@ -543,7 +560,7 @@ function gerarRelatorioFinal(rows){
   const catValores=catLabels.map(c=>porCategoria[c]);
   const chartCategoria=new Chart(document.getElementById('chartCategoria'),{
     type:'bar',
-    data:{labels:comContagem(catLabels,porCategoria),datasets:[{label:'Processos',data:catValores,backgroundColor:coresPor(catLabels,corBrand)}]},
+    data:{labels:comContagem(catLabels,porCategoria),datasets:[{label:'Pastas',data:catValores,backgroundColor:coresPor(catLabels,corBrand)}]},
     options:{...baseOpts(true,catValores),onClick:(evt,elements)=>{
       if(!elements.length)return;
       const label=catLabels[elements[0].index];
@@ -554,7 +571,7 @@ function gerarRelatorioFinal(rows){
   const origemLabels=Object.keys(porOrigem);
   const chartOrigem=new Chart(document.getElementById('chartOrigem'),{
     type:'doughnut',
-    data:{labels:comContagem(origemLabels,porOrigem),datasets:[{data:Object.values(porOrigem),backgroundColor:[corBrand2,'#ffab4a']}]},
+    data:{labels:comContagem(origemLabels,porOrigem),datasets:[{data:Object.values(porOrigem),backgroundColor:[corBrand2,'#ffab4a',corMuted]}]},
     options:{responsive:true,maintainAspectRatio:true,
       plugins:{legend:{position:'bottom',labels:{color:corTexto}}},
       onHover:(evt,elements)=>{evt.native.target.style.cursor=elements.length?'pointer':'default';},
@@ -566,10 +583,24 @@ function gerarRelatorioFinal(rows){
     }
   });
 
+  const chartComSem=new Chart(document.getElementById('chartComSem'),{
+    type:'doughnut',
+    data:{labels:['Com processo ('+comProcesso+')','Sem processo ('+semProcesso+')'],datasets:[{data:[comProcesso,semProcesso],backgroundColor:[corBrand,corMuted]}]},
+    options:{responsive:true,maintainAspectRatio:true,
+      plugins:{legend:{position:'bottom',labels:{color:corTexto}}},
+      onHover:(evt,elements)=>{evt.native.target.style.cursor=elements.length?'pointer':'default';},
+      onClick:(evt,elements)=>{
+        if(!elements.length)return;
+        const comOuSem=elements[0].index===0?'com':'sem';
+        aplicarFiltro('comSemProcesso',comOuSem,comOuSem==='com'?'Com processo vinculado':'Sem processo vinculado');
+      }
+    }
+  });
+
   const encValores=encLabels.map(e=>porEncarregado[e]);
   const chartEncarregado=new Chart(document.getElementById('chartEncarregado'),{
     type:'bar',
-    data:{labels:comContagem(encLabels,porEncarregado),datasets:[{label:'Processos',data:encValores,backgroundColor:coresPor(encLabels,corBrand2)}]},
+    data:{labels:comContagem(encLabels,porEncarregado),datasets:[{label:'Pastas',data:encValores,backgroundColor:coresPor(encLabels,corBrand2)}]},
     options:{...baseOpts(true,encValores),onClick:(evt,elements)=>{
       if(!elements.length)return;
       const label=encLabels[elements[0].index];

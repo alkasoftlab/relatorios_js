@@ -303,25 +303,25 @@
     <main class="dash-main">
 
       <div class="kpi-grid">
-        <button type="button" class="kpi-card receita" data-resumo-card="receita" title="Ver lançamentos"><div class="kpi-icon">📈</div><div class="kpi-value" id="kpiReceita">—</div><div class="kpi-label">Receita (período)</div></button>
-        <button type="button" class="kpi-card despesa" data-resumo-card="despesa" title="Ver lançamentos"><div class="kpi-icon">📉</div><div class="kpi-value" id="kpiDespesa">—</div><div class="kpi-label">Despesa (período)</div></button>
-        <button type="button" class="kpi-card" data-resumo-card="saldo-periodo" title="Ver lançamentos"><div class="kpi-icon">⚖️</div><div class="kpi-value" id="kpiSaldoPeriodo">—</div><div class="kpi-label">Saldo do Período</div></button>
-        <button type="button" class="kpi-card neutro" data-resumo-card="saldo-final" title="Ver lançamentos"><div class="kpi-icon">🏦</div><div class="kpi-value" id="kpiSaldoFinal">—</div><div class="kpi-label">Saldo Final da Conta</div></button>
+        <button type="button" class="kpi-card receita" data-resumo-card="receita" title="Soma dos lançamentos realizados com valor positivo, dentro do período/conta filtrados na lateral."><div class="kpi-icon">📈</div><div class="kpi-value" id="kpiReceita">—</div><div class="kpi-label">Receita (período)</div></button>
+        <button type="button" class="kpi-card despesa" data-resumo-card="despesa" title="Soma dos lançamentos realizados com valor negativo, dentro do período/conta filtrados na lateral."><div class="kpi-icon">📉</div><div class="kpi-value" id="kpiDespesa">—</div><div class="kpi-label">Despesa (período)</div></button>
+        <button type="button" class="kpi-card" data-resumo-card="saldo-periodo" title="Receita do período menos Despesa do período — resultado líquido só dos lançamentos filtrados, não é o saldo da conta."><div class="kpi-icon">⚖️</div><div class="kpi-value" id="kpiSaldoPeriodo">—</div><div class="kpi-label">Saldo do Período</div></button>
+        <button type="button" class="kpi-card neutro" data-resumo-card="saldo-final" title="Saldo cadastrado da conta + todos os lançamentos realizados até o fim do período. Sempre da conta inteira — não muda com os demais filtros (tipo/categoria/cliente)."><div class="kpi-icon">🏦</div><div class="kpi-value" id="kpiSaldoFinal">—</div><div class="kpi-label">Saldo Final da Conta</div></button>
 
-        <button type="button" class="kpi-card" data-resumo-card="saldo-inicial" title="Ver lançamentos"><div class="kpi-icon">🔖</div><div class="kpi-value" id="kpiSaldoInicial">—</div><div class="kpi-label">Saldo Inicial da Conta</div></button>
-        <button type="button" class="kpi-card receita" data-resumo-card="a-receber" title="Ver lançamentos"><div class="kpi-icon">⏳</div><div class="kpi-value" id="kpiAReceber">—</div><div class="kpi-label">A Receber (futuro)</div></button>
-        <button type="button" class="kpi-card despesa" data-resumo-card="a-pagar" title="Ver lançamentos"><div class="kpi-icon">⏳</div><div class="kpi-value" id="kpiAPagar">—</div><div class="kpi-label">A Pagar (futuro)</div></button>
-        <button type="button" class="kpi-card" data-resumo-card="lancamentos" title="Ver lançamentos"><div class="kpi-icon">🧾</div><div class="kpi-value" id="kpiQtdLancamentos">—</div><div class="kpi-label">Lançamentos (período)</div></button>
+        <button type="button" class="kpi-card" data-resumo-card="saldo-inicial" title="Saldo cadastrado da conta + todos os lançamentos realizados até um dia antes do início do período selecionado."><div class="kpi-icon">🔖</div><div class="kpi-value" id="kpiSaldoInicial">—</div><div class="kpi-label">Saldo Inicial da Conta</div></button>
+        <button type="button" class="kpi-card receita" data-resumo-card="a-receber" title="Soma dos lançamentos previstos (ainda não realizados) com valor positivo — não depende do período selecionado na lateral."><div class="kpi-icon">⏳</div><div class="kpi-value" id="kpiAReceber">—</div><div class="kpi-label">A Receber (futuro)</div></button>
+        <button type="button" class="kpi-card despesa" data-resumo-card="a-pagar" title="Soma dos lançamentos previstos com valor negativo — não depende do período selecionado na lateral."><div class="kpi-icon">⏳</div><div class="kpi-value" id="kpiAPagar">—</div><div class="kpi-label">A Pagar (futuro)</div></button>
+        <button type="button" class="kpi-card" data-resumo-card="lancamentos" title="Quantidade de lançamentos no período/conta filtrados, de acordo com o modo de visualização (Previstos, Realizados ou Completo)."><div class="kpi-icon">🧾</div><div class="kpi-value" id="kpiQtdLancamentos">—</div><div class="kpi-label">Lançamentos (período)</div></button>
       </div>
 
       <div class="card chart-card" id="cardResumoMes" style="margin-bottom:22px">
         <h3>📅 Resumo do Mês</h3>
         <p class="chart-sub" id="resumoMesSub">Situação das cobranças — independente dos filtros da lateral</p>
         <div class="kpi-grid" style="margin-bottom:0">
-          <button type="button" class="kpi-card neutro" data-resumo-card="mes-pagas" title="Ver lançamentos"><div class="kpi-icon">✅</div><div class="kpi-value" id="resumoPagas">—</div><div class="kpi-label" id="resumoPagasLabel">Pagas no mês</div></button>
-          <button type="button" class="kpi-card receita" data-resumo-card="mes-a-receber" title="Ver lançamentos"><div class="kpi-icon">⏳</div><div class="kpi-value" id="resumoAReceber">—</div><div class="kpi-label" id="resumoAReceberLabel">A receber no mês</div></button>
-          <button type="button" class="kpi-card despesa" id="btnResumoAtrasadas" title="Ver movimentações em atraso"><div class="kpi-icon">⚠️</div><div class="kpi-value" id="resumoAtrasadas">—</div><div class="kpi-label">Atrasadas (inadimplência) — total em aberto</div></button>
-          <button type="button" class="kpi-card neutro" data-resumo-card="mes-primeiro-pgto" title="Ver lançamentos"><div class="kpi-icon">🆕</div><div class="kpi-value" id="resumoPrimeiroPgto">—</div><div class="kpi-label" id="resumoPrimeiroPgtoLabel">1º pagamento (clientes novos)</div></button>
+          <button type="button" class="kpi-card neutro" data-resumo-card="mes-pagas" title="Cobranças (receitas) com pagamento realizado dentro do mês atual — independe dos filtros da lateral."><div class="kpi-icon">✅</div><div class="kpi-value" id="resumoPagas">—</div><div class="kpi-label" id="resumoPagasLabel">Pagas no mês</div></button>
+          <button type="button" class="kpi-card receita" data-resumo-card="mes-a-receber" title="Cobranças previstas (receitas) com vencimento dentro do mês atual — independe dos filtros da lateral."><div class="kpi-icon">⏳</div><div class="kpi-value" id="resumoAReceber">—</div><div class="kpi-label" id="resumoAReceberLabel">A receber no mês</div></button>
+          <button type="button" class="kpi-card despesa" id="btnResumoAtrasadas" title="Cobranças previstas com vencimento já passado e ainda não pagas — total em aberto até hoje, não só do mês."><div class="kpi-icon">⚠️</div><div class="kpi-value" id="resumoAtrasadas">—</div><div class="kpi-label">Atrasadas (inadimplência) — total em aberto</div></button>
+          <button type="button" class="kpi-card neutro" data-resumo-card="mes-primeiro-pgto" title="Clientes cujo pagamento neste mês é o primeiro já registrado no histórico deles."><div class="kpi-icon">🆕</div><div class="kpi-value" id="resumoPrimeiroPgto">—</div><div class="kpi-label" id="resumoPrimeiroPgtoLabel">1º pagamento (clientes novos)</div></button>
         </div>
         <p class="muted-small" style="margin-top:12px;color:var(--muted);font-size:.72rem;line-height:1.4">⚠️ Formas de pagamento (boleto, cartão, depósito) não aparecem nos dados retornados pela API de movimentos — não há esse campo confirmado. Se existir um campo específico para isso, me diga qual para eu incluir esse detalhamento.</p>
       </div>
@@ -750,6 +750,16 @@ function nomeCliente(m){ const p = pessoaDe(m); return p ? formatarNome(p.descri
 function idCliente(m){ const p = pessoaDe(m); return p ? p.id : null; }
 function nomePasta(m){ return (m.pastaProcessual && m.pastaProcessual.descricao || '').trim() || null; }
 function idPasta(m){ return m.pastaProcessual ? m.pastaProcessual.id : null; }
+/* Link de detalhamento do lançamento — o caminho muda conforme é realizado ou
+   previsto, e receita ou despesa. */
+function linkMovimento(m){
+  const realizado = !!m.dataPagamento;
+  const receita = valorDe(m) >= 0;
+  const tipo = realizado
+    ? (receita ? 'receitas-realizadas' : 'despesas-realizadas')
+    : (receita ? 'receitas-previstas' : 'despesas-previstas');
+  return `https://lawyereleven.alkasoft.com.br/auth/${tipo}/${m.id}/detalhamento`;
+}
 
 /* =========================================================
    FILTROS
@@ -937,7 +947,7 @@ function abrirModalAtrasados(){
     <tr>
       <td style="padding:8px 10px">${formatarData(m.dataVencimento)}</td>
       <td style="padding:8px 10px" class="valor-neg">${diasEmAtraso(m.dataVencimento)}</td>
-      <td style="padding:8px 10px">${escapeHtml(nomeCliente(m) || '—')}</td>
+      <td style="padding:8px 10px"><a href="${escapeHtml(linkMovimento(m))}" target="_blank" rel="noopener">${escapeHtml(nomeCliente(m) || '—')}</a></td>
       <td style="padding:8px 10px" class="muted-small">${escapeHtml(nomePasta(m) || '—')}</td>
       <td style="padding:8px 10px" class="valor-pos">${formatarMoeda(valorDe(m))}</td>
     </tr>
@@ -984,7 +994,7 @@ function acumularCategorias(lista){
    ========================================================= */
 const COLUNAS_MOV = [
   { titulo:'Data', valor:m=> formatarData(m.dataPagamento || m.dataVencimento) + (m.dataPagamento ? '' : ' (previsto)') },
-  { titulo:'Categoria', valor:m=>escapeHtml(nomeCategoria(m)) },
+  { titulo:'Categoria', valor:m=>`<a href="${escapeHtml(linkMovimento(m))}" target="_blank" rel="noopener">${escapeHtml(nomeCategoria(m))}</a>` },
   { titulo:'Cliente', valor:m=>escapeHtml(nomeCliente(m) || '—') },
   { titulo:'Pasta', valor:m=>escapeHtml(nomePasta(m) || '—'), classe:'muted-small' },
   { titulo:'Valor', valor:m=>formatarMoeda(valorDe(m)), classe:m=>valorDe(m)>=0?'valor-pos':'valor-neg' }
@@ -1387,7 +1397,7 @@ async function renderExtrato(){
     tbody.innerHTML = ordenado.map(m=>`
       <tr>
         <td>${formatarData(m.dataVencimento)}</td>
-        <td>${escapeHtml(nomeCategoria(m))}</td>
+        <td><a href="${escapeHtml(linkMovimento(m))}" target="_blank" rel="noopener">${escapeHtml(nomeCategoria(m))}</a></td>
         <td>${escapeHtml(nomeCliente(m) || '—')}</td>
         <td class="muted-small">${escapeHtml(nomePasta(m) || '—')}</td>
         <td class="muted-small">—</td>
@@ -1415,7 +1425,7 @@ async function renderExtrato(){
       return `
         <tr>
           <td>${formatarData(m.dataPagamento || m.dataVencimento)}${realizado ? '' : ' <span class="muted-small">(previsto)</span>'}</td>
-          <td>${escapeHtml(nomeCategoria(m))}</td>
+          <td><a href="${escapeHtml(linkMovimento(m))}" target="_blank" rel="noopener">${escapeHtml(nomeCategoria(m))}</a></td>
           <td>${escapeHtml(nomeCliente(m) || '—')}</td>
           <td class="muted-small">${escapeHtml(nomePasta(m) || '—')}</td>
           <td class="muted-small">${realizado ? escapeHtml(nomeConta(m)) : '—'}</td>
@@ -1446,7 +1456,7 @@ async function renderExtrato(){
   tbody.innerHTML = linhas.map(({m,saldo})=>`
     <tr>
       <td>${formatarData(m.dataPagamento)}</td>
-      <td>${escapeHtml(nomeCategoria(m))}</td>
+      <td><a href="${escapeHtml(linkMovimento(m))}" target="_blank" rel="noopener">${escapeHtml(nomeCategoria(m))}</a></td>
       <td>${escapeHtml(nomeCliente(m) || '—')}</td>
       <td class="muted-small">${escapeHtml(nomePasta(m) || '—')}</td>
       <td class="muted-small">${escapeHtml(nomeConta(m))}</td>
@@ -1470,7 +1480,8 @@ document.getElementById('btnExportarExcel').addEventListener('click', async ()=>
       'Plano de Contas': nomePlanoConta(m),
       'Cliente': nomeCliente(m) || '',
       'Pasta': nomePasta(m) || '',
-      'Valor': valorDe(m)
+      'Valor': valorDe(m),
+      'Saldo': ''
     }));
   }else if(MODO_VISAO === 'TODOS'){
     const pagMin = document.getElementById('fPagMin').value;
@@ -1524,19 +1535,53 @@ document.getElementById('btnExportarExcel').addEventListener('click', async ()=>
 
   if(!planilha.length){ alert('Não há lançamentos para exportar com os filtros atuais.'); return; }
 
-  /* Linha de total ao final — soma da coluna Valor, com as demais colunas de
-     texto em branco (exceto a primeira, que recebe o rótulo "TOTAL"). */
-  const totalValor = planilha.reduce((a,l)=>a + (typeof l.Valor === 'number' ? l.Valor : 0), 0);
   const chaves = Object.keys(planilha[0]);
-  const linhaTotal = {};
-  chaves.forEach((chave, i)=>{
-    if(i === 0) linhaTotal[chave] = 'TOTAL';
-    else if(chave === 'Valor') linhaTotal[chave] = totalValor;
-    else linhaTotal[chave] = '';
-  });
+  function linhaResumo(rotulo, valor){
+    const linha = {};
+    chaves.forEach((chave, i)=>{
+      if(i === 0) linha[chave] = rotulo;
+      else if(chave === 'Saldo') linha[chave] = valor;
+      else linha[chave] = '';
+    });
+    return linha;
+  }
+
+  /* Linha de total — soma da coluna Valor. */
+  const totalValor = planilha.reduce((a,l)=>a + (typeof l.Valor === 'number' ? l.Valor : 0), 0);
+  const linhaTotal = linhaResumo('TOTAL', '');
+  linhaTotal.Valor = totalValor;
   planilha.push(linhaTotal);
 
+  /* Saldo inicial/final da conta — mesmo cálculo usado nos cards do topo,
+     sempre da conta inteira (independe de tipo/categoria/plano/cliente). */
+  const pagMinExport = document.getElementById('fPagMin').value;
+  const pagMaxExport = document.getElementById('fPagMax').value;
+  const contaFiltroExport = document.getElementById('fConta').value;
+  const saldoInicialExport = pagMinExport ? await saldoContasAteData(contaFiltroExport, diaAnterior(pagMinExport)) : somaSaldosIniciais(contaFiltroExport);
+  const saldoFinalExport = await saldoContasAteData(contaFiltroExport, pagMaxExport || null);
+  planilha.push(linhaResumo('Saldo Inicial da Conta', saldoInicialExport));
+  planilha.push(linhaResumo('Saldo Final da Conta', saldoFinalExport));
+
   const ws = XLSX.utils.json_to_sheet(planilha);
+
+  /* Formatação: colunas de valor em R$ (mantendo célula numérica, só muda a
+     máscara de exibição) e largura das colunas ajustada pra não cortar texto. */
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  const colunasMoeda = ['Valor','Saldo'].map(nome => chaves.indexOf(nome)).filter(i => i !== -1);
+  for(let R = 1; R <= range.e.r; R++){
+    colunasMoeda.forEach(C=>{
+      const addr = XLSX.utils.encode_cell({ r:R, c:C });
+      const cel = ws[addr];
+      if(cel && typeof cel.v === 'number') cel.z = '"R$" #,##0.00';
+    });
+  }
+  ws['!cols'] = chaves.map(chave=>{
+    if(chave.startsWith('Data')) return { wch:14 };
+    if(chave === 'Situação' || chave === 'Conta') return { wch:14 };
+    if(chave === 'Valor' || chave === 'Saldo') return { wch:16 };
+    return { wch:24 };
+  });
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Extrato');
   const nomeArquivo = MODO_VISAO === 'PREVISTOS' ? 'Previsao_Financeiro_Eleven.xlsx'
