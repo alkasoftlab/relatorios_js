@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Eleven · Pastas sem movimentos</title>
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+
+</head>
+<body>
+<div class="app">
+  <div id="telaLogin" class="card login-card center">
+    <button type="button" class="info-icon" id="infoLoginBtn" aria-label="Como funciona este relatório" title="Como funciona este relatório" onclick="abrirAjuda('login')">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" font-family="Arial, Helvetica, sans-serif" fill="#08111a">i</text></svg>
+    </button>
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <p class="subtitle">Acessar Relatório: Pastas sem Movimentos Processuais</p>
+    <form id="loginForm" style="width:100%">
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input type="text" id="email" class="form-control" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <div class="password-wrap">
+          <input type="password" id="senha" class="form-control" required autocomplete="current-password">
+          <button type="button" class="password-toggle" id="toggleSenha" aria-label="Mostrar senha" title="Mostrar senha">
+            <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn" style="margin-top:6px">Entrar</button>
+    </form>
+    <div id="resultado" class="subtitle" style="margin-top:10px;margin-bottom:0"></div>
+  </div>
+
+  <div id="telaRelatorio" class="card login-card center" style="display:none">
+    <button type="button" class="info-icon" id="infoRelatorioBtn" aria-label="Ajuda sobre o relatório" title="Ajuda sobre o relatório" onclick="abrirAjuda('relatorio')">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" font-family="Arial, Helvetica, sans-serif" fill="#08111a">i</text></svg>
+    </button>
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <h2>Relatório de Pastas<br>Sem Movimentos Processuais</h2>
+    <p class="subtitle">Selecione o período de inatividade (sem movimentações)</p>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;justify-content:center;width:100%">
+      <button class="filter-btn active" data-days="30">30 dias</button>
+      <button class="filter-btn" data-days="60">60 dias</button>
+      <button class="filter-btn" data-days="90">90 dias</button>
+      <button class="filter-btn" data-days="180">180 dias</button>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;width:100%">
+      <button id="btnGerar" class="btn" style="max-width:250px;">Gerar Relatório</button>
+    </div>
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress"><div class="fill" id="progressFill" style="width:0%"></div></div>
+      <div class="progress-text" id="progressText">0%</div>
+    </div>
+    <div id="statusRelatorio" style="margin-top:10px;color:var(--muted);font-weight:500"></div>
+  </div>
+</div>
+
+<!-- ===== MODAL DE AJUDA ===== -->
+<div class="modal-overlay" id="modalAjuda" role="dialog" aria-modal="true" aria-labelledby="ajudaTitulo" onclick="if(event.target===this)fecharAjuda()">
+    <div class="modal-box">
+        <button class="modal-close" aria-label="Fechar ajuda" onclick="fecharAjuda()">✕</button>
+        <h2 class="modal-title" id="ajudaTitulo">Ajuda</h2>
+        <p id="ajudaSubtitulo" style="color:var(--muted);font-size:.85rem;margin:-2px 0 12px"></p>
+        <div class="modal-body" id="ajudaCorpo"></div>
+    </div>
+</div>
+
+<script>
+/* =========================================================
+   CONTEÚDO DA AJUDA (linguagem simples, por tela)
+   — bloco novo, apenas explicativo; não interfere na lógica do relatório
+   ========================================================= */
+const AJUDA = {
+    login: {
+        titulo: "Como funciona este relatório",
+        subtitulo: "Leia antes de começar — leva 1 minuto",
+        corpo: `
+            <p>Esta ferramenta procura, dentro do sistema, todas as <strong>pastas processuais ativas</strong> e verifica há quantos dias cada uma está <strong>sem nenhuma movimentação</strong> (judicial ou extrajudicial). O objetivo é ajudar a encontrar pastas "esquecidas", que podem precisar de atenção.</p>
+
+            <h3>As três etapas</h3>
+            <ol class="passos">
+                <li><strong>Entrar</strong>Use o mesmo e-mail e senha do sistema. Nada é gravado neste computador: o acesso vale só enquanto a aba estiver aberta.</li>
+                <li><strong>Escolher o período</strong>Defina a partir de quantos dias sem movimentação uma pasta deve ser considerada inativa (30, 60, 90 ou 180 dias).</li>
+                <li><strong>Gerar o relatório</strong>A ferramenta varre todas as pastas, verifica a última movimentação de cada uma e abre um relatório em uma nova aba, pronto para impressão ou download.</li>
+            </ol>
+
+            <p style="background:rgba(255,171,74,.12);border:1px solid rgba(255,171,74,.3);color:var(--orange);padding:10px 12px;border-radius:8px;margin:12px 0;line-height:1.4">⚠️ <strong>Importante:</strong> permita pop-ups para este site no navegador. O relatório abre em uma nova aba, e a maioria dos navegadores bloqueia isso por padrão.</p>
+
+            <div class="nota">Este relatório apenas consulta informações — ele não altera, cria ou apaga nada nas pastas ou processos.</div>
+
+            <h3>Se algo der errado no login</h3>
+            <ul>
+                <li>Confira se o e-mail está completo e sem espaço no fim.</li>
+                <li>Teste o mesmo acesso direto no sistema. Se não entrar lá, a senha é o problema.</li>
+                <li>Se entrar no sistema mas não aqui, avise o suporte: pode ser permissão de perfil.</li>
+            </ul>
+        `
+    },
+    relatorio: {
+        titulo: "Como ler este relatório",
+        subtitulo: "Período, cores e o que fazer com o resultado",
+        corpo: `
+            <p>Ao clicar em <strong>Gerar Relatório</strong>, a ferramenta busca todas as pastas não arquivadas e, para cada uma, encontra a data da <strong>movimentação mais recente</strong> — judicial ou extrajudicial, a que for mais nova. Pastas cuja última movimentação está há mais dias do que o período escolhido (ou que nunca tiveram movimentação) entram no relatório.</p>
+
+            <h3>O que significa o período selecionado</h3>
+            <p>Ao escolher, por exemplo, <strong>90 dias</strong>, o relatório traz apenas as pastas <em>sem</em> nenhuma movimentação nos últimos 90 dias.</p>
+
+            <h3>Como interpretar as cores do relatório</h3>
+            <table class="ajuda">
+                <tr><th>Cor</th><th>Dias sem movimento</th><th>Nível</th></tr>
+                <tr><td><span class="badge green">ex: 45</span></td><td>Menos de 90 dias</td><td>Atenção moderada</td></tr>
+                <tr><td><span class="badge orange">ex: 120</span></td><td>Entre 90 e 179 dias</td><td>Atenção</td></tr>
+                <tr><td><span class="badge red">ex: 200</span></td><td>180 dias ou mais</td><td>Prioridade</td></tr>
+            </table>
+
+            <h3>O que você pode fazer no relatório gerado</h3>
+            <ul>
+                <li><strong>Clicar no número da pasta/processo</strong> para abrir o detalhamento direto no sistema.</li>
+                <li><strong>Imprimir</strong> a lista para revisão em reunião ou repasse à equipe.</li>
+                <li><strong>Baixar o arquivo (.csv)</strong> para conferir ou compartilhar em planilha.</li>
+            </ul>
+
+            <div class="aviso">Uma pasta sem processos vinculados, ou sem nenhuma movimentação registrada, também aparece no relatório — ela conta como "sem movimento" desde sempre.</div>
+        `
+    }
+};
+
+let ELEMENTO_FOCO_ANTERIOR = null;
+
+function abrirAjuda(chave) {
+    const c = AJUDA[chave];
+    if (!c) return;
+    ELEMENTO_FOCO_ANTERIOR = document.activeElement;
+    document.getElementById('ajudaTitulo').innerText = c.titulo;
+    document.getElementById('ajudaSubtitulo').innerText = c.subtitulo;
+    document.getElementById('ajudaCorpo').innerHTML = c.corpo;
+    const overlay = document.getElementById('modalAjuda');
+    overlay.classList.add('open');
+    overlay.querySelector('.modal-body').scrollTop = 0;
+    overlay.querySelector('.modal-close').focus();
+    document.body.style.overflow = 'hidden';
+}
+
+function fecharAjuda() {
+    document.getElementById('modalAjuda').classList.remove('open');
+    document.body.style.overflow = '';
+    if (ELEMENTO_FOCO_ANTERIOR) ELEMENTO_FOCO_ANTERIOR.focus();
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('modalAjuda').classList.contains('open')) fecharAjuda();
+});
+
+/* ========== Mostrar/ocultar senha ========== */
+(function(){
+    const toggleSenhaBtn = document.getElementById('toggleSenha');
+    const senhaInput = document.getElementById('senha');
+    const eyeIcon = document.getElementById('eyeIcon');
+    const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+    const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.4 18.4 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/>';
+    if(toggleSenhaBtn){
+        toggleSenhaBtn.addEventListener('click',()=>{
+            const showing = senhaInput.type === 'text';
+            senhaInput.type = showing ? 'password' : 'text';
+            eyeIcon.innerHTML = showing ? EYE_OPEN : EYE_OFF;
+            toggleSenhaBtn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+            toggleSenhaBtn.title = showing ? 'Mostrar senha' : 'Ocultar senha';
+        });
+    }
+})();
+
+/* =========================================================
+   A PARTIR DAQUI: SCRIPT ORIGINAL
+   (com dois ajustes: fallback para pastas sem processos vinculados,
+   e endpoint de movimentos judiciais atualizado)
+   ========================================================= */
+let BEARER_TOKEN=null, selectedDays=30;
+const LOGIN_URL="https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum";
+const PASTAS_URL="https://busca-avancada-api-prod.alkasoft.com.br/api/v1/pastas";
+const MOVJ="https://busca-avancada-api-prod.alkasoft.com.br/api/v1/movimentos-judiciais";
+const MOVX="https://busca-avancada-api-prod.alkasoft.com.br/api/v1/movimentos-extrajudiciais";
+const APP_BASE='https://busca-avancada-api-prod.alkasoft.com.br/api/v1/pastas-processuais';
+const SITE_BASE='https://eleven.alkasoft.com.br/auth/';
+
+function progress(p,t){document.getElementById('progressWrap').style.display='block';
+  document.getElementById('progressFill').style.width=p+'%';
+  document.getElementById('progressText').textContent=t||p+'%';
+}
+
+/* ===== LOGIN ===== */
+document.querySelectorAll('.filter-btn').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.filter-btn').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');selectedDays=parseInt(b.dataset.days);
+});
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email=document.getElementById('email').value.trim(),
+        senha=document.getElementById('senha').value.trim();
+  const resultado=document.getElementById('resultado');
+  if(!email||!senha){resultado.innerHTML='<span style="color:red">Informe e-mail e senha</span>';return;}
+  resultado.innerHTML='🔄 Realizando login...';
+  try{
+    const r=await fetch(LOGIN_URL,{headers:{Authorization:'Basic '+btoa(email+':'+senha)}});
+    if(!r.ok) throw new Error('Falha no login');
+    BEARER_TOKEN=(r.headers.get('authorization')||r.headers.get('Authorization')||'').replace(/^Bearer\s+/i,'');
+    document.getElementById('telaLogin').style.display='none';
+    document.getElementById('telaRelatorio').style.display='block';
+  }catch(e){resultado.innerHTML='<span style="color:red">'+e+'</span>';}
+});
+
+/* ===== FUNÇÕES AUXILIARES ===== */
+function parseDateKeepDay(v){if(!v)return null;const s=String(v);const m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return new Date(m[1],m[2]-1,m[3]);const m2=s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);if(m2)return new Date(m2[3],m2[2]-1,m2[1]);const t=Date.parse(s);return isNaN(t)?null:new Date(t);}
+function diffDaysFromToday(v){const d=parseDateKeepDay(v);if(!d)return null;const n=new Date();return Math.floor((n-d)/86400000);}
+function formatBRFromUnknown(v){const d=parseDateKeepDay(v);return d?d.toLocaleDateString('pt-BR'):'';}
+
+/* ===== BUSCA DE PASTAS ===== */
+async function buscarPastas(){
+  const out=[],q=100;let inicio=0;
+  while(true){
+    const url=`${PASTAS_URL}?inicio=${inicio}&ordenacao=ULTIMA_MODIFICACAO_DESC&quantidade=${q}`;
+    const r=await fetch(url,{method:'POST',headers:{Authorization:'Bearer '+BEARER_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({arquivada:"NAO_ARQUIVADAS"})});
+    if(!r.ok) break;
+    const j=await r.json();out.push(...(j.itens||[]));if((j.itens||[]).length<q)break;inicio+=q;
+  }
+  return out;
+}
+
+/* ===== PROCESSOS ===== */
+async function getProcessosDaPasta(pastaId,tipo){
+  const h={Authorization:'Bearer '+BEARER_TOKEN,'Content-Type':'application/json'};
+  if(tipo==='EXTRA'){
+    const url='https://busca-avancada-api-prod.alkasoft.com.br/api/v1/processos-extrajudiciais?inicio=0&ordenacao=DATA_ENTRADA_DESC&quantidade=10';
+    const body={"idsPastas":[pastaId]};
+    const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(body)});
+    if(!r.ok)return[];const j=await r.json();
+    return(j.itens||[]).map(p=>({id:p.id,numero:p.protocolo||p.numero||p.identificador?.descricao||'Não informado',dataEntrada:p.dataEntrada||null}));
+  }else{
+    const url=`${APP_BASE}/${pastaId}/processos-judiciais`;
+    const r=await fetch(url,{headers:h});
+    if(!r.ok)return[];
+    const j=await r.json();const itens=j?.itens||[];
+    return itens.map(p=>({id:p.id,numero:p.numeroCNJ||p.numeroProcesso||p.numero||p.identificador?.descricao||'Não informado',dataEntrada:p.dataEntrada||null}));
+  }
+}
+
+/* ===== MOVIMENTOS ===== */
+/* AJUSTE: endpoint de movimentos judiciais agora usa ordenacao=DATA_CADASTRO_DESC
+   e quantidade=100 (era DATA_MOVIMENTO_DESC / quantidade=10), conforme solicitado. */
+async function buscarUltimoMov(tipo,idsProcArray,pastaId,h){
+  const url=(tipo==='JUD'
+    ?`${MOVJ}?inicio=0&ordenacao=DATA_CADASTRO_DESC&quantidade=100`
+    :`${MOVX}?inicio=0&ordenacao=DATA_MOVIMENTO_DESC&quantidade=10`);
+  const body={idsPastas:[pastaId],idsProcessos:idsProcArray||[]};
+  const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(body)});if(!r.ok)return null;
+  const j=await r.json();if(!j||!Array.isArray(j.itens)||j.itens.length===0)return{data:null,processoId:null};
+  const mov=j.itens.sort((a,b)=>(new Date(b.dataMovimento))-new Date(a.dataMovimento))[0];
+  return{data:mov.dataMovimento,processoId:mov.processo?.id??mov.idProcesso??null};
+}
+
+/* ===== ÚLTIMA MOVIMENTAÇÃO ===== */
+async function ultimaMov(pastaId){
+  const h={Authorization:'Bearer '+BEARER_TOKEN,'Content-Type':'application/json'};
+  const [procsJ,procsX]=await Promise.all([
+    getProcessosDaPasta(pastaId,'JUD').catch(()=>[]),
+    getProcessosDaPasta(pastaId,'EXTRA').catch(()=>[])
+  ]);
+
+  if(procsJ.length===0&&procsX.length===0)return null;
+
+  const idsJ=procsJ.map(p=>p.id),idsX=procsX.map(p=>p.id);
+  const [mJ,mX]=await Promise.all([
+    buscarUltimoMov('JUD',idsJ,pastaId,h),
+    buscarUltimoMov('EXTRA',idsX,pastaId,h)
+  ]);
+
+  if(!mJ?.data && !mX?.data) return null;
+
+  let origem,dataMov,processoId,numero='Não informado',dataEntrada=null;
+  const dj=mJ.data?new Date(mJ.data):null,dx=mX.data?new Date(mX.data):null;
+  if(dj&&(!dx||dj>dx)){origem='JUD';dataMov=mJ.data;processoId=mJ.processoId;}
+  else if(dx){origem='EXTRA';dataMov=mX.data;processoId=mX.processoId;}
+
+  const listaOrigem=origem==='JUD'?procsJ:procsX;
+  const proc=listaOrigem.find(p=>String(p.id)===String(processoId))
+    ||procsJ.find(p=>String(p.id)===String(processoId))
+    ||procsX.find(p=>String(p.id)===String(processoId))
+    ||listaOrigem[0]||procsJ[0]||procsX[0];
+  if(proc){numero=proc.numero||'Não informado';dataEntrada=proc.dataEntrada||null;}
+
+  return{origem,numero,dataMov,processoId,pastaId,dataEntradaProcesso:dataEntrada};
+}
+
+/* ===== GERAÇÃO ===== */
+document.getElementById('btnGerar').onclick=async()=>{
+  if(!BEARER_TOKEN){alert('faça login');return;}
+  const statusDiv=document.getElementById('statusRelatorio');
+  document.getElementById('btnGerar').disabled=true;
+  statusDiv.innerHTML='⏳ Processando, aguarde...';
+  progress(5,'Iniciando busca...');
+  const pastas=await buscarPastas();
+  progress(10,`${pastas.length} pastas encontradas`);
+  const inativas=[],lote=10;
+  for(let i=0;i<pastas.length;i+=lote){
+    const grupo=pastas.slice(i,i+lote);
+    await Promise.all(grupo.map(async(p)=>{
+      const info=await ultimaMov(p.id);
+      if(!info){
+        /* AJUSTE: pasta sem processos vinculados ou sem nenhum movimento encontrado
+           conta como "sem movimento desde sempre" e deve aparecer no relatório,
+           conforme descrito no texto de ajuda. Antes, era descartada aqui. */
+        inativas.push({...p, origem:null, numero:'Não informado', dataMov:null, processoId:null, dataEntradaProcesso:null, diasSemMov:null});
+        return;
+      }
+      const dias=info.dataMov?diffDaysFromToday(info.dataMov):null;
+      if(dias===null||dias>selectedDays)
+        inativas.push({...p,...info,diasSemMov:dias});
+    }));
+    const perc=Math.min(100,(i+grupo.length)/pastas.length*100);
+    progress(perc.toFixed(1),`Verificando ${Math.min(i+grupo.length,pastas.length)}/${pastas.length}`);
+  }
+  progress(100,'Concluído!');
+  inativas.sort((a,b)=>(b.diasSemMov||0)-(a.diasSemMov||0));
+  statusDiv.innerHTML=`<strong style="color:green">✅ Concluído!</strong> ${inativas.length} pastas inativas.`;
+  gerarRelatorioFinal(inativas);
+  document.getElementById('btnGerar').disabled=false;
+}
+
+/* ===== RELATÓRIO FINAL ===== */
+function gerarRelatorioFinal(rows){
+  const hoje=new Date().toLocaleString('pt-BR');
+  const tot=rows.length;
+
+  /* --- Bloco novo (apenas visual): contagem por faixa de dias, usada no resumo e no gráfico --- */
+  const qtdRed=rows.filter(r=>(r.diasSemMov??0)>=180).length;
+  const qtdOrange=rows.filter(r=>{const d=r.diasSemMov??0;return d>=90&&d<180;}).length;
+  const qtdGreen=tot-qtdRed-qtdOrange;
+  const pctRed=tot?Math.round(qtdRed/tot*100):0;
+  const pctOrange=tot?Math.round(qtdOrange/tot*100):0;
+  const pctGreen=tot?Math.max(0,100-pctRed-pctOrange):0;
+
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório</title>
+  <sc`+`ript src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></sc`+`ript>
+  <style>
+  :root{--brand:#37d6a8;--brand-2:#4f8fef;--muted:#8b93a7;--ink:#e7eaf1;--card:#131924;--card-2:#1a2130;
+  --success:#2fa876;--danger:#ff5c72;--orange:#ffab4a;--border:#242c3d;--border-strong:#313b52;--bg:#0a0e15;}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink);margin:0;padding:30px 20px;text-align:center}
+  h2{margin:0 0 6px;font-weight:700}
+  p{color:var(--muted)}
+  a{color:var(--brand-2)}
+  table{margin:0 auto;border-collapse:collapse;width:95%;max-width:1000px;font-size:.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  th,td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:center;color:var(--ink)}
+  th{background:var(--card-2);font-weight:700;border-bottom:2px solid var(--brand)}
+  th:nth-child(2),td:nth-child(2){min-width:260px;text-align:left;}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:var(--card-2)}
+  .actions{margin:20px 0;display:flex;gap:10px;justify-content:center}
+  .badge{padding:4px 8px;border-radius:999px;font-size:.8rem;font-weight:700;}
+  .badge.red{background:rgba(255,92,114,.15);color:var(--danger);}
+  .badge.orange{background:rgba(255,171,74,.15);color:var(--orange);}
+  .badge.green{background:rgba(62,207,142,.15);color:var(--success);}
+  .stats-wrap{width:95%;max-width:1000px;margin:0 auto 22px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;}
+  .stat-card{flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:16px;}
+  .stat-card .num{font-size:1.6rem;font-weight:800;color:var(--ink)}
+  .stat-card .lbl{font-size:.8rem;color:var(--muted);margin-top:2px;}
+  .stat-card.red .num{color:var(--danger)}
+  .stat-card.orange .num{color:var(--orange)}
+  .stat-card.green .num{color:var(--success)}
+  .chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:18px 20px;text-align:left;}
+  .chart-title{font-size:.85rem;font-weight:700;color:var(--ink);margin-bottom:10px;}
+  .chart-bar{display:flex;height:26px;border-radius:6px;overflow:hidden;background:var(--card-2);}
+  .chart-bar span{display:flex;align-items:center;justify-content:center;color:#08111a;font-size:.75rem;font-weight:700;white-space:nowrap;cursor:pointer;transition:filter .15s ease;}
+  .chart-bar span:hover{filter:brightness(1.15)}
+  .charts-grid canvas{cursor:pointer}
+  .filtro-bar{display:none;width:95%;max-width:1000px;margin:0 auto 14px;padding:10px 16px;background:var(--card-2);border:1px solid var(--border-strong);border-radius:10px;align-items:center;justify-content:space-between;gap:10px;}
+  .filtro-bar span{font-size:.85rem;color:var(--ink)}
+  .filtro-bar button{padding:6px 12px;border:none;border-radius:8px;background:var(--danger);color:#fff;font-weight:700;cursor:pointer;font-size:.8rem}
+  .chart-legend{display:flex;gap:16px;margin-top:10px;font-size:.78rem;color:var(--muted);flex-wrap:wrap;}
+  .chart-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle;}
+  .chart-wrap.top{width:95%;max-width:1000px;margin:0 auto 26px;}
+  .charts-grid{width:95%;max-width:1000px;margin:0 auto 26px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;}
+  .charts-grid canvas{max-height:240px}
+  @media print{
+    body{background:#fff;color:#000}
+    .actions,.help-note{display:none}
+    table,.stat-card,.chart-wrap{background:#fff;border-color:#ddd;box-shadow:none;color:#000}
+    th{background:#eee;color:#000;border-bottom:2px solid #667eea}
+    td,p,h2{color:#000}
+  }
+  </style></head><body>
+  <h2>📋 Relatório de Pastas sem movimentos processuais (${selectedDays} dias)</h2>
+  <p>Gerado em: ${hoje} — Total: <strong>${tot}</strong> pastas</p>
+
+  <div class="stats-wrap">
+    <div class="stat-card"><div class="num">${tot}</div><div class="lbl">Total de pastas inativas</div></div>
+    <div class="stat-card green"><div class="num">${qtdGreen}</div><div class="lbl">Até 89 dias</div></div>
+    <div class="stat-card orange"><div class="num">${qtdOrange}</div><div class="lbl">Entre 90 e 179 dias</div></div>
+    <div class="stat-card red"><div class="num">${qtdRed}</div><div class="lbl">180 dias ou mais</div></div>
+  </div>
+
+  <div class="chart-wrap top">
+    <div class="chart-title">Distribuição por tempo de inatividade</div>
+    <div class="chart-bar">
+      ${pctGreen>0?`<span onclick="aplicarFiltro('dias','green','Até 89 dias')" style="width:${pctGreen}%;background:var(--success)">${pctGreen}%</span>`:''}
+      ${pctOrange>0?`<span onclick="aplicarFiltro('dias','orange','90 a 179 dias')" style="width:${pctOrange}%;background:var(--orange)">${pctOrange}%</span>`:''}
+      ${pctRed>0?`<span onclick="aplicarFiltro('dias','red','180 dias ou mais')" style="width:${pctRed}%;background:var(--danger)">${pctRed}%</span>`:''}
+    </div>
+    <div class="chart-legend">
+      <span><i style="background:var(--success)"></i>Até 89 dias (${qtdGreen})</span>
+      <span><i style="background:var(--orange)"></i>90 a 179 dias (${qtdOrange})</span>
+      <span><i style="background:var(--danger)"></i>180 dias ou mais (${qtdRed})</span>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-wrap"><div class="chart-title">Por Categoria</div><canvas id="chartCategoria"></canvas></div>
+    <div class="chart-wrap"><div class="chart-title">Judicial × Extrajudicial</div><canvas id="chartOrigem"></canvas></div>
+    <div class="chart-wrap"><div class="chart-title">Por Encarregado</div><canvas id="chartEncarregado"></canvas></div>
+  </div>
+
+  <p class="help-note" style="max-width:700px;margin:0 auto 18px;font-size:.85rem">
+    💡 Quanto mais avermelhada a barra, maior a proporção de pastas há muito tempo sem qualquer movimentação. Clique em qualquer barra ou fatia dos gráficos para filtrar a tabela abaixo.
+  </p>
+
+  <div class="filtro-bar" id="filtroBar">
+    <span id="filtroTexto"></span>
+    <button onclick="limparFiltro()">✕ Limpar filtro</button>
+  </div>
+
+  <div class="actions">
+    <button onclick="window.print()" style="padding:10px 14px;border:1px solid var(--border-strong);border-radius:10px;background:var(--card-2);color:var(--ink);font-weight:700;cursor:pointer">🖨️ Imprimir</button>
+    <button onclick="baixarCSV()" style="padding:10px 14px;border:none;border-radius:10px;background:var(--success);color:#fff;font-weight:700;cursor:pointer">⬇️ Baixar arquivo</button>
+    <button onclick="window.close()" style="padding:10px 14px;border:none;border-radius:10px;background:var(--danger);color:#fff;font-weight:700;cursor:pointer">❌ Fechar</button>
+  </div>
+  <table><thead><tr><th>Extra / Jud </th><th>Protocolo / Número</th><th>Categoria</th><th>Encarregado</th><th>Data Entrada</th><th>Última Movimentação</th><th>Dias sem Movimento</th></tr></thead>
+  <tbody id="tabelaBody"></tbody></table>
+  <script>const rows=${JSON.stringify(rows)};
+  const SITE_BASE_R='${SITE_BASE}';
+  let FILTRO=null, ULTIMA_LISTA=rows;
+
+  /* ===== Datas (mesma lógica de parseDateKeepDay/formatBRFromUnknown da tela principal) ===== */
+  function parseDataR(v){
+    if(!v)return null;const s=String(v);
+    let m=s.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);if(m)return new Date(+m[1],+m[2]-1,+m[3]);
+    m=s.match(/^(\\d{2})\\/(\\d{2})\\/(\\d{4})/);if(m)return new Date(+m[3],+m[2]-1,+m[1]);
+    const t=Date.parse(s);return isNaN(t)?null:new Date(t);
+  }
+  function formatarDataR(v){const d=parseDataR(v);return d?d.toLocaleDateString('pt-BR'):'';}
+
+  /* ===== Renderização da tabela (chamada de novo a cada filtro) ===== */
+  function renderTabela(lista){
+    ULTIMA_LISTA=lista;
+    const tbody=document.getElementById('tabelaBody');
+    if(!lista.length){tbody.innerHTML='<tr><td colspan="7" style="padding:40px;color:var(--success)">Nenhuma pasta para esse filtro.</td></tr>';return;}
+    tbody.innerHTML=lista.map(r=>{
+      let link=null;
+      if(r.processoId){
+        link=r.origem==='JUD'?(SITE_BASE_R+'processos-judiciais/'+r.processoId+'/detalhamento'):(SITE_BASE_R+'processos-extrajudiciais/'+r.processoId+'/detalhamento');
+      }else if(r.pastaId){link=SITE_BASE_R+'pastas/'+r.pastaId+'/detalhamento';}
+      const num=r.numero||'Não informado';
+      const dias=r.diasSemMov??'--';
+      const cor=(dias>=180)?'red':(dias>=90?'orange':'green');
+      const dataMov=r.dataMov?formatarDataR(r.dataMov):'<em>Sem movimentos</em>';
+      const origemCompleta=(r.origem==='JUD'?'Judicial':(r.origem==='EXTRA'?'Extrajudicial':'--'));
+      const encarregado=((r.encarregado&&r.encarregado.descricao)||'--').split(' ').slice(0,2).join(' ');
+      const cel=link?('<a href="'+link+'" target="_blank" rel="noopener">'+num+'</a>'):num;
+      return '<tr><td>'+origemCompleta+'</td><td>'+cel+'</td><td>'+((r.categoria&&r.categoria.descricao)||'--')+'</td><td>'+encarregado+'</td><td>'+formatarDataR(r.dataEntradaProcesso)+'</td><td>'+dataMov+'</td><td><span class="badge '+cor+'">'+dias+'</span></td></tr>';
+    }).join('');
+  }
+  renderTabela(rows);
+
+  /* ===== Filtro clicável (gráficos + barra de distribuição) ===== */
+  function aplicarFiltro(tipo,valor,label){
+    if(FILTRO&&FILTRO.tipo===tipo&&FILTRO.valor===valor){limparFiltro();return;}
+    FILTRO={tipo,valor,label};
+    document.getElementById('filtroBar').style.display='flex';
+    document.getElementById('filtroTexto').textContent='🔍 Filtrando por: '+label;
+    const filtrado=rows.filter(r=>{
+      if(tipo==='categoria')return((r.categoria&&r.categoria.descricao)||'Sem categoria')===valor;
+      if(tipo==='origem'){
+        if(valor==='Judicial')return r.origem==='JUD';
+        if(valor==='Extrajudicial')return r.origem==='EXTRA';
+        return!r.origem;
+      }
+      if(tipo==='encarregado')return((r.encarregado&&r.encarregado.descricao)||'Sem encarregado').split(' ').slice(0,2).join(' ')===valor;
+      if(tipo==='dias'){
+        const d=r.diasSemMov??0;
+        if(valor==='green')return d<90;
+        if(valor==='orange')return d>=90&&d<180;
+        if(valor==='red')return d>=180;
+      }
+      return true;
+    });
+    renderTabela(filtrado);
+    document.querySelector('table').scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  function limparFiltro(){
+    FILTRO=null;
+    document.getElementById('filtroBar').style.display='none';
+    renderTabela(rows);
+  }
+
+  function baixarCSV(){const lista=ULTIMA_LISTA;
+  const head='Origem;Protocolo;Categoria;Encarregado;DataEntrada;UltimaMovimentacao;DiasSemMovimento\\n';
+  const csv=head+lista.map(r=>[(r.origem==='JUD'?'Judicial':(r.origem==='EXTRA'?'Extrajudicial':'')),r.numero,(r.categoria?.descricao||''),(r.encarregado?.descricao||'').split(' ').slice(0,2).join(' '),(r.dataEntradaProcesso||''),(r.dataMov||''),r.diasSemMov??''].join(';')).join('\\n');
+  const blob=new Blob(["\\uFEFF"+csv],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='relatorio_pastas_inativas_${selectedDays}dias.csv';a.click();}
+
+  /* ===== Gráficos: categoria, judicial x extrajudicial, encarregado ===== */
+  const porCategoria={};
+  rows.forEach(r=>{const c=(r.categoria&&r.categoria.descricao)||'Sem categoria';porCategoria[c]=(porCategoria[c]||0)+1;});
+  const catLabels=Object.keys(porCategoria).sort((a,b)=>porCategoria[b]-porCategoria[a]).slice(0,10);
+
+  const porOrigem={Judicial:0,Extrajudicial:0,'Sem processo':0};
+  rows.forEach(r=>{
+    if(r.origem==='JUD')porOrigem.Judicial++;
+    else if(r.origem==='EXTRA')porOrigem.Extrajudicial++;
+    else porOrigem['Sem processo']++;
+  });
+
+  const porEncarregado={};
+  rows.forEach(r=>{const e=((r.encarregado&&r.encarregado.descricao)||'Sem encarregado').split(' ').slice(0,2).join(' ');porEncarregado[e]=(porEncarregado[e]||0)+1;});
+  const encLabels=Object.keys(porEncarregado).sort((a,b)=>porEncarregado[b]-porEncarregado[a]).slice(0,10);
+
+  const corTexto='#8b93a7',corGrid='rgba(255,255,255,.06)';
+  function baseOpts(horizontal){
+    return{responsive:true,maintainAspectRatio:true,indexAxis:horizontal?'y':'x',
+      plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:corTexto},grid:{color:corGrid}},y:{ticks:{color:corTexto},grid:{color:corGrid},beginAtZero:true}}};
+  }
+  new Chart(document.getElementById('chartCategoria'),{
+    type:'bar',
+    data:{labels:catLabels,datasets:[{label:'Pastas',data:catLabels.map(c=>porCategoria[c]),backgroundColor:'#37d6a8'}]},
+    options:baseOpts(true)
+  });
+  new Chart(document.getElementById('chartOrigem'),{
+    type:'doughnut',
+    data:{labels:Object.keys(porOrigem),datasets:[{data:Object.values(porOrigem),backgroundColor:['#4f8fef','#ffab4a','#8b93a7']}]},
+    options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'bottom',labels:{color:corTexto}}}}
+  });
+  new Chart(document.getElementById('chartEncarregado'),{
+    type:'bar',
+    data:{labels:encLabels,datasets:[{label:'Pastas',data:encLabels.map(e=>porEncarregado[e]),backgroundColor:'#4f8fef'}]},
+    options:baseOpts(true)
+  });
+  </sc`+`ript></body></html>`;
+  const w=window.open('','_blank');w.document.write(html);w.document.close();
+}
+</script>
+</body>
+</html>
