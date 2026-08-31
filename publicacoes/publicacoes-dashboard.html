@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Eleven · Dashboard de Publicações</title>
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<style>
+/* ===================== Dashboard — widget específico deste relatório ===================== */
+
+#dashboardScreen{
+  width:100%;
+  max-width:1400px;
+  margin:0 auto;
+  padding:24px 16px 60px;
+  align-self:flex-start;
+}
+
+.dash-header{
+  position:relative;
+  text-align:center;
+  margin-bottom:26px;
+  padding-top:6px;
+}
+.dash-header .brand-mark{margin:0 0 10px}
+.dash-header h1{margin:0 0 4px;font-size:1.3rem}
+.dash-header p{margin:0 auto;color:var(--muted);font-size:.82rem;max-width:520px}
+.dash-header #btnSairDash{ position:absolute; top:0; right:0; width:auto; }
+
+.dash-body{ display:flex; align-items:flex-start; gap:20px; }
+
+.dash-filters{
+  width:250px;
+  flex-shrink:0;
+  position:sticky;
+  top:16px;
+  align-self:flex-start;
+}
+.dash-filters h2{ display:flex; align-items:center; gap:8px; font-size:.95rem; margin:0 0 14px; }
+
+.filters-section{ padding:15px 0; border-bottom:1px solid var(--border); }
+.filters-section:first-of-type{ padding-top:0; }
+.filters-section:last-of-type{ border-bottom:none; padding-bottom:0; }
+.filters-section-title{
+  display:block; font-size:.68rem; font-weight:700; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 10px;
+}
+.filters-hint{ margin:8px 0 0; color:var(--muted); font-size:.7rem; line-height:1.4; }
+
+.tipo-btn-row{ display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+.filters-section-title + .tipo-btn-row{ margin-top:0; }
+.tipo-btn-row .filter-btn{ flex:1; min-width:70px; padding:7px 4px; font-size:.76rem; text-align:center; white-space:nowrap; }
+
+.date-range-row{ display:flex; gap:8px; }
+.date-range-row .field{ margin-bottom:0; flex:1; min-width:0; }
+.date-range-row .field label{ font-size:.68rem; }
+.date-range-row .field input[type="date"]{ width:100%; min-width:0; padding:8px 6px; font-size:.78rem; }
+
+.dash-main{flex:1;min-width:0}
+
+.kpi-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+  margin-bottom:22px;
+}
+@media (max-width:1000px){ .kpi-grid{ grid-template-columns:repeat(2,1fr); } }
+@media (max-width:480px){ .kpi-grid{ grid-template-columns:1fr; } }
+
+.kpi-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:16px;
+  text-align:left;
+  font-family:inherit;
+  cursor:pointer;
+  width:100%;
+  transition:border-color .15s ease,transform .1s ease,background .15s ease;
+}
+.kpi-card:hover{ border-color:var(--brand); background:var(--card-2); }
+.kpi-card:active{ transform:scale(.98); }
+.kpi-card:focus-visible{ outline:2px solid var(--brand); outline-offset:2px; }
+.kpi-card.receita .kpi-value{ color:var(--success); }
+.kpi-card.despesa .kpi-value{ color:var(--danger); }
+.kpi-card.neutro .kpi-value{ color:var(--blue-light); }
+
+.kpi-icon{font-size:1.1rem;margin-bottom:6px}
+.kpi-value{font-size:1.35rem;font-weight:700;color:var(--ink);line-height:1.15}
+.kpi-label{font-size:.78rem;color:var(--muted);margin-top:4px}
+
+.chart-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:16px;
+  margin-bottom:22px;
+}
+@media (max-width:900px){ .chart-grid{ grid-template-columns:1fr; } }
+.chart-card{padding:18px}
+.chart-card h3{margin:0 0 4px;font-size:.95rem}
+.chart-card .chart-sub{margin:0 0 12px;font-size:.78rem;color:var(--muted)}
+.chart-card canvas{max-height:250px}
+
+.dash-table{width:100%;border-collapse:collapse;font-size:.85rem}
+.dash-table th{text-align:left;color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;padding:0 0 8px;border-bottom:1px solid var(--border)}
+.dash-table td{padding:8px 0;border-bottom:1px solid var(--border)}
+.dash-table tr:last-child td{border-bottom:none}
+.dash-table .muted-small{color:var(--muted);font-size:.78rem}
+.dash-table .valor-pos{color:var(--success);font-weight:600}
+.dash-table .valor-neg{color:var(--danger);font-weight:600}
+
+.extrato-wrap{max-height:460px;overflow-y:auto}
+.extrato-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+
+/* ---------- Tela de carregamento ---------- */
+.loading-card{ max-width:460px; margin:60px auto; text-align:center; padding:36px 32px; }
+.loading-ring{ width:44px; height:44px; margin:4px auto 18px; border-radius:50%; border:3px solid var(--border-strong); border-top-color:var(--brand); animation:dash-spin .9s linear infinite; }
+@keyframes dash-spin{ to{ transform:rotate(360deg); } }
+.loading-card .progress-wrap{ display:block; margin-top:4px; }
+
+.dica-box{
+  margin-top:24px; padding:14px 16px; border-radius:10px;
+  background:rgba(55,214,168,.08); border:1px solid rgba(55,214,168,.25);
+  text-align:left; display:flex; gap:10px; align-items:flex-start; min-height:64px;
+}
+.dica-box .dica-icon{font-size:1.1rem;flex-shrink:0}
+.dica-box .dica-text{font-size:.85rem;color:var(--ink);line-height:1.45;opacity:0;transition:opacity .35s ease}
+.dica-box .dica-text.show{opacity:1}
+.dica-box .dica-title{display:block;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--brand);margin-bottom:4px}
+
+@media (max-width:860px){
+  .dash-body{flex-direction:column}
+  .dash-filters{width:100%;position:static;max-height:none}
+  .dash-header #btnSairDash{position:static;margin-top:12px}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div id="loginScreen" class="card login-card center">
+    <button type="button" class="info-icon" id="infoLoginBtn" aria-label="Sobre este relatório" title="Sobre este relatório">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" font-family="Arial, Helvetica, sans-serif" fill="#08111a">i</text></svg>
+    </button>
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <p class="subtitle">Acessar Relatório: Dashboard de Publicações</p>
+    <form id="loginForm" style="width:100%">
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input type="text" id="email" class="form-control" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <div class="password-wrap">
+          <input type="password" id="senha" class="form-control" required autocomplete="current-password">
+          <button type="button" class="password-toggle" id="toggleSenha" aria-label="Mostrar senha" title="Mostrar senha">
+            <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn" style="margin-top:6px">Entrar</button>
+    </form>
+    <div id="resultado" class="subtitle" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<div id="dashboardScreen" style="display:none">
+
+  <div class="card loading-card" id="loadingCard">
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <div class="loading-ring"></div>
+    <div class="progress-wrap" style="display:block">
+      <div class="progress"><div class="fill" id="fillCarregamento" style="width:0%"></div></div>
+      <div class="progress-text" id="textoCarregamento">Carregando publicações...</div>
+    </div>
+    <div class="dica-box">
+      <span class="dica-icon">💡</span>
+      <span class="dica-text" id="dicaTexto"><span class="dica-title">Dica</span></span>
+    </div>
+  </div>
+
+  <div class="dash-header" style="display:none" id="dashHeader">
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <h1>Dashboard de Publicações</h1>
+    <p>Publicações recebidas, vínculo com processos e tarefas geradas — escolha o período na lateral.</p>
+    <button id="btnSairDash" class="btn btn-danger btn-outline-inline">Sair</button>
+  </div>
+
+  <div class="dash-body" id="dashBody" style="display:none">
+
+    <aside class="dash-filters card">
+      <h2>🔎 Filtros</h2>
+
+      <div class="filters-section">
+        <span class="filters-section-title">Período (data de cadastro)</span>
+        <div class="tipo-btn-row">
+          <button type="button" class="filter-btn" data-periodo-rapido="7">7 dias</button>
+          <button type="button" class="filter-btn active" data-periodo-rapido="30">30 dias</button>
+        </div>
+        <div class="tipo-btn-row">
+          <button type="button" class="filter-btn" data-periodo-rapido="90">90 dias</button>
+          <button type="button" class="filter-btn" data-periodo-rapido="0">Todo o período</button>
+        </div>
+
+        <div class="field-box" style="margin-top:10px">
+          <span class="field-box-label">Intervalo manual</span>
+          <div class="date-range-row">
+            <div class="field">
+              <label for="fDataMin">Mín</label>
+              <input type="date" id="fDataMin" class="form-control">
+            </div>
+            <div class="field">
+              <label for="fDataMax">Máx</label>
+              <input type="date" id="fDataMax" class="form-control">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="filters-section">
+        <span class="filters-section-title">Vínculo com Processo</span>
+        <div class="tipo-btn-row">
+          <button type="button" class="filter-btn active" data-filtro-processo="TODOS">Todas</button>
+          <button type="button" class="filter-btn" data-filtro-processo="COM">Com</button>
+          <button type="button" class="filter-btn" data-filtro-processo="SEM">Sem</button>
+        </div>
+      </div>
+
+      <div class="filters-section">
+        <span class="filters-section-title">Classificação</span>
+        <div class="field" style="margin-bottom:10px">
+          <label>Órgão</label>
+          <select id="fOrgao" class="form-control"><option value="">Todos</option></select>
+        </div>
+        <div class="field" style="margin-bottom:10px">
+          <label>Vara</label>
+          <select id="fVara" class="form-control"><option value="">Todas</option></select>
+        </div>
+        <div class="field" style="margin-bottom:10px">
+          <label>Diário</label>
+          <select id="fDiario" class="form-control"><option value="">Todos</option></select>
+        </div>
+        <div class="field">
+          <label>Nome de Vínculo</label>
+          <select id="fVinculo" class="form-control"><option value="">Todos</option></select>
+        </div>
+      </div>
+
+      <button type="button" id="btnLimparFiltros" class="btn btn-outline-inline" style="width:100%">Limpar filtros</button>
+
+      <p class="filters-hint" style="margin-top:14px">"Recebidas no mês/semana" (acima dos gráficos) sempre olha o mês e a semana atuais, independente destes filtros.</p>
+    </aside>
+
+    <main class="dash-main">
+
+      <div class="kpi-grid">
+        <button type="button" class="kpi-card" data-resumo-card="total" title="Total de publicações no período selecionado na lateral."><div class="kpi-icon">🧾</div><div class="kpi-value" id="kpiTotal">—</div><div class="kpi-label">Publicações (período)</div></button>
+        <button type="button" class="kpi-card receita" data-resumo-card="com-processo" title="Publicações cujo campo 'processo' veio preenchido — foram associadas a um processo cadastrado no sistema."><div class="kpi-icon">🔗</div><div class="kpi-value" id="kpiComProcesso">—</div><div class="kpi-label">Processo Com Vínculo</div></button>
+        <button type="button" class="kpi-card despesa" data-resumo-card="sem-processo" title="Publicações sem processo associado no sistema — podem precisar de vinculação manual."><div class="kpi-icon">⚠️</div><div class="kpi-value" id="kpiSemProcesso">—</div><div class="kpi-label">Processo Sem Vínculo</div></button>
+        <button type="button" class="kpi-card neutro" data-resumo-card="total-tarefas" title="Soma da quantidade de tarefas vinculadas em todas as publicações do período."><div class="kpi-icon">📎</div><div class="kpi-value" id="kpiTotalTarefas">—</div><div class="kpi-label">Tarefas Vinculadas (total)</div></button>
+
+        <button type="button" class="kpi-card" data-resumo-card="com-tarefas" title="Publicações que geraram ao menos uma tarefa."><div class="kpi-icon">📋</div><div class="kpi-value" id="kpiComTarefas">—</div><div class="kpi-label">Publicação Com Tarefas</div></button>
+        <button type="button" class="kpi-card" data-resumo-card="sem-tarefas" title="Publicações sem nenhuma tarefa vinculada."><div class="kpi-icon">📭</div><div class="kpi-value" id="kpiSemTarefas">—</div><div class="kpi-label">Publicação Sem Tarefas</div></button>
+        <button type="button" class="kpi-card despesa" data-resumo-card="atrasada" title="Publicações com pelo menos uma tarefa não finalizada e com vencimento já passado."><div class="kpi-icon">⏰</div><div class="kpi-value" id="kpiAtrasada">—</div><div class="kpi-label">Com Tarefa Atrasada</div></button>
+        <button type="button" class="kpi-card despesa" data-resumo-card="finalizada-apos" title="Publicações com pelo menos uma tarefa finalizada depois da data de vencimento dela."><div class="kpi-icon">🕓</div><div class="kpi-value" id="kpiFinalizadaApos">—</div><div class="kpi-label">Tarefa Finalizada Após Vencimento</div></button>
+      </div>
+
+      <div class="card chart-card" id="cardResumoFixo" style="margin-bottom:22px">
+        <h3>📅 Recebidas no Mês e na Semana</h3>
+        <p class="chart-sub" id="resumoFixoSub">Independente dos filtros da lateral</p>
+        <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:16px">
+          <div class="kpi-card" style="cursor:default"><div class="kpi-icon">📆</div><div class="kpi-value" id="resumoMes">—</div><div class="kpi-label" id="resumoMesLabel">Recebidas este mês</div></div>
+          <div class="kpi-card" style="cursor:default"><div class="kpi-icon">🗓️</div><div class="kpi-value" id="resumoSemana">—</div><div class="kpi-label">Recebidas nos últimos 7 dias</div></div>
+        </div>
+        <h4 style="margin:0 0 8px;font-size:.85rem">Por Nome de Vínculo</h4>
+        <table class="dash-table">
+          <thead><tr><th>Vínculo</th><th>Mês</th><th>Semana</th></tr></thead>
+          <tbody id="tabelaVinculoMesSemana"></tbody>
+        </table>
+      </div>
+
+      <div class="chart-grid">
+        <div class="card chart-card">
+          <h3>🏛️ Por Órgão</h3>
+          <canvas id="chartOrgao"></canvas>
+        </div>
+        <div class="card chart-card">
+          <h3>⚖️ Por Vara</h3>
+          <canvas id="chartVara"></canvas>
+        </div>
+        <div class="card chart-card">
+          <h3>📰 Por Diário</h3>
+          <canvas id="chartDiario"></canvas>
+        </div>
+        <div class="card chart-card">
+          <h3>🔖 Por Nome de Vínculo</h3>
+          <canvas id="chartVinculo"></canvas>
+        </div>
+        <div class="card chart-card">
+          <h3>✅ Situação das Tarefas</h3>
+          <p class="chart-sub">Finalizada, pendente ou em andamento — todas as tarefas encontradas nas publicações do período</p>
+          <canvas id="chartSituacao"></canvas>
+        </div>
+        <div class="card chart-card">
+          <h3>👤 Tarefas por Encarregado</h3>
+          <canvas id="chartEncarregado"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-grid" style="grid-template-columns:1fr">
+        <div class="card chart-card" id="cardExtrato">
+          <div class="extrato-header">
+            <div>
+              <h3 style="margin:0">🧾 Publicações do Período</h3>
+              <p class="chart-sub" style="margin:2px 0 0" id="extratoSub">Mostrando até 300 publicações — use os filtros para refinar. O Excel exporta tudo.</p>
+            </div>
+            <button type="button" id="btnExportarExcel" class="btn btn-outline-inline">⬇️ Baixar Excel</button>
+          </div>
+          <div class="extrato-wrap">
+            <table class="dash-table">
+              <thead><tr><th>Data Cadastro</th><th>Data Publicação</th><th>Diário</th><th>Órgão</th><th>Vínculo</th><th>Processo</th><th>Tarefas</th></tr></thead>
+              <tbody id="tabelaExtrato"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div class="modal-overlay" id="infoModalOverlay">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <button class="modal-close" id="infoModalClose" type="button" aria-label="Fechar">✕</button>
+    <h2 class="modal-title">Sobre este relatório</h2>
+    <div class="modal-body">
+      <p>Dashboard de publicações do Diário Oficial: quantidade recebida por período, vínculo com processos cadastrados, tarefas geradas a partir das publicações (situação, atraso, finalização fora do prazo) e detalhamento por órgão, vara, diário e nome de vínculo.</p>
+      <p style="color:var(--muted);font-size:.85rem;margin-top:10px">Este relatório apenas consulta informações — ele não altera, cria ou apaga nada nas pastas ou processos.</p>
+      <h3 style="margin:14px 0 8px">Se algo der errado no login</h3>
+      <ul>
+        <li>Confira se o e-mail está completo e sem espaço no fim.</li>
+        <li>Teste o mesmo acesso direto no sistema. Se não entrar lá, a senha é o problema.</li>
+        <li>Se entrar no sistema mas não aqui, avise o suporte: pode ser permissão de perfil.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="resumoCardModalOverlay">
+  <div class="modal-box" role="dialog" aria-modal="true" style="max-width:700px">
+    <button class="modal-close" id="resumoCardModalClose" type="button" aria-label="Fechar">✕</button>
+    <h2 class="modal-title" id="resumoCardTitulo">Resumo</h2>
+    <div class="modal-body">
+      <p id="resumoCardResumo" style="margin:0 0 12px"></p>
+      <div style="max-height:420px;overflow-y:auto;border:1px solid var(--border);border-radius:10px">
+        <table class="dash-table" style="font-size:.82rem">
+          <thead id="resumoCardThead"></thead>
+          <tbody id="resumoCardTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========== Modal de informação (tela de login) ========== */
+(function(){
+  const overlay = document.getElementById('infoModalOverlay');
+  const btn = document.getElementById('infoLoginBtn');
+  const closeBtn = document.getElementById('infoModalClose');
+  if(!overlay || !btn) return;
+  const open = ()=> overlay.classList.add('open');
+  const close = ()=> overlay.classList.remove('open');
+  btn.addEventListener('click', open);
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && overlay.classList.contains('open')) close(); });
+})();
+
+/* ========== Mostrar/ocultar senha ========== */
+(function(){
+  const toggleSenhaBtn = document.getElementById('toggleSenha');
+  const senhaInput = document.getElementById('senha');
+  const eyeIcon = document.getElementById('eyeIcon');
+  const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+  const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.4 18.4 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/>';
+  if(toggleSenhaBtn){
+    toggleSenhaBtn.addEventListener('click',()=>{
+      const showing = senhaInput.type === 'text';
+      senhaInput.type = showing ? 'password' : 'text';
+      eyeIcon.innerHTML = showing ? EYE_OPEN : EYE_OFF;
+      toggleSenhaBtn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+      toggleSenhaBtn.title = showing ? 'Mostrar senha' : 'Ocultar senha';
+    });
+  }
+})();
+
+/* ========== Dicas rotativas (tela de carregamento) ========== */
+const DICAS = [
+  'Publicações "Sem processo" costumam precisar de vinculação manual no sistema — vale a pena revisar essa lista periodicamente.',
+  'Uma tarefa "finalizada após o vencimento" pode indicar prazo apertado — vale conferir o motivo com o encarregado.',
+  'Organize os prazos do escritório acompanhando as tarefas geradas a partir das publicações.',
+  'O filtro de período usa a data de cadastro da publicação no sistema, não a data do Diário Oficial.'
+];
+let dicaIndex = 0, dicaTimer = null;
+function iniciarDicas(){
+  const el = document.getElementById('dicaTexto');
+  function mostrar(){
+    el.classList.remove('show');
+    setTimeout(()=>{
+      el.innerHTML = '<span class="dica-title">Dica</span>' + DICAS[dicaIndex];
+      el.classList.add('show');
+      dicaIndex = (dicaIndex + 1) % DICAS.length;
+    }, 250);
+  }
+  mostrar();
+  dicaTimer = setInterval(mostrar, 4500);
+}
+function pararDicas(){ if(dicaTimer){ clearInterval(dicaTimer); dicaTimer = null; } }
+
+/* =========================================================
+   DADOS / API
+   ========================================================= */
+let BEARER_TOKEN = null;
+let TODAS_PUBLICACOES = [];
+let PUBLICACOES_FILTRADAS = [];
+let TAREFAS_DETALHE = new Map();
+let FILTRO_PROCESSO = 'TODOS'; // TODOS | COM | SEM
+const CHARTS = {};
+
+const LOGIN_URL = "https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum";
+const PUBLICACOES_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/publicacoes";
+const DETALHE_TAREFA_URL = "https://app-api-prod.alkasoft.com.br/api/v1/tarefas/{ID}";
+const SITE_BASE = "https://eleven.alkasoft.com.br/auth/";
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const senha = document.getElementById('senha').value.trim();
+  const resultado = document.getElementById('resultado');
+  if(!email || !senha){ resultado.innerHTML = '<span style="color:red">Informe e-mail e senha</span>'; return; }
+  resultado.innerHTML = '🔄 Realizando login...';
+  try{
+    const creds = btoa(email + ':' + senha);
+    const r = await fetch(LOGIN_URL, { headers: { 'Authorization': 'Basic ' + creds } });
+    if(!r.ok) throw new Error('Falha no login');
+    BEARER_TOKEN = (r.headers.get('authorization') || '').replace(/^(Bearer|Basic)\s/i, '').trim();
+    document.getElementById('loginScreen').parentElement.style.display = 'none';
+    document.getElementById('dashboardScreen').style.display = 'block';
+    iniciarDicas();
+    carregarDados();
+  }catch(err){
+    resultado.innerHTML = '<span style="color:red">'+err.message+'</span>';
+  }
+});
+
+document.getElementById('btnSairDash').addEventListener('click', ()=> location.reload());
+
+async function buscarPaginado(url, body, quantidade, ordenacao, onProgress, maxPaginas){
+  let inicio = 0, todos = [], totalEsperado = null, pagina = 0;
+  const limitePaginas = maxPaginas || 250;
+  while(true){
+    const r = await fetch(`${url}?inicio=${inicio}&quantidade=${quantidade}&ordenacao=${ordenacao}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if(!r.ok){
+      const texto = await r.text().catch(()=> '');
+      throw new Error(`A API respondeu ${r.status} (${r.statusText}). ${texto ? 'Detalhe: ' + texto.slice(0,200) : ''}`);
+    }
+    const j = await r.json();
+    const itens = j.itens || [];
+    if(totalEsperado === null) totalEsperado = j.quantidadeTotal ?? j.total ?? j.totalItens ?? j.count ?? null;
+    todos.push(...itens);
+    if(onProgress) onProgress(todos.length, totalEsperado);
+    pagina++;
+    if(totalEsperado !== null && todos.length >= totalEsperado) break;
+    if(itens.length < quantidade) break;
+    if(pagina >= limitePaginas) break;
+    inicio += quantidade;
+  }
+  return todos;
+}
+
+async function buscarDetalheTarefa(id){
+  try{
+    const r = await fetch(DETALHE_TAREFA_URL.replace('{ID}', id), {
+      headers: { 'Authorization': `Bearer ${BEARER_TOKEN}` }
+    });
+    if(!r.ok) return null;
+    return await r.json();
+  }catch(e){ return null; }
+}
+
+async function carregarDados(){
+  const texto = document.getElementById('textoCarregamento');
+
+  /* Corpo da busca não confirmado pelo usuário (só a URL e um item de
+     exemplo da resposta foram passados) — enviando vazio, sem filtro de
+     data no servidor. O corte por período é feito inteiramente no
+     navegador, igual aos demais dashboards deste projeto. */
+  const bodyPublicacoes = {};
+
+  try{
+    let progresso = 0;
+    TODAS_PUBLICACOES = await buscarPaginado(PUBLICACOES_URL, bodyPublicacoes, 100, 'DATA_CADASTRO_DESC', (atual)=>{
+      progresso = atual;
+      texto.textContent = `Carregando publicações... (${progresso})`;
+    });
+
+    /* Os detalhes de situação/datas/encarregado de cada tarefa não vêm
+       dentro da publicação (só id/descrição) — busca-se o detalhe de cada
+       tarefa única encontrada, em lotes, igual ao relatório de Tarefas e
+       Subtarefas. */
+    const idsTarefas = new Set();
+    TODAS_PUBLICACOES.forEach(p=>{ (p.tarefas||[]).forEach(t=>{ if(t && t.id) idsTarefas.add(t.id); }); });
+    const ids = [...idsTarefas];
+    const lote = 12;
+    for(let i=0; i<ids.length; i+=lote){
+      const grupo = ids.slice(i, i+lote);
+      texto.textContent = `Carregando detalhes das tarefas... (${Math.min(i+lote, ids.length)}/${ids.length})`;
+      const chamadas = grupo.map(id=>buscarDetalheTarefa(id));
+      const resultados = await Promise.all(chamadas);
+      resultados.forEach((det, idx)=>{ if(det) TAREFAS_DETALHE.set(grupo[idx], det); });
+    }
+
+    pararDicas();
+    document.getElementById('loadingCard').style.display = 'none';
+    document.getElementById('dashHeader').style.display = 'block';
+    document.getElementById('dashBody').style.display = 'flex';
+
+    popularOpcoesFiltro();
+    renderResumoFixo();
+    document.querySelector('[data-periodo-rapido="30"]').click();
+  }catch(err){
+    texto.textContent = 'Erro ao carregar publicações: ' + err.message;
+  }
+}
+
+/* =========================================================
+   EXTRAÇÃO DE CAMPOS
+   ========================================================= */
+function temProcesso(p){ return !!p.processo; }
+function nomeOrgao(p){ return (p.orgao||'').trim() || 'Sem órgão'; }
+function nomeVara(p){ return (p.vara||'').trim() || 'Sem vara'; }
+function nomeDiario(p){ return (p.diario||'').trim() || 'Sem diário'; }
+function nomeVinculo(p){ return (p.vinculo||'').trim() || 'Sem vínculo'; }
+function temTarefas(p){ return Array.isArray(p.tarefas) && p.tarefas.length > 0; }
+function tarefasDetalhadasDe(p){ return (p.tarefas||[]).map(t=>TAREFAS_DETALHE.get(t.id)).filter(Boolean); }
+
+function situacaoTarefaTipo(t){
+  const txt = ((t.situacao&&(t.situacao.descricao||t.situacao.valor))||'').toString().toLowerCase();
+  if(txt.includes('final') || txt.includes('conclu')) return 'FINALIZADA';
+  if(txt.includes('andam')) return 'ANDAMENTO';
+  return 'PENDENTE';
+}
+function tarefaAtrasada(t){
+  if(situacaoTarefaTipo(t)==='FINALIZADA') return false;
+  const venc = t.dataHoraTermino ? new Date(t.dataHoraTermino) : null;
+  return venc ? venc < new Date() : false;
+}
+function tarefaFinalizadaAposVencimento(t){
+  if(situacaoTarefaTipo(t)!=='FINALIZADA') return false;
+  const fim = t.dataHoraFinalizacao || t.dataFinalizacao || null;
+  const fin = fim ? new Date(fim) : null;
+  const venc = t.dataHoraTermino ? new Date(t.dataHoraTermino) : null;
+  if(!fin || !venc || isNaN(fin) || isNaN(venc)) return false;
+  return fin > venc;
+}
+function publicacaoTemTarefaAtrasada(p){ return tarefasDetalhadasDe(p).some(tarefaAtrasada); }
+function publicacaoTemTarefaFinalizadaApos(p){ return tarefasDetalhadasDe(p).some(tarefaFinalizadaAposVencimento); }
+
+function linkProcesso(p){
+  if(!p.processo) return null;
+  const tipo = (p.processo.tipoDoCadastro==='PROCESSO_EXTRAJUDICIAL') ? 'processos-extrajudiciais' : 'processos-judiciais';
+  return `${SITE_BASE}${tipo}/${p.processo.id}/detalhamento`;
+}
+
+function formatarDataHora(iso){
+  if(!iso) return '—';
+  const d = new Date(iso);
+  if(isNaN(d)) return '—';
+  return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+function formatarDataSimples(iso){
+  if(!iso) return '—';
+  const s = String(iso).slice(0,10);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '—';
+}
+
+/* =========================================================
+   FILTROS
+   ========================================================= */
+document.querySelectorAll('[data-periodo-rapido]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-periodo-rapido]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const dias = parseInt(btn.dataset.periodoRapido, 10);
+    let min = '';
+    if(dias > 0){
+      const d = new Date();
+      d.setDate(d.getDate() - dias);
+      min = d.toISOString().slice(0,10);
+    }
+    document.getElementById('fDataMin').value = min;
+    document.getElementById('fDataMax').value = '';
+    aplicarFiltros();
+  });
+});
+
+document.querySelectorAll('[data-filtro-processo]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-filtro-processo]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    FILTRO_PROCESSO = btn.dataset.filtroProcesso;
+    aplicarFiltros();
+  });
+});
+
+['fDataMin','fDataMax','fOrgao','fVara','fDiario','fVinculo'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', ()=>{
+    if(id==='fDataMin' || id==='fDataMax') document.querySelectorAll('[data-periodo-rapido]').forEach(b=>b.classList.remove('active'));
+    aplicarFiltros();
+  });
+});
+
+document.getElementById('btnLimparFiltros').addEventListener('click', ()=>{
+  FILTRO_PROCESSO = 'TODOS';
+  document.querySelectorAll('[data-filtro-processo]').forEach(b=>b.classList.toggle('active', b.dataset.filtroProcesso==='TODOS'));
+  document.getElementById('fOrgao').value = '';
+  document.getElementById('fVara').value = '';
+  document.getElementById('fDiario').value = '';
+  document.getElementById('fVinculo').value = '';
+  document.querySelector('[data-periodo-rapido="30"]').click();
+});
+
+function popularOpcoesFiltro(){
+  const orgaos = new Set(), varas = new Set(), diarios = new Set(), vinculos = new Set();
+  TODAS_PUBLICACOES.forEach(p=>{
+    orgaos.add(nomeOrgao(p)); varas.add(nomeVara(p)); diarios.add(nomeDiario(p)); vinculos.add(nomeVinculo(p));
+  });
+  function preencher(id, set){
+    const sel = document.getElementById(id);
+    [...set].sort((a,b)=>a.localeCompare(b,'pt-BR')).forEach(v=>{
+      const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o);
+    });
+  }
+  preencher('fOrgao', orgaos);
+  preencher('fVara', varas);
+  preencher('fDiario', diarios);
+  preencher('fVinculo', vinculos);
+}
+
+function aplicarFiltros(){
+  const dataMin = document.getElementById('fDataMin').value;
+  const dataMax = document.getElementById('fDataMax').value;
+  const orgao = document.getElementById('fOrgao').value;
+  const vara = document.getElementById('fVara').value;
+  const diario = document.getElementById('fDiario').value;
+  const vinculo = document.getElementById('fVinculo').value;
+
+  PUBLICACOES_FILTRADAS = TODAS_PUBLICACOES.filter(p=>{
+    const d = (p.dataCadastro||'').slice(0,10);
+    if(dataMin && (!d || d < dataMin)) return false;
+    if(dataMax && (!d || d > dataMax)) return false;
+    if(FILTRO_PROCESSO==='COM' && !temProcesso(p)) return false;
+    if(FILTRO_PROCESSO==='SEM' && temProcesso(p)) return false;
+    if(orgao && nomeOrgao(p)!==orgao) return false;
+    if(vara && nomeVara(p)!==vara) return false;
+    if(diario && nomeDiario(p)!==diario) return false;
+    if(vinculo && nomeVinculo(p)!==vinculo) return false;
+    return true;
+  });
+
+  renderTudo();
+}
+
+/* =========================================================
+   RESUMO FIXO (mês/semana, independente dos filtros)
+   ========================================================= */
+function agrupar(lista, fn){
+  const mapa = {};
+  lista.forEach(item=>{ const k = fn(item); mapa[k] = (mapa[k]||0) + 1; });
+  return mapa;
+}
+function top10(mapa){
+  return Object.keys(mapa).sort((a,b)=>mapa[b]-mapa[a]).slice(0,10);
+}
+
+function renderResumoFixo(){
+  const hoje = new Date();
+  const inicioMesStr = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0,10);
+  const seteDiasAtras = new Date(hoje); seteDiasAtras.setDate(seteDiasAtras.getDate()-7);
+  const inicioSemanaStr = seteDiasAtras.toISOString().slice(0,10);
+  const hojeStr = hoje.toISOString().slice(0,10);
+  const nomesMeses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  const doMes = TODAS_PUBLICACOES.filter(p=>{ const d=(p.dataCadastro||'').slice(0,10); return d && d>=inicioMesStr && d<=hojeStr; });
+  const daSemana = TODAS_PUBLICACOES.filter(p=>{ const d=(p.dataCadastro||'').slice(0,10); return d && d>=inicioSemanaStr && d<=hojeStr; });
+
+  document.getElementById('resumoFixoSub').textContent = `Mês de ${nomesMeses[hoje.getMonth()]}/${hoje.getFullYear()} e últimos 7 dias — independente dos filtros da lateral`;
+  document.getElementById('resumoMes').textContent = doMes.length.toLocaleString('pt-BR');
+  document.getElementById('resumoSemana').textContent = daSemana.length.toLocaleString('pt-BR');
+
+  const porVinculoMes = agrupar(doMes, nomeVinculo);
+  const porVinculoSemana = agrupar(daSemana, nomeVinculo);
+  const todosVinculos = new Set([...Object.keys(porVinculoMes), ...Object.keys(porVinculoSemana)]);
+  const linhas = [...todosVinculos]
+    .map(v=>({ vinculo:v, mes:porVinculoMes[v]||0, semana:porVinculoSemana[v]||0 }))
+    .sort((a,b)=>b.mes-a.mes)
+    .slice(0,15);
+
+  const tbody = document.getElementById('tabelaVinculoMesSemana');
+  tbody.innerHTML = linhas.length
+    ? linhas.map(l=>`<tr><td>${escapeHtml(l.vinculo)}</td><td>${l.mes}</td><td>${l.semana}</td></tr>`).join('')
+    : '<tr><td colspan="3" class="muted-small">Sem publicações registradas.</td></tr>';
+}
+
+/* =========================================================
+   RENDERIZAÇÃO
+   ========================================================= */
+function renderTudo(){
+  renderKpis();
+  renderGraficos();
+  renderExtrato();
+}
+
+function renderKpis(){
+  const lista = PUBLICACOES_FILTRADAS;
+  const comProcesso = lista.filter(temProcesso).length;
+  const semProcesso = lista.length - comProcesso;
+  const comTarefas = lista.filter(temTarefas).length;
+  const semTarefas = lista.length - comTarefas;
+  const comAtraso = lista.filter(publicacaoTemTarefaAtrasada).length;
+  const comFinalizadaApos = lista.filter(publicacaoTemTarefaFinalizadaApos).length;
+  const totalTarefas = lista.reduce((a,p)=>a + (p.tarefas ? p.tarefas.length : 0), 0);
+
+  document.getElementById('kpiTotal').textContent = lista.length.toLocaleString('pt-BR');
+  document.getElementById('kpiComProcesso').textContent = comProcesso.toLocaleString('pt-BR');
+  document.getElementById('kpiSemProcesso').textContent = semProcesso.toLocaleString('pt-BR');
+  document.getElementById('kpiTotalTarefas').textContent = totalTarefas.toLocaleString('pt-BR');
+  document.getElementById('kpiComTarefas').textContent = comTarefas.toLocaleString('pt-BR');
+  document.getElementById('kpiSemTarefas').textContent = semTarefas.toLocaleString('pt-BR');
+  document.getElementById('kpiAtrasada').textContent = comAtraso.toLocaleString('pt-BR');
+  document.getElementById('kpiFinalizadaApos').textContent = comFinalizadaApos.toLocaleString('pt-BR');
+}
+
+function destruirGrafico(id){
+  if(CHARTS[id]){ CHARTS[id].destroy(); delete CHARTS[id]; }
+}
+function coresPor(labels, corReal){
+  return labels.map(l=>/^Sem /.test(l) ? '#5a6478' : corReal);
+}
+function baseOptsBarraH(){
+  const corTexto = '#8b93a7', corGrid = 'rgba(255,255,255,.06)';
+  return {
+    responsive:true, maintainAspectRatio:true, indexAxis:'y',
+    plugins:{ legend:{ display:false } },
+    scales:{
+      x:{ ticks:{ color:corTexto }, grid:{ color:corGrid }, beginAtZero:true },
+      y:{ ticks:{ color:corTexto }, grid:{ color:corGrid } }
+    }
+  };
+}
+
+function renderGraficos(){
+  const lista = PUBLICACOES_FILTRADAS;
+  const corTexto = '#8b93a7';
+
+  function graficoBarra(id, mapa, cor){
+    const labels = top10(mapa);
+    destruirGrafico(id);
+    CHARTS[id] = new Chart(document.getElementById(id), {
+      type:'bar',
+      data:{
+        labels: labels.map(l=>l+' ('+mapa[l]+')'),
+        datasets:[{ label:'Publicações', data: labels.map(l=>mapa[l]), backgroundColor: coresPor(labels, cor) }]
+      },
+      options: baseOptsBarraH()
+    });
+  }
+
+  graficoBarra('chartOrgao', agrupar(lista, nomeOrgao), '#37d6a8');
+  graficoBarra('chartVara', agrupar(lista, nomeVara), '#4f8fef');
+  graficoBarra('chartDiario', agrupar(lista, nomeDiario), '#ffab4a');
+  graficoBarra('chartVinculo', agrupar(lista, nomeVinculo), '#37d6a8');
+
+  /* Situação das tarefas — agregada sobre todas as tarefas encontradas nas
+     publicações do período (não sobre as publicações em si). */
+  const todasTarefas = [];
+  lista.forEach(p=>{ tarefasDetalhadasDe(p).forEach(t=>todasTarefas.push(t)); });
+  const porSituacao = { Finalizada:0, Pendente:0, 'Em andamento':0 };
+  todasTarefas.forEach(t=>{
+    const tipo = situacaoTarefaTipo(t);
+    if(tipo==='FINALIZADA') porSituacao.Finalizada++;
+    else if(tipo==='ANDAMENTO') porSituacao['Em andamento']++;
+    else porSituacao.Pendente++;
+  });
+  destruirGrafico('chartSituacao');
+  CHARTS.chartSituacao = new Chart(document.getElementById('chartSituacao'), {
+    type:'doughnut',
+    data:{
+      labels: Object.keys(porSituacao).map(k=>k+' ('+porSituacao[k]+')'),
+      datasets:[{ data: Object.values(porSituacao), backgroundColor:['#2fa876','#ffab4a','#4f8fef'] }]
+    },
+    options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ position:'bottom', labels:{ color:corTexto } } } }
+  });
+
+  const porEncarregado = {};
+  todasTarefas.forEach(t=>{
+    const e = (t.encarregado && t.encarregado.descricao) || 'Sem encarregado';
+    porEncarregado[e] = (porEncarregado[e]||0) + 1;
+  });
+  graficoBarra('chartEncarregado', porEncarregado, '#4f8fef');
+}
+
+function renderExtrato(){
+  const tbody = document.getElementById('tabelaExtrato');
+  const ordenado = [...PUBLICACOES_FILTRADAS].sort((a,b)=> (b.dataCadastro||'').localeCompare(a.dataCadastro||''));
+  document.getElementById('extratoSub').textContent = ordenado.length > 300
+    ? `Mostrando as 300 mais recentes de ${ordenado.length.toLocaleString('pt-BR')} — use os filtros para refinar. O Excel exporta tudo.`
+    : `${ordenado.length.toLocaleString('pt-BR')} publicação(ões) no filtro atual.`;
+  if(!ordenado.length){ tbody.innerHTML = '<tr><td colspan="7" class="muted-small">Sem publicações para o filtro atual.</td></tr>'; return; }
+  tbody.innerHTML = ordenado.slice(0,300).map(p=>{
+    const link = linkProcesso(p);
+    const processoCel = link
+      ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener">${escapeHtml(p.numeroProcessoPublicacao || 'Ver processo')}</a>`
+      : (p.numeroProcessoPublicacao ? escapeHtml(p.numeroProcessoPublicacao) : '<span class="muted-small">Sem vínculo</span>');
+    const tarefasResumo = temTarefas(p) ? `${p.tarefas.length} tarefa(s)` : 'Sem tarefas';
+    return `<tr>
+      <td>${formatarDataHora(p.dataCadastro)}</td>
+      <td class="muted-small">${formatarDataSimples(p.dataPublicacao)}</td>
+      <td>${escapeHtml(nomeDiario(p))}</td>
+      <td>${escapeHtml(nomeOrgao(p))}</td>
+      <td class="muted-small">${escapeHtml(nomeVinculo(p))}</td>
+      <td>${processoCel}</td>
+      <td class="muted-small">${tarefasResumo}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* =========================================================
+   POPUP GENÉRICO — resumo de publicações por card clicado
+   ========================================================= */
+const COLUNAS_PUB = [
+  { titulo:'Data Cadastro', valor:p=>formatarDataHora(p.dataCadastro) },
+  { titulo:'Diário', valor:p=>escapeHtml(nomeDiario(p)) },
+  { titulo:'Órgão', valor:p=>escapeHtml(nomeOrgao(p)) },
+  { titulo:'Vínculo', valor:p=>escapeHtml(nomeVinculo(p)) },
+  { titulo:'Processo', valor:p=>{
+      const link = linkProcesso(p);
+      return link ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener">${escapeHtml(p.numeroProcessoPublicacao || 'Ver')}</a>` : '<span class="muted-small">—</span>';
+    } }
+];
+
+function renderResumoCardModal(titulo, resumoTexto, itens, colunas){
+  document.getElementById('resumoCardTitulo').textContent = titulo;
+  document.getElementById('resumoCardResumo').textContent = resumoTexto || '';
+  document.getElementById('resumoCardThead').innerHTML = '<tr>' + colunas.map(c=>`<th style="padding:8px 10px">${c.titulo}</th>`).join('') + '</tr>';
+  const tbody = document.getElementById('resumoCardTbody');
+  tbody.innerHTML = itens.length ? itens.slice(0,300).map(p=>{
+    return '<tr>' + colunas.map(c=>`<td style="padding:8px 10px">${c.valor(p)}</td>`).join('') + '</tr>';
+  }).join('') : `<tr><td colspan="${colunas.length}" class="muted-small" style="padding:8px 10px">Sem publicações.</td></tr>`;
+  document.getElementById('resumoCardModalOverlay').classList.add('open');
+}
+(function(){
+  const overlay = document.getElementById('resumoCardModalOverlay');
+  const closeBtn = document.getElementById('resumoCardModalClose');
+  const close = ()=> overlay.classList.remove('open');
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && overlay.classList.contains('open')) close(); });
+})();
+
+document.querySelectorAll('[data-resumo-card]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const lista = PUBLICACOES_FILTRADAS;
+    switch(btn.dataset.resumoCard){
+      case 'total':
+        renderResumoCardModal('🧾 Publicações (Período)', `${lista.length.toLocaleString('pt-BR')} publicação(ões)`, lista, COLUNAS_PUB);
+        break;
+      case 'com-processo': {
+        const itens = lista.filter(temProcesso);
+        renderResumoCardModal('🔗 Processo Com Vínculo', `${itens.length.toLocaleString('pt-BR')} publicação(ões)`, itens, COLUNAS_PUB);
+        break;
+      }
+      case 'sem-processo': {
+        const itens = lista.filter(p=>!temProcesso(p));
+        renderResumoCardModal('⚠️ Processo Sem Vínculo', `${itens.length.toLocaleString('pt-BR')} publicação(ões)`, itens, COLUNAS_PUB);
+        break;
+      }
+      case 'total-tarefas': {
+        const itens = lista.filter(temTarefas);
+        const total = lista.reduce((a,p)=>a+(p.tarefas?p.tarefas.length:0),0);
+        renderResumoCardModal('📎 Tarefas Vinculadas', `${total.toLocaleString('pt-BR')} tarefa(s) em ${itens.length.toLocaleString('pt-BR')} publicação(ões)`, itens, COLUNAS_PUB);
+        break;
+      }
+      case 'com-tarefas': {
+        const itens = lista.filter(temTarefas);
+        renderResumoCardModal('📋 Publicação Com Tarefas', `${itens.length.toLocaleString('pt-BR')} publicação(ões)`, itens, COLUNAS_PUB);
+        break;
+      }
+      case 'sem-tarefas': {
+        const itens = lista.filter(p=>!temTarefas(p));
+        renderResumoCardModal('📭 Publicação Sem Tarefas', `${itens.length.toLocaleString('pt-BR')} publicação(ões)`, itens, COLUNAS_PUB);
+        break;
+      }
+      case 'atrasada': {
+        const itens = lista.filter(publicacaoTemTarefaAtrasada);
+        renderResumoCardModal('⏰ Com Tarefa Atrasada', `${itens.length.toLocaleString('pt-BR')} publicação(ões)`, itens, COLUNAS_PUB);
+        break;
+      }
+      case 'finalizada-apos': {
+        const itens = lista.filter(publicacaoTemTarefaFinalizadaApos);
+        renderResumoCardModal('🕓 Tarefa Finalizada Após Vencimento', `${itens.length.toLocaleString('pt-BR')} publicação(ões)`, itens, COLUNAS_PUB);
+        break;
+      }
+    }
+  });
+});
+
+/* =========================================================
+   EXCEL
+   ========================================================= */
+document.getElementById('btnExportarExcel').addEventListener('click', ()=>{
+  const lista = [...PUBLICACOES_FILTRADAS].sort((a,b)=> (a.dataCadastro||'').localeCompare(b.dataCadastro||''));
+  if(!lista.length){ alert('Não há publicações para exportar com os filtros atuais.'); return; }
+
+  const planilha = lista.map(p=>({
+    'Data Cadastro': formatarDataHora(p.dataCadastro),
+    'Data Publicação': formatarDataSimples(p.dataPublicacao),
+    'Diário': nomeDiario(p),
+    'Cidade': p.cidade || '',
+    'Órgão': nomeOrgao(p),
+    'Vara': nomeVara(p),
+    'Vínculo': nomeVinculo(p),
+    'Processo Nº': p.numeroProcessoPublicacao || '',
+    'Com Processo Vinculado': temProcesso(p) ? 'Sim' : 'Não',
+    'Qtd Tarefas': p.tarefas ? p.tarefas.length : 0,
+    'Tarefa Atrasada': publicacaoTemTarefaAtrasada(p) ? 'Sim' : 'Não',
+    'Tarefa Finalizada Após Vencimento': publicacaoTemTarefaFinalizadaApos(p) ? 'Sim' : 'Não'
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(planilha);
+  ws['!cols'] = Object.keys(planilha[0]).map(()=>({ wch:22 }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Publicações');
+  XLSX.writeFile(wb, 'Publicacoes_Eleven.xlsx');
+});
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+</script>
+</body>
+</html>
