@@ -111,20 +111,22 @@
   gap:16px;
   margin-bottom:22px;
 }
-.chart-card{padding:18px}
+.chart-card{padding:18px;min-width:0}
 .chart-card h3{margin:0 0 4px;font-size:.95rem}
 .chart-card .chart-sub{margin:0 0 12px;font-size:.78rem;color:var(--muted)}
 .chart-card canvas{max-height:260px}
 
-.dash-table{width:100%;border-collapse:collapse;font-size:.85rem}
-.dash-table th{text-align:left;color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;padding:0 0 8px;border-bottom:1px solid var(--border)}
-.dash-table td{padding:8px 0;border-bottom:1px solid var(--border)}
+.dash-table{width:100%;min-width:760px;border-collapse:collapse;font-size:.85rem}
+.dash-table th{text-align:left;color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;padding:0 16px 8px 0;border-bottom:1px solid var(--border);white-space:nowrap}
+.dash-table td{padding:8px 16px 8px 0;border-bottom:1px solid var(--border);vertical-align:top}
+.dash-table th:last-child,.dash-table td:last-child{padding-right:0}
 .dash-table tr:last-child td{border-bottom:none}
 .dash-table .muted-small{color:var(--muted);font-size:.78rem}
 .dash-table .valor-pos{color:var(--success);font-weight:600}
 .dash-table .valor-neg{color:var(--danger);font-weight:600}
+.dash-table .th-campo-extra,.dash-table td.campo-extra-cel{white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
 
-.extrato-wrap{max-height:420px;overflow-y:auto}
+.extrato-wrap{max-height:420px;overflow:auto}
 .extrato-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}
 
 .empty-dash{padding:30px;text-align:center;color:var(--muted);font-size:.85rem}
@@ -380,7 +382,7 @@
           </div>
           <div class="extrato-wrap">
             <table class="dash-table">
-              <thead><tr><th>Data</th><th>Categoria</th><th>Cliente</th><th>Pasta</th><th>Conta</th><th>Valor</th><th>Saldo</th></tr></thead>
+              <thead><tr id="extratoTheadRow"><th>Data</th><th>Categoria</th><th>Cliente</th><th>Pasta</th><th>Conta</th><th>Valor</th><th>Saldo</th></tr></thead>
               <tbody id="tabelaExtrato"></tbody>
             </table>
           </div>
@@ -521,6 +523,7 @@ let PLANOS_DE_CONTAS = [];
 let CONTAS_POR_ID = {};
 let PAGAS_DO_MES = [];
 let PRIMEIRO_PGTO_LISTA = [];
+let CAMPOS_EXTRAS_FINANCEIRO = [];
 const CHARTS = {};
 
 const LOGIN_URL = "https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum";
@@ -529,6 +532,7 @@ const REALIZADOS_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/m
 const TOTALIZADOR_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/movimentos-realizados/totalizador";
 const CONTAS_URL = "https://app-api-prod.alkasoft.com.br/api/v1/financeiros/contas";
 const PLANOS_URL = "https://app-api-prod.alkasoft.com.br/api/v1/financeiros/planos-de-contas";
+const CAMPOS_EXTRAS_FINANCEIRO_URL = "https://app-api-prod.alkasoft.com.br/api/v1/tiposdocadastro/FINANCEIRO/camposextras";
 
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -618,6 +622,58 @@ function construirIndiceContas(){
   CONTAS_LISTA.forEach(c=>{ CONTAS_POR_ID[c.id] = c; });
 }
 
+/* Campos extras cadastrados pelo escritório para o tipo FINANCEIRO — busca
+   dinâmica (não fixa por id), pra funcionar em qualquer base de cliente. */
+async function buscarCamposExtrasFinanceiro(){
+  try{
+    const r = await fetch(CAMPOS_EXTRAS_FINANCEIRO_URL, { headers: { 'Authorization': `Bearer ${BEARER_TOKEN}` } });
+    if(!r.ok) return [];
+    const lista = await r.json();
+    return (Array.isArray(lista) ? lista : []).filter(ce => !ce.removido);
+  }catch(err){
+    console.error('Erro ao buscar campos extras do financeiro:', err);
+    return [];
+  }
+}
+
+function valorCampoExtra(m, idCampo){
+  const lista = m.valoresCamposExtras || m.camposExtras || [];
+  const item = lista.find(c => String(c && c.idCampoExtra) === String(idCampo));
+  if(!item) return '';
+  if(item.itemDoCampoExtra && item.itemDoCampoExtra.descricao) return item.itemDoCampoExtra.descricao;
+  if(Array.isArray(item.valor)) return item.valor.map(v => (v && v.descricao) || v).join(', ');
+  return (item.valor === null || item.valor === undefined) ? '' : String(item.valor);
+}
+
+function celulasCamposExtras(m){
+  return CAMPOS_EXTRAS_FINANCEIRO.map(ce=>{
+    const valor = valorCampoExtra(m, ce.id);
+    return `<td class="muted-small campo-extra-cel" title="${escapeHtml(valor)}">${escapeHtml(valor) || '—'}</td>`;
+  }).join('');
+}
+
+function objCamposExtras(m){
+  const obj = {};
+  CAMPOS_EXTRAS_FINANCEIRO.forEach(ce => { obj[ce.nome || ce.descricao || ('Campo extra ' + ce.id)] = valorCampoExtra(m, ce.id); });
+  return obj;
+}
+
+/* Monta o cabeçalho do extrato incluindo uma coluna por campo extra
+   carregado — refeito a cada login pra acompanhar a config de cada base. */
+function montarCabecalhoExtrato(){
+  const tr = document.getElementById('extratoTheadRow');
+  if(!tr) return;
+  tr.querySelectorAll('.th-campo-extra').forEach(th => th.remove());
+  CAMPOS_EXTRAS_FINANCEIRO.forEach(ce=>{
+    const th = document.createElement('th');
+    th.className = 'th-campo-extra';
+    th.textContent = ce.nome || ce.descricao || 'Campo extra';
+    tr.appendChild(th);
+  });
+}
+
+function colspanExtrato(){ return 7 + CAMPOS_EXTRAS_FINANCEIRO.length; }
+
 function bodyRealizadosBase(){
   return {
     clientesOuEnvolvidos: [], descricao: null, filtrosCamposExtras: [],
@@ -693,15 +749,18 @@ async function carregarDados(){
   }
 
   try{
-    const [futuros, contas, planos] = await Promise.all([
+    const [futuros, contas, planos, camposExtras] = await Promise.all([
       buscarPaginado(FUTUROS_URL, bodyFuturos, 100, 'DATA_DE_VENCIMENTO_ASC', (atual)=>{ futurosProgresso = atual; atualizarBarra(); }),
       buscarContas(),
-      buscarPaginadoGet(PLANOS_URL, 200)
+      buscarPaginadoGet(PLANOS_URL, 200),
+      buscarCamposExtrasFinanceiro()
     ]);
     TODOS_FUTUROS = futuros;
     CONTAS_LISTA = contas;
     PLANOS_DE_CONTAS = planos;
+    CAMPOS_EXTRAS_FINANCEIRO = camposExtras;
     construirIndiceContas();
+    montarCabecalhoExtrato();
 
     pararDicas();
     document.getElementById('loadingCard').style.display = 'none';
@@ -1393,7 +1452,7 @@ async function renderExtrato(){
       const da = a.dataVencimento || '', db = b.dataVencimento || '';
       return da < db ? -1 : da > db ? 1 : (a.id - b.id);
     });
-    if(!ordenado.length){ tbody.innerHTML = '<tr><td colspan="7" class="muted-small">Sem lançamentos para o filtro atual.</td></tr>'; return; }
+    if(!ordenado.length){ tbody.innerHTML = `<tr><td colspan="${colspanExtrato()}" class="muted-small">Sem lançamentos para o filtro atual.</td></tr>`; return; }
     tbody.innerHTML = ordenado.map(m=>`
       <tr>
         <td>${formatarData(m.dataVencimento)}</td>
@@ -1403,6 +1462,7 @@ async function renderExtrato(){
         <td class="muted-small">—</td>
         <td class="${valorDe(m)>=0?'valor-pos':'valor-neg'}">${formatarMoeda(valorDe(m))}</td>
         <td class="muted-small">—</td>
+        ${celulasCamposExtras(m)}
       </tr>
     `).join('');
     return;
@@ -1418,7 +1478,7 @@ async function renderExtrato(){
       const da = a.dataPagamento || a.dataVencimento || '', db = b.dataPagamento || b.dataVencimento || '';
       return da < db ? -1 : da > db ? 1 : (a.id - b.id);
     });
-    if(!ordenado.length){ tbody.innerHTML = '<tr><td colspan="7" class="muted-small">Sem lançamentos para o filtro atual.</td></tr>'; return; }
+    if(!ordenado.length){ tbody.innerHTML = `<tr><td colspan="${colspanExtrato()}" class="muted-small">Sem lançamentos para o filtro atual.</td></tr>`; return; }
     tbody.innerHTML = ordenado.map(m=>{
       const realizado = !!m.dataPagamento;
       if(realizado) saldoCorrente += valorDe(m);
@@ -1431,6 +1491,7 @@ async function renderExtrato(){
           <td class="muted-small">${realizado ? escapeHtml(nomeConta(m)) : '—'}</td>
           <td class="${valorDe(m)>=0?'valor-pos':'valor-neg'}">${formatarMoeda(valorDe(m))}</td>
           <td class="${realizado?'':'muted-small'}">${realizado ? formatarMoeda(saldoCorrente) : '—'}</td>
+          ${celulasCamposExtras(m)}
         </tr>
       `;
     }).join('');
@@ -1446,7 +1507,7 @@ async function renderExtrato(){
     return da < db ? -1 : da > db ? 1 : (a.id - b.id);
   });
 
-  if(!ordenado.length){ tbody.innerHTML = '<tr><td colspan="7" class="muted-small">Sem lançamentos para o filtro atual.</td></tr>'; return; }
+  if(!ordenado.length){ tbody.innerHTML = `<tr><td colspan="${colspanExtrato()}" class="muted-small">Sem lançamentos para o filtro atual.</td></tr>`; return; }
 
   const linhas = ordenado.map(m=>{
     saldoCorrente += valorDe(m);
@@ -1462,6 +1523,7 @@ async function renderExtrato(){
       <td class="muted-small">${escapeHtml(nomeConta(m))}</td>
       <td class="${valorDe(m)>=0?'valor-pos':'valor-neg'}">${formatarMoeda(valorDe(m))}</td>
       <td>${formatarMoeda(saldo)}</td>
+      ${celulasCamposExtras(m)}
     </tr>
   `).join('');
 }
@@ -1481,7 +1543,8 @@ document.getElementById('btnExportarExcel').addEventListener('click', async ()=>
       'Cliente': nomeCliente(m) || '',
       'Pasta': nomePasta(m) || '',
       'Valor': valorDe(m),
-      'Saldo': ''
+      'Saldo': '',
+      ...objCamposExtras(m)
     }));
   }else if(MODO_VISAO === 'TODOS'){
     const pagMin = document.getElementById('fPagMin').value;
@@ -1505,7 +1568,8 @@ document.getElementById('btnExportarExcel').addEventListener('click', async ()=>
         'Pasta': nomePasta(m) || '',
         'Conta': realizado ? nomeConta(m) : '',
         'Valor': valorDe(m),
-        'Saldo': realizado ? saldoCorrente : ''
+        'Saldo': realizado ? saldoCorrente : '',
+        ...objCamposExtras(m)
       };
     });
   }else{
@@ -1528,7 +1592,8 @@ document.getElementById('btnExportarExcel').addEventListener('click', async ()=>
         'Pasta': nomePasta(m) || '',
         'Conta': nomeConta(m),
         'Valor': valorDe(m),
-        'Saldo': saldoCorrente
+        'Saldo': saldoCorrente,
+        ...objCamposExtras(m)
       };
     });
   }
