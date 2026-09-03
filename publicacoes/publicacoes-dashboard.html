@@ -111,6 +111,7 @@
 .dash-table .muted-small{color:var(--muted);font-size:.78rem}
 .dash-table .valor-pos{color:var(--success);font-weight:600}
 .dash-table .valor-neg{color:var(--danger);font-weight:600}
+.texto-publicacao-cel{ max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:help; }
 
 .extrato-wrap{max-height:460px;overflow-y:auto}
 .extrato-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}
@@ -136,6 +137,7 @@
   .dash-filters{width:100%;position:static;max-height:none}
   .dash-header #btnSairDash{position:static;margin-top:12px}
 }
+
 </style>
 </head>
 <body>
@@ -198,12 +200,13 @@
         <span class="filters-section-title">Período (data de cadastro)</span>
         <div class="tipo-btn-row">
           <button type="button" class="filter-btn" data-periodo-rapido="7">7 dias</button>
-          <button type="button" class="filter-btn active" data-periodo-rapido="30">30 dias</button>
+          <button type="button" class="filter-btn active" data-periodo-rapido="mes">Este mês</button>
         </div>
         <div class="tipo-btn-row">
           <button type="button" class="filter-btn" data-periodo-rapido="90">90 dias</button>
           <button type="button" class="filter-btn" data-periodo-rapido="0">Todo o período</button>
         </div>
+        <p class="filters-hint" id="avisoCarregando" style="display:none;color:var(--brand)"></p>
 
         <div class="field-box" style="margin-top:10px">
           <span class="field-box-label">Intervalo manual</span>
@@ -317,11 +320,14 @@
               <h3 style="margin:0">🧾 Publicações do Período</h3>
               <p class="chart-sub" style="margin:2px 0 0" id="extratoSub">Mostrando até 300 publicações — use os filtros para refinar. O Excel exporta tudo.</p>
             </div>
-            <button type="button" id="btnExportarExcel" class="btn btn-outline-inline">⬇️ Baixar Excel</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button type="button" id="btnExportarExcel" class="btn btn-outline-inline">⬇️ Baixar Excel</button>
+              <button type="button" id="btnBaixarPdf" class="btn btn-outline-inline">🖨️ Baixar PDF</button>
+            </div>
           </div>
           <div class="extrato-wrap">
             <table class="dash-table">
-              <thead><tr><th>Data Cadastro</th><th>Data Publicação</th><th>Diário</th><th>Órgão</th><th>Vínculo</th><th>Processo</th><th>Tarefas</th></tr></thead>
+              <thead><tr><th>Data Cadastro</th><th>Texto da Publicação</th><th>Data Publicação</th><th>Diário</th><th>Órgão</th><th>Vínculo</th><th>Processo</th><th>Tarefas</th></tr></thead>
               <tbody id="tabelaExtrato"></tbody>
             </table>
           </div>
@@ -435,6 +441,7 @@ const LOGIN_URL = "https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum"
 const PUBLICACOES_URL = "https://busca-avancada-api-prod.alkasoft.com.br/api/v1/publicacoes";
 const DETALHE_TAREFA_URL = "https://app-api-prod.alkasoft.com.br/api/v1/tarefas/{ID}";
 const SITE_BASE = "https://eleven.alkasoft.com.br/auth/";
+const PUB_BASE = "https://lawyereleven.alkasoft.com.br/auth/"; // confirmado pelo usuário para publicações
 
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -458,6 +465,68 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 });
 
 document.getElementById('btnSairDash').addEventListener('click', ()=> location.reload());
+
+/* "Baixar PDF" gera uma lista das PUBLICAÇÕES do período filtrado (não uma
+   foto da página do dashboard) — mesmo padrão de relatório imprimível já
+   usado em Pastas sem Movimentos Processuais: abre numa aba nova, com botão
+   próprio de Imprimir (o usuário escolhe "Salvar como PDF" no diálogo). */
+function gerarPdfPublicacoes(){
+  const lista = [...PUBLICACOES_FILTRADAS].sort((a,b)=> (b.dataCadastro||'').localeCompare(a.dataCadastro||''));
+  if(!lista.length){ alert('Não há publicações para gerar o PDF com os filtros atuais.'); return; }
+
+  const hoje = new Date().toLocaleString('pt-BR');
+  const linhas = lista.map(p=>{
+    const link = linkPublicacao(p);
+    const processoTxt = p.numeroProcessoPublicacao || '—';
+    const tarefasTxt = temTarefas(p) ? `${p.tarefas.length} tarefa(s)` : 'Sem tarefas';
+    const textoPub = p.publicacao ? escapeHtml(p.publicacao) : '—';
+    return `<tr>
+      <td><a href="${escapeHtml(link)}" target="_blank" rel="noopener">${formatarDataHora(p.dataCadastro)}</a></td>
+      <td>${formatarDataSimples(p.dataPublicacao)}</td>
+      <td>${escapeHtml(nomeDiario(p))}</td>
+      <td>${escapeHtml(nomeOrgao(p))}</td>
+      <td>${escapeHtml(nomeVara(p))}</td>
+      <td>${escapeHtml(nomeVinculo(p))}</td>
+      <td>${escapeHtml(processoTxt)}</td>
+      <td>${tarefasTxt}</td>
+    </tr>
+    <tr class="linha-texto">
+      <td colspan="8"><strong>Texto:</strong> ${textoPub}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Publicações</title>
+  <style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:24px;color:#222;background:#fff}
+  h2{margin:0 0 4px}
+  p.meta{color:#666;margin:0 0 18px;font-size:.85rem}
+  table{width:100%;border-collapse:collapse;font-size:.78rem}
+  th,td{border:1px solid #ddd;padding:6px 8px;text-align:left;vertical-align:top}
+  th{background:#f2f2f2}
+  tr.linha-texto td{background:#fafafa;color:#333;font-size:.74rem;white-space:pre-wrap;border-top:none}
+  a{color:#1a5fb4;text-decoration:none}
+  .actions{margin-bottom:16px}
+  .actions button{padding:8px 14px;border:none;border-radius:6px;background:#333;color:#fff;cursor:pointer;margin-right:8px;font-weight:700}
+  @media print{ .actions{display:none} }
+  </style></head><body>
+  <div class="actions">
+    <button onclick="window.print()">🖨️ Imprimir / Salvar como PDF</button>
+    <button onclick="window.close()">✕ Fechar</button>
+  </div>
+  <h2>Publicações do Período</h2>
+  <p class="meta">Gerado em ${hoje} — ${lista.length.toLocaleString('pt-BR')} publicação(ões)</p>
+  <table>
+    <thead><tr><th>Data Cadastro</th><th>Data Publicação</th><th>Diário</th><th>Órgão</th><th>Vara</th><th>Vínculo</th><th>Processo</th><th>Tarefas</th></tr></thead>
+    <tbody>${linhas}</tbody>
+  </table>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  if(!w){ alert('O navegador bloqueou a abertura da nova aba. Permita pop-ups para este site e tente de novo.'); return; }
+  w.document.write(html);
+  w.document.close();
+}
+document.getElementById('btnBaixarPdf').addEventListener('click', gerarPdfPublicacoes);
 
 async function buscarPaginado(url, body, quantidade, ordenacao, onProgress, maxPaginas){
   let inicio = 0, todos = [], totalEsperado = null, pagina = 0;
@@ -496,37 +565,84 @@ async function buscarDetalheTarefa(id){
   }catch(e){ return null; }
 }
 
+/* Data (YYYY-MM-DD) a partir de onde TODAS_PUBLICACOES está carregado.
+   null = já carregou tudo, sem piso nenhum. Começa carregando só o mês
+   atual (bases grandes têm muita publicação acumulada) e só busca mais
+   quando o filtro pedir uma data anterior ao que já está em memória. */
+let DATA_MIN_CARREGADA = null;
+
+async function carregarDetalhesTarefasFaltantes(publicacoes, onProgressTexto){
+  const idsTarefas = new Set();
+  publicacoes.forEach(p=>{ (p.tarefas||[]).forEach(t=>{ if(t && t.id && !TAREFAS_DETALHE.has(t.id)) idsTarefas.add(t.id); }); });
+  const ids = [...idsTarefas];
+  const lote = 12;
+  for(let i=0; i<ids.length; i+=lote){
+    const grupo = ids.slice(i, i+lote);
+    if(onProgressTexto) onProgressTexto(`Carregando detalhes das tarefas... (${Math.min(i+lote, ids.length)}/${ids.length})`);
+    const chamadas = grupo.map(id=>buscarDetalheTarefa(id));
+    const resultados = await Promise.all(chamadas);
+    resultados.forEach((det, idx)=>{ if(det) TAREFAS_DETALHE.set(grupo[idx], det); });
+  }
+}
+
+/* Busca as publicações a partir de dataMinISO ('YYYY-MM-DD') ou tudo, se
+   null. Tenta filtrar no servidor (mesmo formato usado em outros endpoints
+   dessa API — dataX:{valorMinimo,valorMaximo}); se a API rejeitar esse
+   corpo (endpoint não confirmado pelo usuário), cai para buscar tudo sem
+   filtro, sem travar o relatório. */
+async function carregarPublicacoes(dataMinISO, onProgressTexto){
+  let body = {};
+  if(dataMinISO) body = { dataCadastro: { valorMinimo: dataMinISO + 'T00:00:00.000Z', valorMaximo: null } };
+
+  let publicacoes;
+  try{
+    publicacoes = await buscarPaginado(PUBLICACOES_URL, body, 100, 'DATA_CADASTRO_DESC', (atual)=>{
+      if(onProgressTexto) onProgressTexto(`Carregando publicações... (${atual})`);
+    });
+  }catch(err){
+    if(dataMinISO){
+      console.warn('Filtro de data por dataCadastro não foi aceito pelo servidor, buscando tudo sem filtro:', err.message);
+      if(onProgressTexto) onProgressTexto('Filtro de data não aceito pelo servidor — carregando tudo (pode demorar mais)...');
+      publicacoes = await buscarPaginado(PUBLICACOES_URL, {}, 100, 'DATA_CADASTRO_DESC', (atual)=>{
+        if(onProgressTexto) onProgressTexto(`Carregando publicações... (${atual})`);
+      });
+      dataMinISO = null;
+    }else{
+      throw err;
+    }
+  }
+
+  TODAS_PUBLICACOES = publicacoes;
+  DATA_MIN_CARREGADA = dataMinISO;
+
+  await carregarDetalhesTarefasFaltantes(TODAS_PUBLICACOES, onProgressTexto);
+}
+
+/* Se o período pedido pelo usuário for mais antigo do que o que já está
+   carregado, busca de novo (mais amplo). Se já estiver coberto, não faz
+   nada — o filtro seguinte usa o que já está em memória. */
+async function garantirCarregado(dataMinDesejada){
+  if(DATA_MIN_CARREGADA === null) return; // já é tudo
+  const precisaAmpliar = !dataMinDesejada || dataMinDesejada < DATA_MIN_CARREGADA;
+  if(!precisaAmpliar) return;
+
+  const aviso = document.getElementById('avisoCarregando');
+  if(aviso) aviso.style.display = 'block';
+  try{
+    await carregarPublicacoes(dataMinDesejada || null, (t)=>{ if(aviso) aviso.textContent = '🔄 ' + t; });
+    popularOpcoesFiltro();
+    renderResumoFixo();
+  }finally{
+    if(aviso) aviso.style.display = 'none';
+  }
+}
+
 async function carregarDados(){
   const texto = document.getElementById('textoCarregamento');
-
-  /* Corpo da busca não confirmado pelo usuário (só a URL e um item de
-     exemplo da resposta foram passados) — enviando vazio, sem filtro de
-     data no servidor. O corte por período é feito inteiramente no
-     navegador, igual aos demais dashboards deste projeto. */
-  const bodyPublicacoes = {};
-
   try{
-    let progresso = 0;
-    TODAS_PUBLICACOES = await buscarPaginado(PUBLICACOES_URL, bodyPublicacoes, 100, 'DATA_CADASTRO_DESC', (atual)=>{
-      progresso = atual;
-      texto.textContent = `Carregando publicações... (${progresso})`;
-    });
-
-    /* Os detalhes de situação/datas/encarregado de cada tarefa não vêm
-       dentro da publicação (só id/descrição) — busca-se o detalhe de cada
-       tarefa única encontrada, em lotes, igual ao relatório de Tarefas e
-       Subtarefas. */
-    const idsTarefas = new Set();
-    TODAS_PUBLICACOES.forEach(p=>{ (p.tarefas||[]).forEach(t=>{ if(t && t.id) idsTarefas.add(t.id); }); });
-    const ids = [...idsTarefas];
-    const lote = 12;
-    for(let i=0; i<ids.length; i+=lote){
-      const grupo = ids.slice(i, i+lote);
-      texto.textContent = `Carregando detalhes das tarefas... (${Math.min(i+lote, ids.length)}/${ids.length})`;
-      const chamadas = grupo.map(id=>buscarDetalheTarefa(id));
-      const resultados = await Promise.all(chamadas);
-      resultados.forEach((det, idx)=>{ if(det) TAREFAS_DETALHE.set(grupo[idx], det); });
-    }
+    const hoje = new Date();
+    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0,10);
+    await carregarPublicacoes(inicioMes, (t)=>{ texto.textContent = t; });
 
     pararDicas();
     document.getElementById('loadingCard').style.display = 'none';
@@ -535,7 +651,7 @@ async function carregarDados(){
 
     popularOpcoesFiltro();
     renderResumoFixo();
-    document.querySelector('[data-periodo-rapido="30"]').click();
+    document.querySelector('[data-periodo-rapido="mes"]').click();
   }catch(err){
     texto.textContent = 'Erro ao carregar publicações: ' + err.message;
   }
@@ -579,6 +695,11 @@ function linkProcesso(p){
   const tipo = (p.processo.tipoDoCadastro==='PROCESSO_EXTRAJUDICIAL') ? 'processos-extrajudiciais' : 'processos-judiciais';
   return `${SITE_BASE}${tipo}/${p.processo.id}/detalhamento`;
 }
+/* Link de detalhamento da própria publicação — confirmado pelo usuário:
+   https://lawyereleven.alkasoft.com.br/auth/publicacoes/{id}/detalhamento */
+function linkPublicacao(p){
+  return `${PUB_BASE}publicacoes/${p.id}/detalhamento`;
+}
 
 function formatarDataHora(iso){
   if(!iso) return '—';
@@ -592,6 +713,13 @@ function formatarDataSimples(iso){
   const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? `${m[3]}/${m[2]}/${m[1]}` : '—';
 }
+/* Prévia curta do texto da publicação para caber na tabela — o texto
+   completo fica no title (aparece ao passar o mouse) e no PDF/Excel. */
+function textoResumo(texto, tamanho){
+  if(!texto) return '—';
+  const t = String(texto).trim();
+  return t.length > tamanho ? t.slice(0, tamanho) + '…' : t;
+}
 
 /* =========================================================
    FILTROS
@@ -600,12 +728,18 @@ document.querySelectorAll('[data-periodo-rapido]').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('[data-periodo-rapido]').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    const dias = parseInt(btn.dataset.periodoRapido, 10);
+    const valor = btn.dataset.periodoRapido;
     let min = '';
-    if(dias > 0){
-      const d = new Date();
-      d.setDate(d.getDate() - dias);
-      min = d.toISOString().slice(0,10);
+    if(valor === 'mes'){
+      const hoje = new Date();
+      min = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0,10);
+    }else{
+      const dias = parseInt(valor, 10);
+      if(dias > 0){
+        const d = new Date();
+        d.setDate(d.getDate() - dias);
+        min = d.toISOString().slice(0,10);
+      }
     }
     document.getElementById('fDataMin').value = min;
     document.getElementById('fDataMax').value = '';
@@ -636,7 +770,7 @@ document.getElementById('btnLimparFiltros').addEventListener('click', ()=>{
   document.getElementById('fVara').value = '';
   document.getElementById('fDiario').value = '';
   document.getElementById('fVinculo').value = '';
-  document.querySelector('[data-periodo-rapido="30"]').click();
+  document.querySelector('[data-periodo-rapido="mes"]').click();
 });
 
 function popularOpcoesFiltro(){
@@ -644,25 +778,32 @@ function popularOpcoesFiltro(){
   TODAS_PUBLICACOES.forEach(p=>{
     orgaos.add(nomeOrgao(p)); varas.add(nomeVara(p)); diarios.add(nomeDiario(p)); vinculos.add(nomeVinculo(p));
   });
-  function preencher(id, set){
+  /* Reconstrói do zero (não só acrescenta) — isso é chamado de novo sempre
+     que o período carregado é ampliado, então evita duplicar opção. */
+  function preencher(id, set, rotuloTodos){
     const sel = document.getElementById(id);
-    [...set].sort((a,b)=>a.localeCompare(b,'pt-BR')).forEach(v=>{
-      const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o);
-    });
+    const atual = sel.value;
+    sel.innerHTML = `<option value="">${rotuloTodos}</option>` +
+      [...set].sort((a,b)=>a.localeCompare(b,'pt-BR')).map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+    if(set.has(atual)) sel.value = atual;
   }
-  preencher('fOrgao', orgaos);
-  preencher('fVara', varas);
-  preencher('fDiario', diarios);
-  preencher('fVinculo', vinculos);
+  preencher('fOrgao', orgaos, 'Todos');
+  preencher('fVara', varas, 'Todas');
+  preencher('fDiario', diarios, 'Todos');
+  preencher('fVinculo', vinculos, 'Todos');
 }
 
-function aplicarFiltros(){
+async function aplicarFiltros(){
   const dataMin = document.getElementById('fDataMin').value;
   const dataMax = document.getElementById('fDataMax').value;
   const orgao = document.getElementById('fOrgao').value;
   const vara = document.getElementById('fVara').value;
   const diario = document.getElementById('fDiario').value;
   const vinculo = document.getElementById('fVinculo').value;
+
+  /* Se o período pedido for mais antigo do que o que já está carregado,
+     busca mais antes de filtrar (ver garantirCarregado). */
+  await garantirCarregado(dataMin);
 
   PUBLICACOES_FILTRADAS = TODAS_PUBLICACOES.filter(p=>{
     const d = (p.dataCadastro||'').slice(0,10);
@@ -825,7 +966,7 @@ function renderExtrato(){
   document.getElementById('extratoSub').textContent = ordenado.length > 300
     ? `Mostrando as 300 mais recentes de ${ordenado.length.toLocaleString('pt-BR')} — use os filtros para refinar. O Excel exporta tudo.`
     : `${ordenado.length.toLocaleString('pt-BR')} publicação(ões) no filtro atual.`;
-  if(!ordenado.length){ tbody.innerHTML = '<tr><td colspan="7" class="muted-small">Sem publicações para o filtro atual.</td></tr>'; return; }
+  if(!ordenado.length){ tbody.innerHTML = '<tr><td colspan="8" class="muted-small">Sem publicações para o filtro atual.</td></tr>'; return; }
   tbody.innerHTML = ordenado.slice(0,300).map(p=>{
     const link = linkProcesso(p);
     const processoCel = link
@@ -833,7 +974,8 @@ function renderExtrato(){
       : (p.numeroProcessoPublicacao ? escapeHtml(p.numeroProcessoPublicacao) : '<span class="muted-small">Sem vínculo</span>');
     const tarefasResumo = temTarefas(p) ? `${p.tarefas.length} tarefa(s)` : 'Sem tarefas';
     return `<tr>
-      <td>${formatarDataHora(p.dataCadastro)}</td>
+      <td><a href="${escapeHtml(linkPublicacao(p))}" target="_blank" rel="noopener">${formatarDataHora(p.dataCadastro)}</a></td>
+      <td class="muted-small texto-publicacao-cel" title="${escapeHtml(p.publicacao || '')}">${escapeHtml(textoResumo(p.publicacao, 160))}</td>
       <td class="muted-small">${formatarDataSimples(p.dataPublicacao)}</td>
       <td>${escapeHtml(nomeDiario(p))}</td>
       <td>${escapeHtml(nomeOrgao(p))}</td>
@@ -927,30 +1069,54 @@ document.querySelectorAll('[data-resumo-card]').forEach(btn=>{
 /* =========================================================
    EXCEL
    ========================================================= */
+/* O Excel (.xlsx) tem limite rígido de 32.767 caracteres por célula — uma
+   publicação real de Diário pode ter um texto bem mais longo que isso, e
+   isso quebra a geração do arquivo (sem aviso nenhum, o download simplesmente
+   não acontece). Corta com folga de segurança abaixo do limite. */
+const LIMITE_CELULA_EXCEL = 32000;
+function truncarParaExcel(s){
+  if(!s) return '';
+  s = String(s);
+  return s.length > LIMITE_CELULA_EXCEL ? s.slice(0, LIMITE_CELULA_EXCEL) + '… (texto truncado — abra a publicação pelo link para o texto completo)' : s;
+}
+
 document.getElementById('btnExportarExcel').addEventListener('click', ()=>{
-  const lista = [...PUBLICACOES_FILTRADAS].sort((a,b)=> (a.dataCadastro||'').localeCompare(b.dataCadastro||''));
-  if(!lista.length){ alert('Não há publicações para exportar com os filtros atuais.'); return; }
+  try{
+    const lista = [...PUBLICACOES_FILTRADAS].sort((a,b)=> (a.dataCadastro||'').localeCompare(b.dataCadastro||''));
+    if(!lista.length){ alert('Não há publicações para exportar com os filtros atuais.'); return; }
 
-  const planilha = lista.map(p=>({
-    'Data Cadastro': formatarDataHora(p.dataCadastro),
-    'Data Publicação': formatarDataSimples(p.dataPublicacao),
-    'Diário': nomeDiario(p),
-    'Cidade': p.cidade || '',
-    'Órgão': nomeOrgao(p),
-    'Vara': nomeVara(p),
-    'Vínculo': nomeVinculo(p),
-    'Processo Nº': p.numeroProcessoPublicacao || '',
-    'Com Processo Vinculado': temProcesso(p) ? 'Sim' : 'Não',
-    'Qtd Tarefas': p.tarefas ? p.tarefas.length : 0,
-    'Tarefa Atrasada': publicacaoTemTarefaAtrasada(p) ? 'Sim' : 'Não',
-    'Tarefa Finalizada Após Vencimento': publicacaoTemTarefaFinalizadaApos(p) ? 'Sim' : 'Não'
-  }));
+    const planilha = lista.map(p=>({
+      'Data Cadastro': formatarDataHora(p.dataCadastro),
+      'Texto da Publicação': truncarParaExcel(p.publicacao),
+      'Data Publicação': formatarDataSimples(p.dataPublicacao),
+      'Diário': nomeDiario(p),
+      'Cidade': p.cidade || '',
+      'Órgão': nomeOrgao(p),
+      'Vara': nomeVara(p),
+      'Vínculo': nomeVinculo(p),
+      'Processo Nº': p.numeroProcessoPublicacao || '',
+      'Com Processo Vinculado': temProcesso(p) ? 'Sim' : 'Não',
+      'Qtd Tarefas': p.tarefas ? p.tarefas.length : 0,
+      'Tarefa Atrasada': publicacaoTemTarefaAtrasada(p) ? 'Sim' : 'Não',
+      'Tarefa Finalizada Após Vencimento': publicacaoTemTarefaFinalizadaApos(p) ? 'Sim' : 'Não'
+    }));
 
-  const ws = XLSX.utils.json_to_sheet(planilha);
-  ws['!cols'] = Object.keys(planilha[0]).map(()=>({ wch:22 }));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Publicações');
-  XLSX.writeFile(wb, 'Publicacoes_Eleven.xlsx');
+    const ws = XLSX.utils.json_to_sheet(planilha);
+    ws['!cols'] = Object.keys(planilha[0]).map(chave=>({ wch: chave==='Texto da Publicação' ? 80 : 22 }));
+    // Deixa "Data Cadastro" clicável, linkando direto para a publicação (sem coluna separada)
+    lista.forEach((p, i)=>{
+      const cellAddr = XLSX.utils.encode_cell({ r: i+1, c: 0 });
+      if(ws[cellAddr]){
+        ws[cellAddr].l = { Target: linkPublicacao(p), Tooltip: 'Abrir publicação' };
+      }
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Publicações');
+    XLSX.writeFile(wb, 'Publicacoes_Eleven.xlsx');
+  }catch(err){
+    console.error('Erro ao exportar Excel:', err);
+    alert('Erro ao gerar o Excel: ' + err.message);
+  }
 });
 
 function escapeHtml(s){
