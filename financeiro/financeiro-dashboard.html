@@ -116,7 +116,11 @@
 .chart-card .chart-sub{margin:0 0 12px;font-size:.78rem;color:var(--muted)}
 .chart-card canvas{max-height:260px}
 
-.dash-table{width:100%;min-width:760px;border-collapse:collapse;font-size:.85rem}
+/* Padrão único pra qualquer tabela do dashboard: nunca vaza do card — quando o
+   conteúdo é mais largo que o espaço disponível, o PRÓPRIO .table-wrap rola
+   na horizontal (a tabela nunca fica com min-width maior que o card). */
+.table-wrap{width:100%;max-width:100%;overflow:auto}
+.dash-table{width:100%;border-collapse:collapse;font-size:.85rem}
 .dash-table th{text-align:left;color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;padding:0 16px 8px 0;border-bottom:1px solid var(--border);white-space:nowrap}
 .dash-table td{padding:8px 16px 8px 0;border-bottom:1px solid var(--border);vertical-align:top}
 .dash-table th:last-child,.dash-table td:last-child{padding-right:0}
@@ -125,8 +129,11 @@
 .dash-table .valor-pos{color:var(--success);font-weight:600}
 .dash-table .valor-neg{color:var(--danger);font-weight:600}
 .dash-table .th-campo-extra,.dash-table td.campo-extra-cel{white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+/* Só a tabela do Extrato (muitas colunas) pede uma largura mínima pra não
+   espremer demais — as outras (Clientes, Pastas, modais) seguem o card. */
+.extrato-wrap .dash-table{min-width:720px}
 
-.extrato-wrap{max-height:420px;overflow:auto}
+.extrato-wrap{max-height:420px}
 .extrato-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}
 
 .empty-dash{padding:30px;text-align:center;color:var(--muted);font-size:.85rem}
@@ -224,14 +231,15 @@
       <div class="filters-section">
         <span class="filters-section-title">Período</span>
         <div class="tipo-btn-row">
+          <button type="button" class="filter-btn active" data-periodo-rapido="mes">Mês atual</button>
           <button type="button" class="filter-btn" data-periodo-rapido="1">1 mês</button>
+        </div>
+        <div class="tipo-btn-row">
           <button type="button" class="filter-btn" data-periodo-rapido="2">2 meses</button>
+          <button type="button" class="filter-btn" data-periodo-rapido="3">3 meses</button>
         </div>
         <div class="tipo-btn-row">
-          <button type="button" class="filter-btn active" data-periodo-rapido="3">3 meses</button>
           <button type="button" class="filter-btn" data-periodo-rapido="6">6 meses</button>
-        </div>
-        <div class="tipo-btn-row">
           <button type="button" class="filter-btn" data-periodo-rapido="0">Todo o período</button>
         </div>
         <p class="filters-hint" id="periodoRapidoAlvo">Aplicado à data de pagamento</p>
@@ -356,18 +364,22 @@
       <div class="chart-grid" style="grid-template-columns:1fr 1fr">
         <div class="card chart-card" id="cardClientes">
           <h3>👥 Clientes com Mais Receitas e Despesas</h3>
-          <table class="dash-table">
-            <thead><tr><th>Cliente</th><th>Receita</th><th>Despesa</th><th>Saldo</th></tr></thead>
-            <tbody id="tabelaClientes"></tbody>
-          </table>
+          <div class="table-wrap">
+            <table class="dash-table">
+              <thead><tr><th>Cliente</th><th>Receita</th><th>Despesa</th><th>Saldo</th></tr></thead>
+              <tbody id="tabelaClientes"></tbody>
+            </table>
+          </div>
         </div>
 
         <div class="card chart-card" id="cardPastas">
           <h3>📁 Pastas com Mais Receitas e Despesas</h3>
-          <table class="dash-table">
-            <thead><tr><th>Pasta</th><th>Receita</th><th>Despesa</th><th>Saldo</th></tr></thead>
-            <tbody id="tabelaPastas"></tbody>
-          </table>
+          <div class="table-wrap">
+            <table class="dash-table">
+              <thead><tr><th>Pasta</th><th>Receita</th><th>Despesa</th><th>Saldo</th></tr></thead>
+              <tbody id="tabelaPastas"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -380,7 +392,7 @@
             </div>
             <button type="button" id="btnExportarExcel" class="btn btn-outline-inline">⬇️ Baixar Excel</button>
           </div>
-          <div class="extrato-wrap">
+          <div class="table-wrap extrato-wrap">
             <table class="dash-table">
               <thead><tr id="extratoTheadRow"><th>Data</th><th>Categoria</th><th>Cliente</th><th>Pasta</th><th>Conta</th><th>Valor</th><th>Saldo</th></tr></thead>
               <tbody id="tabelaExtrato"></tbody>
@@ -416,7 +428,7 @@
     <h2 class="modal-title">⚠️ Cobranças em Atraso</h2>
     <div class="modal-body">
       <p id="atrasadosResumo" style="margin:0 0 12px"></p>
-      <div style="max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:10px">
+      <div class="table-wrap" style="max-height:360px;border:1px solid var(--border);border-radius:10px">
         <table class="dash-table" style="font-size:.82rem">
           <thead>
             <tr>
@@ -440,7 +452,7 @@
     <h2 class="modal-title" id="resumoCardTitulo">Resumo</h2>
     <div class="modal-body">
       <p id="resumoCardResumo" style="margin:0 0 12px"></p>
-      <div style="max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:10px">
+      <div class="table-wrap" style="max-height:400px;border:1px solid var(--border);border-radius:10px">
         <table class="dash-table" style="font-size:.82rem">
           <thead id="resumoCardThead"></thead>
           <tbody id="resumoCardTbody"></tbody>
@@ -512,7 +524,9 @@ function pararDicas(){ if(dicaTimer){ clearInterval(dicaTimer); dicaTimer = null
 let BEARER_TOKEN = null;
 let TODOS_FUTUROS = [];
 let REALIZADOS_DO_PERIODO = []; // último resultado do servidor p/ dataPagamento+conta atuais
-let ULTIMA_CHAVE_PERIODO = null;
+let REALIZADOS_CARREGADOS = []; // cache bruto do servidor pra CONTA_REALIZADOS_CARREGADA, sem teto de data (a partir de DATA_MIN_REALIZADOS_CARREGADA)
+let DATA_MIN_REALIZADOS_CARREGADA = undefined; // undefined = nada carregado ainda; null = já carregado tudo (sem piso); 'AAAA-MM-DD' = piso já coberto
+let CONTA_REALIZADOS_CARREGADA; // conta associada ao cache acima
 let REALIZADOS_FILTRADOS = [];
 let FUTUROS_FILTRADOS = [];
 let LISTA_ATIVA = [];
@@ -684,6 +698,31 @@ function bodyRealizadosBase(){
   };
 }
 
+/* Garante que REALIZADOS_CARREGADOS cobre, pra CONTA pedida, tudo a partir de
+   dataMinDesejada (sem teto — o teto é aplicado depois, no navegador). Só
+   busca no servidor quando a conta muda ou quando o piso pedido é anterior
+   ao que já está em cache; do contrário reaproveita o que já tem. */
+async function garantirRealizadosCarregados(conta, dataMinDesejada){
+  const precisaTudo = !dataMinDesejada;
+  const precisaRecarregar =
+    CONTA_REALIZADOS_CARREGADA === undefined ||
+    conta !== CONTA_REALIZADOS_CARREGADA ||
+    (DATA_MIN_REALIZADOS_CARREGADA !== null && (precisaTudo || dataMinDesejada < DATA_MIN_REALIZADOS_CARREGADA));
+
+  if(!precisaRecarregar) return;
+
+  const kpiQtd = document.getElementById('kpiQtdLancamentos');
+  if(kpiQtd) kpiQtd.textContent = '...';
+
+  const bodyPeriodo = bodyRealizadosBase();
+  bodyPeriodo.dataPagamento = precisaTudo ? null : { valorMinimo: dataMinDesejada, valorMaximo: null };
+  bodyPeriodo.idsContas = conta ? [Number(conta)] : [];
+
+  REALIZADOS_CARREGADOS = await buscarPaginado(REALIZADOS_URL, bodyPeriodo, 100, 'DATA_DE_VENCIMENTO_ASC');
+  CONTA_REALIZADOS_CARREGADA = conta;
+  DATA_MIN_REALIZADOS_CARREGADA = precisaTudo ? null : dataMinDesejada;
+}
+
 /* Mesma regra do relatório R de referência (confirmada pelo próprio usuário):
    saldo(conta, dataX) = saldoInicial cadastrado na conta + o total que a API
    devolve em /movimentos-realizados/totalizador para essa conta, filtrando só
@@ -769,7 +808,7 @@ async function carregarDados(){
 
     popularOpcoesFiltro();
     await carregarResumoMes();
-    document.querySelector('[data-periodo-rapido="3"]').click();
+    document.querySelector('[data-periodo-rapido="mes"]').click();
   }catch(err){
     texto.textContent = 'Erro ao carregar dados: ' + err.message;
   }
@@ -858,14 +897,21 @@ document.querySelectorAll('[data-periodo-rapido]').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('[data-periodo-rapido]').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    const meses = parseInt(btn.dataset.periodoRapido, 10);
+    const chave = btn.dataset.periodoRapido;
     let min = '', max = '';
-    if(meses > 0){
+    if(chave === 'mes'){
       const hoje = new Date();
-      const inicio = new Date(hoje);
-      inicio.setMonth(inicio.getMonth() - meses);
-      min = inicio.toISOString().slice(0,10);
+      min = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0,10);
       max = hoje.toISOString().slice(0,10);
+    }else{
+      const meses = parseInt(chave, 10);
+      if(meses > 0){
+        const hoje = new Date();
+        const inicio = new Date(hoje);
+        inicio.setMonth(inicio.getMonth() - meses);
+        min = inicio.toISOString().slice(0,10);
+        max = hoje.toISOString().slice(0,10);
+      }
     }
     if(MODO_VISAO === 'PREVISTOS'){
       document.getElementById('fVencMin').value = min;
@@ -902,7 +948,7 @@ document.getElementById('btnLimparFiltros').addEventListener('click', ()=>{
   document.getElementById('fVencMax').value = '';
   document.getElementById('fPagMin').value = '';
   document.getElementById('fPagMax').value = '';
-  document.querySelector('[data-periodo-rapido="3"]').click();
+  document.querySelector('[data-periodo-rapido="mes"]').click();
 });
 
 /* Resumo do mês — sempre com base no mês corrente, independente dos filtros
@@ -1191,38 +1237,33 @@ async function aplicarFiltros(){
 
   /* dataPagamento{valorMinimo,valorMaximo} + idsContas são filtros CONFIRMADOS
      no servidor para /movimentos-realizados (o usuário testou e confirmou com
-     uma consulta real). Buscar assim, em vez de trazer tudo e filtrar no
-     navegador, evita truncar um histórico grande e garante que os movimentos
-     batem exatamente com o que a API retorna para esse período/conta. Só
-     refaz a busca quando período ou conta realmente mudam. */
-  const chavePeriodo = JSON.stringify([pagMin, pagMax, conta]);
-  if(chavePeriodo !== ULTIMA_CHAVE_PERIODO){
-    const kpiQtd = document.getElementById('kpiQtdLancamentos');
-    if(kpiQtd) kpiQtd.textContent = '...';
-    try{
-      const bodyPeriodo = bodyRealizadosBase();
-      bodyPeriodo.dataPagamento = (pagMin || pagMax) ? { valorMaximo: pagMax || null, valorMinimo: pagMin || null } : null;
-      bodyPeriodo.idsContas = conta ? [Number(conta)] : [];
-      let itensDoServidor = await buscarPaginado(REALIZADOS_URL, bodyPeriodo, 100, 'DATA_DE_VENCIMENTO_ASC');
-
-      /* Revalida no cliente o que o servidor deveria ter filtrado (conta e
-         intervalo de dataPagamento) — se a API devolver registros fora desse
-         recorte por qualquer motivo, isso corta o excesso antes de somar. */
-      REALIZADOS_DO_PERIODO = itensDoServidor.filter(m=>{
-        if(conta && String(idConta(m)) !== conta) return false;
-        const dp = m.dataPagamento;
-        if(pagMin && (!dp || dp < pagMin)) return false;
-        if(pagMax && (!dp || dp > pagMax)) return false;
-        return true;
-      });
-
-      acumularCategorias(REALIZADOS_DO_PERIODO);
-      ULTIMA_CHAVE_PERIODO = chavePeriodo;
-    }catch(err){
-      alert('Erro ao buscar movimentos realizados: ' + err.message);
-      return;
-    }
+     uma consulta real). Carregamento incremental (igual ao dashboard de
+     Publicações): a primeira carga traz só o mês atual; se o usuário escolher
+     uma data ANTERIOR ao que já está em cache, busca de novo (mais pra trás);
+     se ele só estreitar o período (ou mudar o teto), reaproveita o que já
+     está em memória e filtra no navegador — evita reconsultar o servidor a
+     cada clique e, em bases grandes, evita trazer o histórico inteiro logo de
+     cara. Trocar de conta sempre força nova busca (o filtro é do servidor). */
+  const kpiQtd = document.getElementById('kpiQtdLancamentos');
+  try{
+    await garantirRealizadosCarregados(conta, pagMin);
+  }catch(err){
+    if(kpiQtd) kpiQtd.textContent = '—';
+    alert('Erro ao buscar movimentos realizados: ' + err.message);
+    return;
   }
+
+  /* Revalida no cliente o que o servidor deveria ter filtrado (conta e
+     intervalo de dataPagamento) — se a API devolver registros fora desse
+     recorte por qualquer motivo, isso corta o excesso antes de somar. */
+  REALIZADOS_DO_PERIODO = REALIZADOS_CARREGADOS.filter(m=>{
+    if(conta && String(idConta(m)) !== conta) return false;
+    const dp = m.dataPagamento;
+    if(pagMin && (!dp || dp < pagMin)) return false;
+    if(pagMax && (!dp || dp > pagMax)) return false;
+    return true;
+  });
+  acumularCategorias(REALIZADOS_DO_PERIODO);
 
   function passaFiltrosComuns(m){
     const dv = m.dataVencimento;
