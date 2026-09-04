@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Importação de Tarefas - Eleven Alkasoft</title>
+
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+
+    <style> 
+        :root{--brand:#667eea;--muted:#6c757d;--bg:#f8f9fa;--ink:#222;--card:#fff;--success:#4fa7a0;--danger:#dc3545;--blue-light:#00a8e8;--orange:#ffa500;--border:#e0e6f0}
+        *{box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;color:var(--ink);padding:20px}
+        .app{width:100%;max-width:1180px}
+        .card{background:var(--card);border-radius:14px;box-shadow:0 8px 24px rgba(20,30,60,.06);padding:32px;margin-bottom:14px;position:relative}
+        .center{display:flex;flex-direction:column;align-items:center;justify-content:center}
+        .login-card{max-width:600px;text-align:center;margin:0 auto}
+        .wide-card{text-align:left}
+        h1{margin:0 0 8px;font-size:1.6rem}
+        h2{margin:0 0 10px;font-size:1.15rem}
+        .subtitle{font-size:1rem;color:var(--muted);margin-bottom:20px}
+        .form-control{width:100%;padding:14px;border:1px solid var(--border);border-radius:10px;font-size:1.1rem;margin-bottom:12px;outline:none}
+        .form-control-sm{padding:8px 10px;font-size:.9rem;margin-bottom:0;border:1px solid var(--border);border-radius:8px;width:140px}
+        .btn{width:100%;padding:15px;border:none;border-radius:10px;background:var(--brand);color:#fff;font-weight:700;cursor:pointer;font-size:1.1rem;margin-bottom:10px}
+        .btn-financeiro{background:var(--success)}
+        .btn-danger{background:var(--danger)}
+        .btn-outline{background:#fff;color:var(--brand);border:2px solid var(--brand)}
+        .btn-sm{width:auto;padding:10px 16px;font-size:.9rem;margin-bottom:0;white-space:nowrap}
+        .btn-row{display:flex;gap:10px}
+        .btn-row .btn{margin-bottom:0}
+        .btn:disabled{opacity:.6;cursor:not-allowed}
+
+        .filter-info{width:100%;text-align:left;background:#eef6f5;border:1px solid var(--success);color:#2f5f5a;font-size:.85rem;padding:12px 14px;border-radius:10px;margin-bottom:16px;line-height:1.4}
+        .warn-info{background:#fff8e6;border-color:var(--orange);color:#7a5a00}
+
+        .dropzone{border:2px dashed var(--border);border-radius:12px;padding:40px;text-align:center;color:var(--muted);cursor:pointer;margin-bottom:16px}
+        .dropzone:hover{border-color:var(--brand);color:var(--brand)}
+
+        table.grid{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
+        table.grid th{background:var(--brand);color:#fff;padding:8px 10px;text-align:left;position:sticky;top:0}
+        table.grid td{padding:7px 10px;border-bottom:1px solid #eee}
+        table.grid tr:nth-child(even){background:#fafbff}
+        .table-scroll{max-height:420px;overflow:auto;border:1px solid var(--border);border-radius:10px}
+
+        .status-ok{color:var(--success);font-weight:700}
+        .status-erro{color:var(--danger);font-weight:700}
+        .status-pendente{color:var(--muted)}
+
+        .progress-wrap{background:#eee;border-radius:10px;height:10px;overflow:hidden;margin:10px 0}
+        .progress-bar{background:var(--success);height:100%;width:0%;transition:width .2s}
+
+        /* ===== BOTÃO DE AJUDA (i) ===== */
+        .help-btn{
+            position:absolute;top:20px;right:20px;
+            width:34px;height:34px;border-radius:50%;
+            border:2px solid var(--brand);background:#fff;color:var(--brand);
+            font-family:Georgia,'Times New Roman',serif;font-size:1.05rem;font-weight:700;font-style:italic;
+            line-height:1;cursor:pointer;padding:0;
+            display:flex;align-items:center;justify-content:center;
+            transition:background .15s,color .15s,transform .15s;
+        }
+        .help-btn:hover{background:var(--brand);color:#fff;transform:scale(1.06)}
+        .help-btn:focus-visible{outline:3px solid rgba(102,126,234,.45);outline-offset:2px}
+
+        /* ===== MODAL DE AJUDA ===== */
+        .modal-overlay{
+            position:fixed;inset:0;background:rgba(20,25,45,.55);
+            display:none;align-items:center;justify-content:center;
+            padding:20px;z-index:999;
+        }
+        .modal-overlay.aberto{display:flex}
+        .modal{
+            background:#fff;border-radius:14px;max-width:720px;width:100%;
+            max-height:86vh;overflow:auto;padding:0;
+            box-shadow:0 20px 60px rgba(20,30,60,.28);
+            text-align:left;
+        }
+        .modal-head{
+            position:sticky;top:0;background:#fff;z-index:2;
+            padding:24px 28px 14px;border-bottom:1px solid var(--border);
+            display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+        }
+        .modal-head h2{margin:0;font-size:1.25rem}
+        .modal-head p{margin:4px 0 0;color:var(--muted);font-size:.88rem}
+        .modal-close{
+            border:none;background:#f1f3f9;color:var(--muted);
+            width:32px;height:32px;border-radius:50%;font-size:1.1rem;
+            cursor:pointer;flex-shrink:0;line-height:1;
+        }
+        .modal-close:hover{background:#e3e7f3;color:var(--ink)}
+        .modal-body{padding:20px 28px 28px;font-size:.92rem;line-height:1.6;color:#333}
+        .modal-body h3{
+            font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;
+            color:var(--brand);margin:24px 0 8px;
+        }
+        .modal-body h3:first-child{margin-top:0}
+        .modal-body p{margin:0 0 10px}
+        .modal-body ul{margin:0 0 10px;padding-left:20px}
+        .modal-body li{margin-bottom:7px}
+        .modal-body code{background:#f1f3f9;padding:1px 5px;border-radius:4px;font-size:.85em}
+        .modal-body strong{color:var(--ink)}
+
+        .passos{list-style:none;padding:0;margin:0 0 10px;counter-reset:passo}
+        .passos li{
+            counter-increment:passo;position:relative;
+            padding:0 0 14px 40px;margin:0;
+            border-left:2px solid var(--border);margin-left:13px;
+        }
+        .passos li:last-child{border-left-color:transparent;padding-bottom:0}
+        .passos li::before{
+            content:counter(passo);
+            position:absolute;left:-14px;top:0;
+            width:26px;height:26px;border-radius:50%;
+            background:var(--brand);color:#fff;
+            font-size:.78rem;font-weight:700;
+            display:flex;align-items:center;justify-content:center;
+        }
+        .passos li strong{display:block;margin-bottom:2px}
+
+        .aviso{
+            background:#fff8e6;border-left:4px solid var(--orange);color:#7a5a00;
+            padding:12px 14px;border-radius:0 8px 8px 0;margin:14px 0;font-size:.88rem;
+        }
+        .nota{
+            background:#eef6f5;border-left:4px solid var(--success);color:#2f5f5a;
+            padding:12px 14px;border-radius:0 8px 8px 0;margin:14px 0;font-size:.88rem;
+        }
+        table.ajuda{width:100%;border-collapse:collapse;font-size:.85rem;margin:8px 0 12px}
+        table.ajuda th{text-align:left;padding:7px 9px;background:#f1f3f9;color:#444;font-weight:700}
+        table.ajuda td{padding:7px 9px;border-top:1px solid var(--border);vertical-align:top}
+
+        @media (max-width:640px){
+            .card{padding:24px 18px}
+            .help-btn{top:14px;right:14px}
+            .modal-head{padding:20px 18px 12px}
+            .modal-body{padding:18px 18px 24px}
+        }
+        @media (prefers-reduced-motion:reduce){
+            .help-btn{transition:none}
+            .help-btn:hover{transform:none}
+        }
+    </style>
+</head>
+<body>
+
+<div class="app">
+
+    <!-- TELA 1: LOGIN -->
+    <div id="loginScreen" class="card login-card center">
+        <button class="help-btn" aria-label="Como funciona a importação" title="Como funciona a importação" onclick="abrirAjuda('login')"><span aria-hidden="true">i</span></button>
+        <h1>Lawyer Eleven</h1>
+        <p class="subtitle">Controladoria de Prazos</p>
+        <form id="loginForm" style="width:100%">
+            <input type="text" id="email" class="form-control" placeholder="E-mail" required>
+            <input type="password" id="senha" class="form-control" placeholder="Senha" required>
+            <button type="submit" class="btn">Entrar Agora</button>
+        </form>
+        <div id="resultadoLogin" class="subtitle" style="margin-top:10px"></div>
+    </div>
+
+    <!-- TELA 2: UPLOAD -->
+    <div id="uploadScreen" class="card login-card center" style="display:none">
+        <button class="help-btn" aria-label="Ajuda sobre a planilha" title="Ajuda sobre a planilha" onclick="abrirAjuda('upload')"><span aria-hidden="true">i</span></button>
+        <h1>Importar Planilha de Prazos</h1>
+        <p class="subtitle">Selecione o arquivo .xlsx no padrão da planilha de prazos (colunas: ID, Processo, Cliente, Encarregado, Matéria, Ato, Fundamento, Prazo (dias), Regime, Base de contagem, Data-base, Início da contagem, Último dia do prazo (fatal), Duplicada, Linhas duplicadas (relatório), Custas, Motivo custas, Status).</p>
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+            📄 Clique para selecionar o arquivo .xlsx<br>
+            <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none">
+        </div>
+        <div id="uploadStatus" class="subtitle"></div>
+        <button class="btn btn-danger" onclick="location.reload()">Sair</button>
+    </div>
+
+    <!-- TELA 3: BUSCA AUTOMATICA (encarregados + processos) -->
+    <div id="buscaScreen" class="card wide-card" style="display:none">
+        <button class="help-btn" aria-label="Ajuda sobre a conferência de dados" title="Ajuda sobre a conferência de dados" onclick="abrirAjuda('busca')"><span aria-hidden="true">i</span></button>
+        <h1>Conferindo os Dados na Base</h1>
+        <div class="filter-info">
+            🔎 Estamos localizando automaticamente na base do escritório: o <strong>Encarregado</strong> de cada tarefa, o <strong>Processo</strong> (com Cliente e Pasta Processual vinculados) e o <strong>texto completo da publicação</strong> de origem.
+            Também carregamos as opções cadastradas de <strong>Matéria</strong>, <strong>Regime</strong> e <strong>Custas</strong>, para preencher esses campos corretamente na tarefa. Isso evita erros de digitação e garante que a tarefa fique corretamente vinculada.
+        </div>
+
+        <div class="progress-wrap"><div class="progress-bar" id="progressBusca"></div></div>
+        <p class="subtitle" id="resumoBusca">Preparando busca...</p>
+
+        <div class="btn-row" style="margin-bottom:12px">
+            <button class="btn btn-outline btn-sm" onclick="filtrarBusca('todos')">Todos</button>
+            <button class="btn btn-outline btn-sm" onclick="filtrarBusca('encontrado')">✅ Localizados</button>
+            <button class="btn btn-outline btn-sm" onclick="filtrarBusca('nao_encontrado')">⚠️ Não localizados</button>
+        </div>
+
+        <div class="table-scroll">
+            <table class="grid" id="tabelaBusca">
+                <thead><tr><th>Item</th><th>Valor pesquisado</th><th>Situação</th><th>Detalhes</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div class="btn-row" style="margin-top:20px">
+            <button class="btn btn-outline btn-sm" style="flex:1" onclick="voltarUpload()">⬅️ Trocar Planilha</button>
+            <button class="btn btn-financeiro btn-sm" style="flex:1" id="btnAvancarPreview" onclick="irParaPreview()" disabled>Avançar para Pré-visualização ➡️</button>
+        </div>
+    </div>
+
+    <!-- TELA 4: PRE-VISUALIZACAO -->
+    <div id="previewScreen" class="card wide-card" style="display:none">
+        <button class="help-btn" aria-label="Ajuda sobre a pré-visualização" title="Ajuda sobre a pré-visualização" onclick="abrirAjuda('preview')"><span aria-hidden="true">i</span></button>
+        <h1>Pré-visualização das Tarefas</h1>
+        <p class="subtitle" id="previewResumo"></p>
+        <div class="btn-row" style="margin-bottom:12px">
+            <button class="btn btn-outline btn-sm" onclick="filtrarPreview('todas')">Todas</button>
+            <button class="btn btn-outline btn-sm" onclick="filtrarPreview('pronta')">✅ Prontas</button>
+            <button class="btn btn-outline btn-sm" onclick="filtrarPreview('pendente')">⚠️ Pendentes</button>
+        </div>
+        <div class="table-scroll">
+            <table class="grid" id="tabelaPreview">
+                <thead><tr>
+                    <th>ID</th><th>Processo</th><th>Cliente</th><th>Encarregado</th><th>Ato</th>
+                    <th>Início</th><th>Prazo fatal</th><th>Status</th>
+                </tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div class="btn-row" style="margin-top:20px">
+            <button class="btn btn-outline btn-sm" style="flex:1" onclick="voltarBusca()">⬅️ Voltar</button>
+            <button class="btn btn-financeiro btn-sm" style="flex:1" id="btnCriar" onclick="criarTarefas()">🚀 Criar Tarefas</button>
+        </div>
+    </div>
+
+    <!-- TELA 5: RESULTADO DA CRIACAO -->
+    <div id="resultScreen" class="card wide-card" style="display:none">
+        <button class="help-btn" aria-label="Ajuda sobre o resultado da importação" title="Ajuda sobre o resultado da importação" onclick="abrirAjuda('resultado')"><span aria-hidden="true">i</span></button>
+        <h1>Resultado da Importação</h1>
+        <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+        <p class="subtitle" id="resumoCriacao"></p>
+        <div class="table-scroll">
+            <table class="grid" id="tabelaLog">
+                <thead><tr><th>ID</th><th>Ato</th><th>Status</th><th>Tarefa</th><th>Mensagem</th></tr></thead>
+                <tbody id="logCriacao"></tbody>
+            </table>
+        </div>
+        <div class="btn-row" style="margin-top:20px">
+            <button class="btn btn-outline btn-sm" style="flex:1" onclick="baixarLog()">⬇️ Baixar Log (.xlsx)</button>
+            <button class="btn btn-danger btn-sm" style="flex:1" onclick="location.reload()">Nova Importação</button>
+        </div>
+    </div>
+
+</div>
+
+<!-- ===== MODAL DE AJUDA ===== -->
+<div class="modal-overlay" id="modalAjuda" role="dialog" aria-modal="true" aria-labelledby="ajudaTitulo" onclick="if(event.target===this)fecharAjuda()">
+    <div class="modal">
+        <div class="modal-head">
+            <div>
+                <h2 id="ajudaTitulo">Ajuda</h2>
+                <p id="ajudaSubtitulo"></p>
+            </div>
+            <button class="modal-close" aria-label="Fechar ajuda" onclick="fecharAjuda()">✕</button>
+        </div>
+        <div class="modal-body" id="ajudaCorpo"></div>
+    </div>
+</div>
+
+<script>
+/* =========================================================
+   CONTEÚDO DA AJUDA (linguagem simples, por tela)
+   ========================================================= */
+const AJUDA = {
+    login: {
+        titulo: "Como funciona a importação",
+        subtitulo: "Leia antes de começar — leva 1 minuto",
+        corpo: `
+            <p>Esta ferramenta lê a <strong>planilha gerada pela Controladoria de prazos</strong> e cria automaticamente as tarefas correspondentes dentro do Eleven, já vinculadas ao processo, ao cliente e ao responsável. O que você faria manualmente uma tarefa por vez, ela faz de uma só vez.</p>
+
+            <h3>As cinco etapas</h3>
+            <ol class="passos">
+                <li><strong>Entrar</strong>Use o mesmo e-mail e senha do Eleven. Nada é gravado neste computador: o acesso vale só enquanto a aba estiver aberta.</li>
+                <li><strong>Enviar a planilha</strong>Escolha o arquivo <code>.xlsx</code> de prazos. Ele é lido aqui no navegador — o arquivo em si não sobe para lugar nenhum.</li>
+                <li><strong>Conferir os dados</strong>A ferramenta procura na base do escritório cada processo, cada encarregado e o texto da publicação. Você vê o que foi localizado e o que não foi.</li>
+                <li><strong>Pré-visualizar</strong>Uma lista de tudo que <em>será</em> criado. Até aqui nada foi gravado no Eleven — você ainda pode voltar e corrigir a planilha.</li>
+                <li><strong>Criar as tarefas</strong>Só depois de clicar em "Criar Tarefas" as tarefas passam a existir no sistema. No fim, você recebe um relatório com link para cada tarefa criada.</li>
+            </ol>
+
+            <div class="nota">Você pode parar em qualquer ponto antes da etapa 5. Fechar a aba não deixa nada pela metade.</div>
+
+            <h3>Se algo der errado no login</h3>
+            <ul>
+                <li>Confira se o e-mail está completo e sem espaço no fim.</li>
+                <li>Teste o mesmo acesso direto no Eleven. Se não entrar lá, a senha é o problema.</li>
+                <li>Se entrar no Eleven mas não aqui, avise o TI: pode ser permissão de perfil.</li>
+            </ul>
+        `
+    },
+
+    upload: {
+        titulo: "Como preparar a planilha",
+        subtitulo: "Formato esperado e erros mais comuns",
+        corpo: `
+            <p>A ferramenta lê a <strong>primeira aba</strong> do arquivo e espera que a primeira linha contenha os nomes das colunas, exatamente como no relatório de prazos padrão.</p>
+
+            <h3>Colunas que a ferramenta usa</h3>
+            <table class="ajuda">
+                <tr><th>Coluna</th><th>Para que serve</th></tr>
+                <tr><td><strong>ID</strong></td><td>Número da publicação de origem. É por ele que a tarefa busca o texto completo e fica vinculada à publicação.</td></tr>
+                <tr><td><strong>Processo</strong></td><td>Número CNJ. Traz junto o cliente e a pasta processual.</td></tr>
+                <tr><td><strong>Encarregado</strong></td><td>Nome do responsável, escrito igual ao cadastro do Eleven.</td></tr>
+                <tr><td><strong>Ato</strong></td><td>Vira o título da tarefa.</td></tr>
+                <tr><td><strong>Início da contagem</strong></td><td>Data de início da tarefa (registrada às 8h).</td></tr>
+                <tr><td><strong>Último dia do prazo (fatal)</strong></td><td>Data de término da tarefa (registrada às 18h).</td></tr>
+                <tr><td>Matéria, Regime, Custas</td><td>Precisam bater com as opções já cadastradas no Eleven. Se não baterem, o campo fica em branco na tarefa — o resto é criado normalmente.</td></tr>
+                <tr><td>Fundamento, Motivo custas</td><td>Texto livre, copiado como está.</td></tr>
+            </table>
+
+            <div class="aviso"><strong>Os quatro campos obrigatórios</strong> são Processo, Encarregado, Início da contagem e Último dia do prazo. Faltando qualquer um deles, a linha é apenas pulada — nunca criada pela metade.</div>
+
+            <h3>O que costuma dar problema</h3>
+            <ul>
+                <li><strong>Nome do encarregado abreviado.</strong> "Dra. Ana" não encontra "Ana Paula Souza". Use o nome como está no cadastro.</li>
+                <li><strong>Datas como texto.</strong> Se a célula estiver alinhada à esquerda no Excel, provavelmente é texto. Formate a coluna como Data.</li>
+                <li><strong>Colunas renomeadas.</strong> Se você mudou "Ato" para "Ato processual", a ferramenta não acha. Mantenha os títulos originais.</li>
+                <li><strong>Linhas duplicadas.</strong> A ferramenta não remove duplicatas sozinha: se a linha aparece duas vezes, duas tarefas são criadas. Filtre pela coluna "Duplicada" antes de enviar.</li>
+            </ul>
+        `
+    },
+
+    busca: {
+        titulo: "O que está acontecendo agora",
+        subtitulo: "Conferência automática contra a base do escritório",
+        corpo: `
+            <p>Antes de criar qualquer coisa, a ferramenta procura no Eleven cada informação da planilha. É uma conferência: nada está sendo alterado no sistema nesta etapa.</p>
+
+            <h3>O que está sendo procurado</h3>
+            <ul>
+                <li><strong>Publicação</strong> — pelo número na coluna ID, para trazer o texto integral para as anotações da tarefa.</li>
+                <li><strong>Encarregado</strong> — pelo nome, para vincular a pessoa certa.</li>
+                <li><strong>Processo</strong> — pelo número CNJ, que traz junto o cliente e a pasta processual.</li>
+                <li><strong>Matéria, Regime e Custas</strong> — as opções cadastradas, para preencher esses campos sem erro de digitação.</li>
+            </ul>
+
+            <h3>Como ler a tabela</h3>
+            <table class="ajuda">
+                <tr><th>Situação</th><th>O que significa</th></tr>
+                <tr><td><span class="status-ok">Encontrado</span></td><td>O item existe na base e será usado.</td></tr>
+                <tr><td><span class="status-ok">Encontrado</span> com "nome aproximado" ou "CNJ aproximado"</td><td>Achou algo parecido, mas não idêntico. <strong>Confira antes de avançar</strong> — pode ser homônimo ou processo errado.</td></tr>
+                <tr><td><span class="status-erro">Não encontrado</span></td><td>Não existe cadastro com esse valor. As linhas que dependem dele não serão criadas.</td></tr>
+            </table>
+
+            <h3>Encontrou "não localizado"? Faça assim</h3>
+            <ul>
+                <li>Copie o valor pesquisado e procure no Eleven. Se existir lá, o problema é a grafia na planilha — corrija e use "Trocar Planilha".</li>
+                <li>Se não existir no Eleven, o cadastro precisa ser criado antes (processo ou colaborador).</li>
+                <li>Se a mensagem falar em erro de busca, geralmente é queda de conexão. Recarregue e tente de novo.</li>
+            </ul>
+
+            <div class="nota">Não é obrigatório resolver tudo agora. Você pode avançar e importar só as linhas prontas, tratando o restante depois.</div>
+        `
+    },
+
+    preview: {
+        titulo: "Conferindo antes de criar",
+        subtitulo: "Última chance de voltar atrás",
+        corpo: `
+            <p>Esta é a lista do que <em>será</em> criado no Eleven. <strong>Nada foi gravado ainda.</strong> As tarefas só passam a existir quando você clicar em "Criar Tarefas".</p>
+
+            <h3>Os dois status</h3>
+            <ul>
+                <li><span class="status-ok">Pronta</span> — tem processo, encarregado e as duas datas. Será criada.</li>
+                <li><span class="status-erro">Pendente</span> — falta algo, e o motivo aparece ao lado. <strong>Não será criada</strong> e também não gera erro: é simplesmente ignorada.</li>
+            </ul>
+
+            <h3>O que vale conferir por amostragem</h3>
+            <ul>
+                <li>O <strong>cliente</strong> mostrado veio do processo no Eleven, não da planilha. Se estiver diferente do que você esperava, o CNJ pode estar apontando para outra pasta.</li>
+                <li>As <strong>datas</strong> devem aparecer no formato dia/mês/ano. Um traço no lugar da data significa que a planilha não trouxe algo legível.</li>
+                <li>O <strong>encarregado</strong> é a pessoa que vai receber a tarefa na agenda dela.</li>
+            </ul>
+
+            <div class="aviso">Se muita coisa estiver errada, volte, ajuste a planilha e recomece. É bem mais rápido do que corrigir tarefa por tarefa depois de criadas.</div>
+
+            <h3>Como a tarefa fica no Eleven</h3>
+            <ul>
+                <li>Título: o texto da coluna <strong>Ato</strong>.</li>
+                <li>Início: dia da contagem, às 8h. Término: prazo fatal, às 18h.</li>
+                <li>Situação inicial: <strong>Pendente</strong>.</li>
+                <li>Anotações: o texto completo da publicação de origem.</li>
+            </ul>
+        `
+    },
+
+    resultado: {
+        titulo: "Entendendo o resultado",
+        subtitulo: "O que fazer com as linhas que falharam",
+        corpo: `
+            <p>Cada linha da tabela é uma tarefa que a ferramenta tentou criar. As que deram certo trazem um link direto para a tarefa no Eleven.</p>
+
+            <h3>Três números no resumo</h3>
+            <ul>
+                <li><strong>Criadas com sucesso</strong> — já estão no Eleven, na agenda do encarregado.</li>
+                <li><strong>Com erro</strong> — a tentativa foi feita mas o sistema recusou. O motivo aparece na coluna Mensagem.</li>
+                <li><strong>Não enviadas por pendência</strong> — nem chegaram a ser tentadas, porque faltava processo, encarregado ou data.</li>
+            </ul>
+
+            <h3>Mensagens de erro mais comuns</h3>
+            <table class="ajuda">
+                <tr><th>Se aparecer</th><th>O que fazer</th></tr>
+                <tr><td>Código 400</td><td>Algum campo saiu fora do padrão esperado. Confira as datas e a matéria dessa linha.</td></tr>
+                <tr><td>Código 401 ou 403</td><td>O acesso expirou ou seu perfil não pode criar tarefas. Recarregue e entre de novo.</td></tr>
+                <tr><td>Código 500</td><td>Problema no servidor do Eleven, não na planilha. Espere alguns minutos e reimporte só as linhas que falharam.</td></tr>
+                <tr><td>Failed to fetch</td><td>Conexão caiu no meio do envio. Confira no Eleven se a tarefa foi criada antes de tentar de novo.</td></tr>
+            </table>
+
+            <div class="aviso"><strong>Antes de reimportar:</strong> monte uma planilha só com as linhas que falharam. Reenviar o arquivo inteiro cria de novo tudo que já deu certo — em duplicidade.</div>
+
+            <h3>Guarde o log</h3>
+            <p>Baixe o arquivo <code>.xlsx</code> do log. Ele registra o que foi criado, quando, e com qual link — útil para conferência e para resolver dúvidas depois.</p>
+        `
+    }
+};
+
+let ELEMENTO_FOCO_ANTERIOR = null;
+
+function abrirAjuda(chave) {
+    const c = AJUDA[chave];
+    if (!c) return;
+    ELEMENTO_FOCO_ANTERIOR = document.activeElement;
+    document.getElementById('ajudaTitulo').innerText = c.titulo;
+    document.getElementById('ajudaSubtitulo').innerText = c.subtitulo;
+    document.getElementById('ajudaCorpo').innerHTML = c.corpo;
+    const overlay = document.getElementById('modalAjuda');
+    overlay.classList.add('aberto');
+    overlay.querySelector('.modal-body').scrollTop = 0;
+    overlay.querySelector('.modal-close').focus();
+    document.body.style.overflow = 'hidden';
+}
+
+function fecharAjuda() {
+    document.getElementById('modalAjuda').classList.remove('aberto');
+    document.body.style.overflow = '';
+    if (ELEMENTO_FOCO_ANTERIOR) ELEMENTO_FOCO_ANTERIOR.focus();
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('modalAjuda').classList.contains('aberto')) fecharAjuda();
+});
+
+/* =========================================================
+   ESTADO GLOBAL
+   ========================================================= */
+let BEARER_TOKEN = null;
+let LINHAS = [];              // linhas cruas da planilha
+let CACHE_ENCARREGADOS = {};  // nomeUpper -> {id, nome, encontrado}
+let CACHE_PROCESSOS = {};     // cnjTrim -> {processoId, pastaProcessualId, pastaProcessualDescricao, clienteId, clienteDescricao, encontrado}
+let CACHE_ITENS_CAMPO_EXTRA = {}; // idCampoExtra -> [{id, idCampoExtra, descricao}]
+let CACHE_PUBLICACOES = {};       // idPublicacao (string) -> texto da publicação (ou null)
+let LOG_RESULTADO = [];
+
+// Os campos extras de tarefa (tipo TAREFA) NÃO têm ID fixo entre bases diferentes —
+// cada base do Eleven tem seu próprio cadastro. Por isso os IDs são resolvidos em
+// tempo de execução, buscando pelo NOME do campo (ver buscarCamposExtrasPorNome()).
+// NOMES_CAMPOS_EXTRAS = nome exato do campo extra cadastrado no Eleven (tipo TAREFA).
+const NOMES_CAMPOS_EXTRAS = {
+    MATERIA: 'Matéria',           // LISTA_DE_ITEM
+    ATO: 'Ato',                   // TEXTO_CURTO
+    FUNDAMENTO: 'Fundamento',     // TEXTO_CURTO
+    REGIME: 'Regime',             // LISTA_DE_ITEM
+    CUSTAS: 'Custas',             // LISTA_DE_ITEM
+    MOTIVO_CUSTAS: 'Motivo custas' // TEXTO_CURTO
+};
+// Preenchido em tempo de execução: { MATERIA: <id ou null>, ATO: <id ou null>, ... }
+let CAMPOS_EXTRAS_RESOLVIDOS = {};
+
+// possiveis nomes de coluna na planilha que trazem o texto integral da publicacao
+const COLUNAS_ANOTACOES_POSSIVEIS = ["Anotações", "Anotacoes", "Descrição (completo)", "Descrição completa", "Publicação (texto)", "Texto da publicação"];
+
+// colunas obrigatórias mínimas para considerar que o arquivo enviado é, de fato,
+// uma planilha de prazos válida (evita processar arquivos aleatórios)
+const COLUNAS_OBRIGATORIAS_ARQUIVO = ["ID", "Encarregado", "Processo", "Ato"];
+
+/* =========================================================
+   LOGIN (Basic -> Bearer, mesmo padrão dos demais relatórios)
+   ========================================================= */
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const creds = btoa(document.getElementById('email').value + ':' + document.getElementById('senha').value);
+    try {
+        const r = await fetch("https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum/", { headers: { 'Authorization': 'Basic ' + creds } });
+        if (!r.ok) throw new Error();
+        BEARER_TOKEN = r.headers.get('authorization').replace(/^(Bearer|Basic)\s/i, '').trim();
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('uploadScreen').style.display = 'block';
+    } catch (err) {
+        document.getElementById('resultadoLogin').innerHTML = "<span style='color:red'>Erro no login</span>";
+    }
+});
+
+/* =========================================================
+   LEITURA DO XLSX
+   ========================================================= */
+const COLUNAS_ESPERADAS = [
+    "ID","Processo","Cliente","Encarregado","Matéria","Ato","Fundamento",
+    "Prazo (dias)","Regime","Base de contagem","Data-base","Início da contagem",
+    "Último dia do prazo (fatal)","Duplicada","Linhas duplicadas (relatório)",
+    "Custas","Motivo custas","Status"
+];
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const status = document.getElementById('uploadStatus');
+    status.innerText = "⏳ Lendo planilha...";
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+        try {
+            const wb = XLSX.read(evt.target.result, { type: 'array', cellDates: true });
+            const sheet = wb.Sheets[wb.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+            if (json.length === 0) throw new Error("Planilha vazia.");
+
+            const colunasAchadas = Object.keys(json[0]);
+
+            // Validação principal: se as colunas mínimas não existirem, o arquivo
+            // não é aceito como planilha de prazos válida.
+            const faltandoObrigatorias = COLUNAS_OBRIGATORIAS_ARQUIVO.filter(c => !colunasAchadas.includes(c));
+            if (faltandoObrigatorias.length) {
+                status.innerHTML = "<span style='color:red'>⚠️ A sua planilha não possui as colunas necessárias para a importação (faltando: " + faltandoObrigatorias.join(', ') + ").</span>";
+                e.target.value = ''; // limpa a seleção para permitir novo envio
+                return;
+            }
+
+            const faltando = COLUNAS_ESPERADAS.filter(c => !colunasAchadas.includes(c));
+            if (faltando.length) {
+                status.innerHTML = `⚠️ Colunas não encontradas: ${faltando.join(', ')}. Prosseguindo mesmo assim.`;
+            } else {
+                status.innerHTML = `✅ ${json.length} linha(s) lida(s) com sucesso.`;
+            }
+
+            LINHAS = json;
+            setTimeout(() => {
+                document.getElementById('uploadScreen').style.display = 'none';
+                document.getElementById('buscaScreen').style.display = 'block';
+                buscarTudo();
+            }, 400);
+        } catch (err) {
+            status.innerHTML = "<span style='color:red'>Erro ao ler a planilha: " + err.message + "</span>";
+        }
+    };
+    reader.readAsArrayBuffer(file);
+});
+
+function voltarUpload() {
+    document.getElementById('buscaScreen').style.display = 'none';
+    document.getElementById('uploadScreen').style.display = 'block';
+}
+
+function voltarBusca() {
+    document.getElementById('previewScreen').style.display = 'none';
+    document.getElementById('buscaScreen').style.display = 'block';
+}
+
+/* =========================================================
+   BUSCA AUTOMATICA: ENCARREGADOS (por nome exato) e PROCESSOS (por CNJ)
+   ========================================================= */
+function valoresDistintos(coluna) {
+    const set = new Set();
+    LINHAS.forEach(l => { if (l[coluna]) set.add(String(l[coluna]).trim()); });
+    return Array.from(set);
+}
+
+let LOG_BUSCA = []; // {tipo, valor, statusTxt, detalhe}
+let FILTRO_BUSCA_ATUAL = 'todos';
+let PREVIEW_LINHAS = []; // {linha, motivos, pronta, clienteDescricao}
+let FILTRO_PREVIEW_ATUAL = 'todas';
+
+function linhaLogBusca(tipo, valor, statusTxt, detalhe) {
+    LOG_BUSCA.push({ tipo, valor, statusTxt, detalhe });
+    renderizarBusca(FILTRO_BUSCA_ATUAL);
+}
+
+function filtrarBusca(filtro) {
+    FILTRO_BUSCA_ATUAL = filtro;
+    renderizarBusca(filtro);
+}
+
+function renderizarBusca(filtro) {
+    const itens = LOG_BUSCA.filter(item => {
+        if (filtro === 'encontrado') return item.statusTxt === 'Encontrado';
+        if (filtro === 'nao_encontrado') return item.statusTxt !== 'Encontrado';
+        return true;
+    });
+    document.querySelector('#tabelaBusca tbody').innerHTML = itens.map(item => {
+        const classe = item.statusTxt === 'Encontrado' ? 'status-ok' : 'status-erro';
+        return `<tr><td>${item.tipo}</td><td>${item.valor}</td><td class="${classe}">${item.statusTxt}</td><td>${item.detalhe}</td></tr>`;
+    }).join('');
+}
+
+// Trata a resposta de uma busca: para erros HTTP (ex: 404), não expõe o código/corpo
+// técnico da resposta — apenas indica "Erro na busca" de forma padronizada.
+function tratarErroBusca(err) {
+    return 'Erro na busca';
+}
+
+async function buscarColaboradorPorNome(nome) {
+    const body = {
+        cnpj: null, cpf: null, email: null, filtrosCamposExtras: [], nome: nome,
+        nomeMae: null, nomePai: null, rg: null, telefone: null, ano: {}, dataCadastro: null,
+        dia: {}, discriminador: "COLABORADOR", idsEstadoCivil: [], idsProfissao: [],
+        tipo: "PESSOA", acessoSistema: null, idsCargos: [], idsGrupos: [], status: []
+    };
+    const r = await fetch("https://busca-avancada-api-prod.alkasoft.com.br/api/v1/colaboradores?inicio=0&ordenacao=NOME_ASC&quantidade=10", {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = await r.json();
+    const itens = j.itens || [];
+    // prioriza correspondência exata (case-insensitive), senão usa o primeiro resultado
+    const exato = itens.find(i => normalizarTexto(i.nome) === normalizarTexto(nome));
+    return exato || itens[0] || null;
+}
+
+async function buscarProcessoPorCNJ(numeroCNJ) {
+    const body = {
+        comarca: null, filtrosCamposExtras: [], numeroCNJ: numeroCNJ, tribunal: null,
+        unidadeJudicial: null, dataConclusao: null, dataEntrada: null, idsAreas: [],
+        idsClientesPasta: [], idsEncarregadosPasta: [], idsJuizes: [], idsPartes: [],
+        idsPartesContrariasPasta: [], idsPastasProcessuais: [], idsSituacoes: [],
+        idsTiposAcoes: [], instancias: [], tiposVinculacoes: []
+    };
+    const r = await fetch("https://busca-avancada-api-prod.alkasoft.com.br/api/v1/processos-judiciais?inicio=0&ordenacao=DATA_ENTRADA_DESC&quantidade=10", {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = await r.json();
+    const itens = j.itens || [];
+    const exato = itens.find(i => String(i.numeroCNJ).trim() === numeroCNJ.trim());
+    return exato || itens[0] || null;
+}
+
+// Lista todos os campos extras cadastrados para o tipo TAREFA na base atual e
+// resolve o ID de cada campo que a ferramenta precisa, casando pelo NOME
+// (não pelo ID, que varia de base para base).
+async function buscarCamposExtrasPorNome() {
+    const r = await fetch(`https://app-api-prod.alkasoft.com.br/api/v1/tiposdocadastro/TAREFA/camposextras`, {
+        headers: { 'Authorization': `Bearer ${BEARER_TOKEN}` }
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const lista = await r.json();
+
+    const resolvidos = {};
+    for (const chave of Object.keys(NOMES_CAMPOS_EXTRAS)) {
+        const nomeAlvo = normalizarTexto(NOMES_CAMPOS_EXTRAS[chave]);
+        const achado = (lista || []).find(c => normalizarTexto(c.descricao ?? c.nome) === nomeAlvo);
+        resolvidos[chave] = achado ? achado.id : null;
+        linhaLogBusca(
+            'Campo extra',
+            NOMES_CAMPOS_EXTRAS[chave],
+            achado ? 'Encontrado' : 'Não encontrado',
+            achado ? `id ${achado.id}` : 'Nenhum campo extra de TAREFA com esse nome nesta base'
+        );
+    }
+    return resolvidos;
+}
+
+async function buscarItensCampoExtra(idCampoExtra) {
+    const r = await fetch(`https://app-api-prod.alkasoft.com.br/api/v1/tiposdocadastro/TAREFA/camposextras/${idCampoExtra}/itens`, {
+        headers: { 'Authorization': `Bearer ${BEARER_TOKEN}` }
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.json();
+}
+
+function normalizarTexto(s) {
+    return String(s).normalize('NFC').trim().toUpperCase();
+}
+
+function resolverItemCampoExtra(chaveCampo, valorTexto) {
+    if (!valorTexto) return null;
+    const lista = CACHE_ITENS_CAMPO_EXTRA[chaveCampo] || [];
+    const alvo = normalizarTexto(valorTexto);
+    return lista.find(i => normalizarTexto(i.descricao) === alvo) || null;
+}
+
+async function buscarPublicacaoPorId(id) {
+    const r = await fetch(`https://app-api-prod.alkasoft.com.br/api/v1/identificadores-cadastros/PUBLICACAO/${id}`, {
+        headers: { 'Authorization': `Bearer ${BEARER_TOKEN}` }
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = await r.json();
+    return j.descricao || '';
+}
+
+async function buscarTudo() {
+    LOG_BUSCA = [];
+    FILTRO_BUSCA_ATUAL = 'todos';
+    document.querySelector('#tabelaBusca tbody').innerHTML = '';
+    document.getElementById('btnAvancarPreview').disabled = true;
+
+    // 1) resolve os IDs dos campos extras desta base pelo NOME (ver NOMES_CAMPOS_EXTRAS)
+    try {
+        CAMPOS_EXTRAS_RESOLVIDOS = await buscarCamposExtrasPorNome();
+    } catch (err) {
+        CAMPOS_EXTRAS_RESOLVIDOS = {};
+        for (const chave of Object.keys(NOMES_CAMPOS_EXTRAS)) {
+            linhaLogBusca('Campo extra', NOMES_CAMPOS_EXTRAS[chave], 'Não encontrado', tratarErroBusca(err));
+        }
+    }
+
+    // 2) itens dos campos extras do tipo LISTA_DE_ITEM (busca única, não por linha)
+    const camposLista = [
+        { chave: 'MATERIA', nome: NOMES_CAMPOS_EXTRAS.MATERIA },
+        { chave: 'REGIME', nome: NOMES_CAMPOS_EXTRAS.REGIME },
+        { chave: 'CUSTAS', nome: NOMES_CAMPOS_EXTRAS.CUSTAS }
+    ];
+    for (const campo of camposLista) {
+        const id = CAMPOS_EXTRAS_RESOLVIDOS[campo.chave];
+        if (!id) {
+            // já logado como "Não encontrado" na resolução por nome acima; sem ID não há como buscar os itens
+            CACHE_ITENS_CAMPO_EXTRA[campo.chave] = [];
+            continue;
+        }
+        try {
+            const itens = await buscarItensCampoExtra(id);
+            CACHE_ITENS_CAMPO_EXTRA[campo.chave] = itens;
+            linhaLogBusca('Itens do campo', campo.nome, 'Encontrado', `${itens.length} item(ns) carregado(s)`);
+        } catch (err) {
+            CACHE_ITENS_CAMPO_EXTRA[campo.chave] = [];
+            linhaLogBusca('Itens do campo', campo.nome, 'Não encontrado', tratarErroBusca(err));
+        }
+    }
+
+    const encarregados = valoresDistintos('Encarregado');
+    const processos = valoresDistintos('Processo');
+    const publicacoes = valoresDistintos('ID');
+    const total = encarregados.length + processos.length + publicacoes.length;
+    let feitos = 0;
+
+    const atualizarProgressoBusca = () => {
+        const pct = total ? Math.round((feitos / total) * 100) : 100;
+        document.getElementById('progressBusca').style.width = pct + '%';
+        document.getElementById('resumoBusca').innerText = `Buscando... ${feitos}/${total}`;
+    };
+    atualizarProgressoBusca();
+
+    for (const idPub of publicacoes) {
+        try {
+            const texto = await buscarPublicacaoPorId(idPub);
+            CACHE_PUBLICACOES[String(idPub)] = texto;
+            linhaLogBusca('Publicação', idPub, 'Encontrado', texto ? `${texto.length} caractere(s)` : 'sem texto retornado');
+        } catch (err) {
+            CACHE_PUBLICACOES[String(idPub)] = null;
+            linhaLogBusca('Publicação', idPub, 'Não encontrado', tratarErroBusca(err));
+        }
+        feitos++; atualizarProgressoBusca();
+        await new Promise(res => setTimeout(res, 120));
+    }
+
+    for (const nome of encarregados) {
+        try {
+            const achado = await buscarColaboradorPorNome(nome);
+            if (achado) {
+                CACHE_ENCARREGADOS[normalizarTexto(nome)] = { id: achado.id, nome: achado.nome, encontrado: true };
+                const exato = normalizarTexto(achado.nome) === normalizarTexto(nome);
+                linhaLogBusca('Encarregado', nome, 'Encontrado', exato ? `id ${achado.id}` : `id ${achado.id} (nome aproximado: "${achado.nome}")`);
+            } else {
+                CACHE_ENCARREGADOS[normalizarTexto(nome)] = { id: null, nome: null, encontrado: false };
+                linhaLogBusca('Encarregado', nome, 'Não encontrado', 'Nenhum colaborador com esse nome');
+            }
+        } catch (err) {
+            CACHE_ENCARREGADOS[normalizarTexto(nome)] = { id: null, nome: null, encontrado: false };
+            linhaLogBusca('Encarregado', nome, 'Não encontrado', tratarErroBusca(err));
+        }
+        feitos++; atualizarProgressoBusca();
+        await new Promise(res => setTimeout(res, 120));
+    }
+
+    for (const cnj of processos) {
+        try {
+            const achado = await buscarProcessoPorCNJ(cnj);
+            if (achado) {
+                CACHE_PROCESSOS[cnj.trim()] = {
+                    processoId: achado.id,
+                    pastaProcessualId: achado.pasta?.identificador?.id ?? null,
+                    pastaProcessualDescricao: achado.pasta?.identificador?.descricao ?? '',
+                    clienteId: achado.pasta?.clientePrincipal?.id ?? null,
+                    clienteDescricao: achado.pasta?.clientePrincipal?.descricao ?? '',
+                    encontrado: true
+                };
+                const exato = String(achado.numeroCNJ).trim() === cnj.trim();
+                linhaLogBusca('Processo', cnj, 'Encontrado', exato ? `processo ${achado.id} / pasta ${achado.pasta?.identificador?.id} / cliente ${achado.pasta?.clientePrincipal?.id}` : `CNJ aproximado: "${achado.numeroCNJ}"`);
+            } else {
+                CACHE_PROCESSOS[cnj.trim()] = { processoId: null, pastaProcessualId: null, clienteId: null, encontrado: false };
+                linhaLogBusca('Processo', cnj, 'Não encontrado', 'Nenhum processo com esse número CNJ');
+            }
+        } catch (err) {
+            CACHE_PROCESSOS[cnj.trim()] = { processoId: null, pastaProcessualId: null, clienteId: null, encontrado: false };
+            linhaLogBusca('Processo', cnj, 'Não encontrado', tratarErroBusca(err));
+        }
+        feitos++; atualizarProgressoBusca();
+        await new Promise(res => setTimeout(res, 120));
+    }
+
+    const semEnc = Object.values(CACHE_ENCARREGADOS).filter(x => !x.encontrado).length;
+    const semProc = Object.values(CACHE_PROCESSOS).filter(x => !x.encontrado).length;
+    document.getElementById('resumoBusca').innerText =
+        `Busca concluída. ${encarregados.length} encarregado(s) e ${processos.length} processo(s) pesquisados. ${semEnc} encarregado(s) e ${semProc} processo(s) não encontrados.`;
+    document.getElementById('btnAvancarPreview').disabled = false;
+}
+
+/* =========================================================
+   PRE-VISUALIZACAO
+   ========================================================= */
+function parseDataFlexivel(v) {
+    if (v === null || v === undefined || v === '') return null;
+    if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+    if (typeof v === 'number') {
+        // numero serial do Excel -> data
+        const utcDias = Math.floor(v - 25569);
+        const utcValor = utcDias * 86400;
+        const d = new Date(utcValor * 1000);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    if (typeof v === 'string') {
+        const s = v.trim();
+        let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); // dd/mm/yyyy
+        if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+        m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); // yyyy-mm-dd
+        if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+}
+
+function formatarDataExibicao(v) {
+    const d = parseDataFlexivel(v);
+    if (!d) return '-';
+    return d.toLocaleDateString('pt-BR');
+}
+
+function motivosPendencia(l) {
+    const motivos = [];
+    const enc = CACHE_ENCARREGADOS[normalizarTexto(l['Encarregado'])];
+    const proc = CACHE_PROCESSOS[String(l['Processo']).trim()];
+    if (!enc || !enc.encontrado) motivos.push('Encarregado não encontrado');
+    if (!proc || !proc.encontrado) motivos.push('Processo não encontrado');
+    if (!parseDataFlexivel(l['Início da contagem'])) motivos.push('Sem Início da contagem');
+    if (!parseDataFlexivel(l['Último dia do prazo (fatal)'])) motivos.push('Sem prazo fatal');
+    return motivos;
+}
+
+function linhaEstaPronta(l) {
+    return motivosPendencia(l).length === 0;
+}
+
+function irParaPreview() {
+    PREVIEW_LINHAS = LINHAS.map(l => {
+        const motivos = motivosPendencia(l);
+        const proc = CACHE_PROCESSOS[String(l['Processo']).trim()];
+        return { linha: l, motivos, pronta: motivos.length === 0, clienteDescricao: proc?.clienteDescricao || l['Cliente'] || '-' };
+    });
+
+    const semId = PREVIEW_LINHAS.filter(p => !p.pronta).length;
+    document.getElementById('previewResumo').innerText =
+        `${LINHAS.length} linha(s) no total. ${semId} linha(s) com pendência (não serão enviadas).`;
+
+    FILTRO_PREVIEW_ATUAL = 'todas';
+    renderizarPreview('todas');
+
+    document.getElementById('buscaScreen').style.display = 'none';
+    document.getElementById('previewScreen').style.display = 'block';
+}
+
+function filtrarPreview(filtro) {
+    FILTRO_PREVIEW_ATUAL = filtro;
+    renderizarPreview(filtro);
+}
+
+function renderizarPreview(filtro) {
+    const itens = PREVIEW_LINHAS.filter(p => {
+        if (filtro === 'pronta') return p.pronta;
+        if (filtro === 'pendente') return !p.pronta;
+        return true;
+    });
+    document.querySelector('#tabelaPreview tbody').innerHTML = itens.map(p => {
+        const l = p.linha;
+        return `<tr>
+            <td>${l['ID'] ?? '-'}</td>
+            <td>${l['Processo'] ?? '-'}</td>
+            <td>${p.clienteDescricao}</td>
+            <td>${l['Encarregado'] ?? '-'}</td>
+            <td>${l['Ato'] ?? '-'}</td>
+            <td>${formatarDataExibicao(l['Início da contagem'])}</td>
+            <td>${formatarDataExibicao(l['Último dia do prazo (fatal)'])}</td>
+            <td>${p.pronta ? '<span class="status-ok">Pronta ✅</span>' : `<span class="status-erro">⚠️ ${p.motivos.join(' | ')}</span>`}</td>
+        </tr>`;
+    }).join('');
+}
+
+/* =========================================================
+   MONTAGEM DO BODY DA TAREFA
+   ========================================================= */
+function paraISOComHora(v, horaLocal) {
+    // horaLocal = hora no fuso America/Sao_Paulo (-03:00). Convertida para UTC (+3h) e formatada com "Z",
+    // igual ao padrão observado no exemplo real de tarefa (dataHoraInicio/dataHoraTermino em "Z").
+    const d = parseDataFlexivel(v);
+    if (!d) return null;
+    let ano = d.getFullYear(), mes = d.getMonth(), dia = d.getDate();
+    let horaUtc = horaLocal + 3;
+    if (horaUtc >= 24) {
+        horaUtc -= 24;
+        const prox = new Date(ano, mes, dia + 1);
+        ano = prox.getFullYear(); mes = prox.getMonth(); dia = prox.getDate();
+    }
+    const pad = n => String(n).padStart(2, '0');
+    return `${ano}-${pad(mes + 1)}-${pad(dia)}T${pad(horaUtc)}:00:00Z`;
+}
+
+function montarAnotacoes(l) {
+    // Fonte principal: texto integral da publicação, buscado pela API via ID (idOrigem).
+    const idPub = String(l['ID'] ?? '').trim();
+    if (idPub && CACHE_PUBLICACOES[idPub]) return CACHE_PUBLICACOES[idPub];
+
+    // Fallback: caso a planilha traga uma coluna com o texto (não é o caso do layout padrão "prazos").
+    for (const nomeColuna of COLUNAS_ANOTACOES_POSSIVEIS) {
+        if (l[nomeColuna]) return String(l[nomeColuna]);
+    }
+    return '';
+}
+
+function montarValoresCamposExtras(l) {
+    const arr = [];
+    const ids = CAMPOS_EXTRAS_RESOLVIDOS; // ids resolvidos por nome nesta base
+
+    // Campos do tipo LISTA_DE_ITEM: só entram se o campo extra foi encontrado nesta
+    // base (ids.X != null) E o valor da planilha bate com algum item cadastrado.
+    if (ids.MATERIA) {
+        const materiaItem = resolverItemCampoExtra('MATERIA', l['Matéria']);
+        if (materiaItem) {
+            arr.push({
+                idCampoExtra: ids.MATERIA,
+                typeClass: "ValorItemDoCampoExtra",
+                itemDoCampoExtra: { id: materiaItem.id, idCampoExtra: ids.MATERIA, descricao: materiaItem.descricao },
+                valor: materiaItem.descricao
+            });
+        }
+    }
+
+    // Campos do tipo TEXTO_CURTO: só entram se o campo extra foi encontrado nesta base.
+    if (ids.ATO && l['Ato']) {
+        arr.push({ idCampoExtra: ids.ATO, typeClass: "ValorTextoDoCampoExtra", valor: String(l['Ato']) });
+    }
+
+    if (ids.FUNDAMENTO && l['Fundamento']) {
+        arr.push({ idCampoExtra: ids.FUNDAMENTO, typeClass: "ValorTextoDoCampoExtra", valor: String(l['Fundamento']) });
+    }
+
+    if (ids.REGIME) {
+        const regimeItem = resolverItemCampoExtra('REGIME', l['Regime']);
+        if (regimeItem) {
+            arr.push({
+                idCampoExtra: ids.REGIME,
+                typeClass: "ValorItemDoCampoExtra",
+                itemDoCampoExtra: { id: regimeItem.id, idCampoExtra: ids.REGIME, descricao: regimeItem.descricao },
+                valor: regimeItem.descricao
+            });
+        }
+    }
+
+    if (ids.CUSTAS) {
+        const custasItem = resolverItemCampoExtra('CUSTAS', l['Custas']);
+        if (custasItem) {
+            arr.push({
+                idCampoExtra: ids.CUSTAS,
+                typeClass: "ValorItemDoCampoExtra",
+                itemDoCampoExtra: { id: custasItem.id, idCampoExtra: ids.CUSTAS, descricao: custasItem.descricao },
+                valor: custasItem.descricao
+            });
+        }
+    }
+
+    if (ids.MOTIVO_CUSTAS && l['Motivo custas']) {
+        arr.push({ idCampoExtra: ids.MOTIVO_CUSTAS, typeClass: "ValorTextoDoCampoExtra", valor: String(l['Motivo custas']) });
+    }
+
+    return arr;
+}
+
+function montarBodyTarefa(l) {
+    const encNome = String(l['Encarregado'] ?? '').trim();
+    const cnj = String(l['Processo'] ?? '').trim();
+
+    const enc = CACHE_ENCARREGADOS[normalizarTexto(encNome)] || {};
+    const proc = CACHE_PROCESSOS[cnj] || {};
+
+    return {
+        anotacoes: montarAnotacoes(l),
+        camposExtras: {},
+        valoresCamposExtras: montarValoresCamposExtras(l),
+        categoria: null,
+        cliente: { id: proc.clienteId ?? null, descricao: proc.clienteDescricao || String(l['Cliente'] ?? ''), tipoDoCadastro: "CLIENTE", removido: false, pai: null },
+        contatosConvidados: [],
+        dataHoraFinalizacao: null,
+        dataHoraInicio: paraISOComHora(l['Início da contagem'], 8),
+        dataHoraTermino: paraISOComHora(l['Último dia do prazo (fatal)'], 18),
+        descricao: l['Ato'] || 'Tarefa importada',
+        emailsConvidados: [],
+        encarregado: { id: enc.id ?? null, descricao: enc.nome || encNome, tipoDoCadastro: "COLABORADOR", removido: false, pai: null },
+        idOrigem: l['ID'] ? Number(l['ID']) : null, // vincula a tarefa à publicação de origem
+        lote: null,
+        local: null,
+        pastaProcessual: { id: proc.pastaProcessualId ?? null, descricao: proc.pastaProcessualDescricao || '', tipoDoCadastro: "PASTA_PROCESSUAL", removido: false, pai: null },
+        primeiroAlertaInicio: null,
+        primeiroAlertaTermino: null,
+        prioridade: null,
+        processo: { id: proc.processoId ?? null, descricao: cnj, tipoDoCadastro: "PROCESSO_JUDICIAL", removido: false, pai: null },
+        resolucao: null,
+        segundoAlertaInicio: null,
+        segundoAlertaTermino: null,
+        situacao: { descricao: "Pendente", valor: "PENDENTE" },
+        solicitante: null,
+        tarefaPai: null,
+        tipoOrigem: "PUBLICACAO",
+        recorrencia: { periodicidade: null, quantidade: null, recorrencia: false },
+        timeZone: "America/Sao_Paulo"
+    };
+}
+
+/* =========================================================
+   ENVIO PARA A API
+   ========================================================= */
+
+async function criarTarefas() {
+    const btn = document.getElementById('btnCriar');
+    btn.disabled = true;
+    btn.innerText = "⏳ Enviando...";
+
+    LOG_RESULTADO = [];
+    document.getElementById('previewScreen').style.display = 'none';
+    document.getElementById('resultScreen').style.display = 'block';
+
+    const linhasValidas = LINHAS.filter(l => linhaEstaPronta(l));
+    const total = linhasValidas.length;
+    let concluidas = 0;
+
+    for (const l of linhasValidas) {
+        const body = montarBodyTarefa(l);
+        let statusTxt = '', msg = '', idCriada = null;
+        try {
+            const r = await fetch("https://app-api-prod.alkasoft.com.br/api/v1/tarefas", {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (r.ok) {
+                const criada = await r.json().catch(() => null);
+                statusTxt = 'Sucesso';
+                idCriada = criada && criada.id ? criada.id : null;
+                msg = 'Tarefa criada com sucesso';
+            } else {
+                statusTxt = 'Erro';
+                const txt = await r.text();
+                msg = `Erro ao criar (código ${r.status}): ${txt.slice(0, 200)}`;
+            }
+        } catch (err) {
+            statusTxt = 'Erro';
+            msg = err.message;
+        }
+
+        LOG_RESULTADO.push({ id: l['ID'] ?? '-', ato: l['Ato'] ?? '-', status: statusTxt, mensagem: msg, idCriada });
+        concluidas++;
+        atualizarProgresso(concluidas, total);
+        renderizarLog();
+        await new Promise(res => setTimeout(res, 150));
+    }
+
+    const ignoradas = LINHAS.length - total;
+    const sucessos = LOG_RESULTADO.filter(x => x.status === 'Sucesso').length;
+    const erros = LOG_RESULTADO.filter(x => x.status === 'Erro').length;
+    document.getElementById('resumoCriacao').innerText =
+        `${total} tarefa(s) enviada(s): ${sucessos} criada(s) com sucesso e ${erros} com erro. ${ignoradas} linha(s) não enviada(s) por pendência (Encarregado ou Processo não encontrado, ou datas ausentes).`;
+}
+
+function atualizarProgresso(atual, total) {
+    const pct = total ? Math.round((atual / total) * 100) : 100;
+    document.getElementById('progressBar').style.width = pct + '%';
+}
+
+function renderizarLog() {
+    document.getElementById('logCriacao').innerHTML = LOG_RESULTADO.map(item => {
+        const link = item.idCriada
+            ? `<a href="https://eleven.alkasoft.com.br/auth/tarefas/${item.idCriada}/detalhamento" target="_blank">Abrir tarefa</a>`
+            : '-';
+        return `<tr>
+            <td>${item.id}</td>
+            <td>${item.ato}</td>
+            <td class="${item.status === 'Sucesso' ? 'status-ok' : 'status-erro'}">${item.status}</td>
+            <td>${link}</td>
+            <td>${item.mensagem}</td>
+        </tr>`;
+    }).join('');
+}
+
+function baixarLog() {
+    const ws = XLSX.utils.json_to_sheet(LOG_RESULTADO.map(i => ({
+        "ID": i.id, "Ato": i.ato, "Status": i.status,
+        "Link da tarefa": i.idCriada ? `https://eleven.alkasoft.com.br/auth/tarefas/${i.idCriada}/detalhamento` : '',
+        "Mensagem": i.mensagem
+    })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Log Importação");
+    XLSX.writeFile(wb, `Log_Importacao_Tarefas_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+</script>
+</body>
+</html>
