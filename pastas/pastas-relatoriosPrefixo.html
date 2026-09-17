@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Eleven · Execução de Sentença, RPV e Precatórios</title>
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<style>
+/* ===================== Execução de Sentença, RPV e Precatórios — widget específico deste relatório ===================== */
+
+#dashboardScreen{
+  width:100%;
+  min-width:0;
+  max-width:1400px;
+  margin:0 auto;
+  padding:24px 16px 60px;
+  align-self:flex-start;
+}
+
+.dash-header{
+  position:relative;
+  text-align:center;
+  margin-bottom:26px;
+  padding-top:6px;
+}
+.dash-header .brand-mark{margin:0 0 10px}
+.dash-header h1{margin:0 0 4px;font-size:1.3rem}
+.dash-header p{margin:0 auto;color:var(--muted);font-size:.82rem;max-width:480px}
+.dash-header #btnSairDash{ position:absolute; top:0; right:0; width:auto; }
+
+.dash-body{ display:flex; align-items:flex-start; gap:20px; }
+
+.dash-filters{
+  width:300px;
+  flex-shrink:0;
+  position:sticky;
+  top:16px;
+  align-self:flex-start;
+}
+.dash-filters h2{ display:flex; align-items:center; gap:8px; font-size:.95rem; margin:0 0 14px; }
+
+.marcar-todos{ display:flex; gap:14px; font-size:.78rem; margin:0 0 10px; }
+.marcar-todos button{ width:auto; padding:0; border:none; background:none; color:var(--brand); font-size:.78rem; font-weight:600; }
+.marcar-todos button:hover{ text-decoration:underline; }
+
+.lista-rel{ list-style:none; padding:0; margin:0; border-top:1px solid var(--border); }
+.lista-rel li{ border-bottom:1px solid var(--border); padding:10px 0; }
+.lista-rel .item{ display:flex; align-items:baseline; gap:8px; cursor:pointer; font-size:.88rem; }
+.lista-rel .item input{ margin:0; transform:translateY(1px); accent-color:var(--brand); }
+.lista-rel .nome{ flex:1; }
+.lista-rel .id{ color:var(--muted); font-size:.72rem; font-variant-numeric:tabular-nums; }
+.lista-rel .estado{ font-size:.76rem; color:var(--muted); margin:4px 0 0 22px; }
+.lista-rel .estado.erro{ color:var(--danger); }
+.lista-rel .estado.ok{ color:var(--brand); }
+.lista-rel .estado a{ color:inherit; }
+
+.item-progress{ height:3px; background:var(--border-strong); margin:8px 0 0 22px; border-radius:2px; overflow:hidden; visibility:hidden; }
+.item-progress.ativa{ visibility:visible; }
+.item-progress span{ display:block; height:100%; width:0; background:linear-gradient(90deg,var(--brand),var(--brand-2)); transition:width .2s ease-out; }
+
+.dash-main{ flex:1; min-width:0; }
+
+.topo-acoes{ display:flex; justify-content:flex-end; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+
+.indice-relatorios{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; padding:14px; background:var(--card); border:1px solid var(--border); border-radius:12px; }
+.indice-relatorios a{ display:flex; align-items:center; gap:6px; padding:7px 12px; border-radius:999px; background:var(--card-2); border:1px solid var(--border); color:var(--ink); text-decoration:none; font-size:.82rem; font-weight:600; transition:border-color .15s ease,background .15s ease; }
+.indice-relatorios a:hover{ border-color:var(--brand); background:var(--card); }
+.indice-relatorios a.com-aviso{ border-color:rgba(255,92,114,.4); }
+.indice-relatorios .indice-qtd{ color:var(--muted); font-weight:600; font-size:.74rem; }
+
+.vazio{ max-width:60ch; margin:12vh auto 0; color:var(--muted); text-align:center; }
+.vazio h2{ color:var(--ink); font-size:1.2rem; font-weight:600; margin:0 0 8px; }
+
+.relatorio{ margin-bottom:24px; }
+.rel-cab{ display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; border-bottom:2px solid var(--border-strong); padding-bottom:12px; margin-bottom:14px; }
+.rel-cab h3{ margin:0; font-size:1.1rem; }
+.rel-meta{ color:var(--muted); font-size:.78rem; margin:4px 0 0; }
+.acoes{ display:flex; gap:8px; flex-wrap:wrap; }
+
+.avisos{ background:rgba(255,92,114,.1); border:1px solid rgba(255,92,114,.3); color:var(--danger); font-size:.8rem; padding:10px 12px; border-radius:8px; margin:0 0 14px; }
+.avisos ul{ margin:6px 0 0; padding-left:18px; }
+
+.table-wrap{ width:100%; max-width:100%; overflow:auto; }
+.dash-table{ width:100%; border-collapse:collapse; font-size:.85rem; }
+.dash-table th{ text-align:left; color:var(--muted); font-weight:600; font-size:.75rem; text-transform:uppercase; padding:0 16px 8px 0; border-bottom:1px solid var(--border); white-space:nowrap; }
+.dash-table td{ padding:8px 16px 8px 0; border-bottom:1px solid var(--border-soft,var(--border)); vertical-align:top; }
+.dash-table th:last-child, .dash-table td:last-child{ padding-right:0; }
+.dash-table tr:last-child td{ border-bottom:none; }
+.dash-table .num{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.dash-table tr.falhou td{ background:rgba(255,92,114,.08); }
+.dash-table tr.total td{ font-weight:700; border-top:2px solid var(--border-strong); border-bottom:none; }
+.sem-dados{ color:var(--muted); padding:16px 0 4px; font-size:.85rem; }
+
+@media (max-width:860px){
+  .dash-body{ flex-direction:column; }
+  .dash-filters{ width:100%; position:static; }
+  .dash-header #btnSairDash{ position:static; margin-top:12px; }
+}
+
+@media print{
+  @page{ size:A4; margin:14mm; }
+  body{ background:#fff; color:#000; font-size:10.5pt; }
+  #loginScreen, .dash-filters, .topo-acoes, .vazio, .acoes, .avisos, .indice-relatorios{ display:none !important; }
+  .dash-header{ display:none !important; }
+  #dashboardScreen{ padding:0; max-width:none; }
+  .dash-body{ display:block; }
+  .dash-main{ width:100%; }
+  .relatorio{ break-after:page; margin-bottom:0; }
+  .relatorio.ultimo{ break-after:auto; }
+  body.imprimir-um .relatorio:not(.alvo){ display:none; }
+  body.imprimir-um .relatorio.alvo{ break-after:auto; }
+  .rel-cab{ border-bottom-color:#000; }
+  .table-wrap{ overflow:visible; }
+  .dash-table{ font-size:9pt; color:#000; }
+  .dash-table th, .dash-table td{ border-color:#ccc; }
+  .dash-table tr.total td{ border-top-color:#000; }
+  thead{ display:table-header-group; }
+  tr{ break-inside:avoid; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div id="loginScreen" class="card login-card center">
+    <button type="button" class="info-icon" id="infoLoginBtn" aria-label="Sobre este relatório" title="Sobre este relatório">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" font-family="Arial, Helvetica, sans-serif" fill="#08111a">i</text></svg>
+    </button>
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <p class="subtitle">Acessar Relatório: Execução de Sentença, RPV e Precatórios</p>
+    <form id="loginForm" style="width:100%">
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input type="text" id="email" class="form-control" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <div class="password-wrap">
+          <input type="password" id="senha" class="form-control" required autocomplete="current-password">
+          <button type="button" class="password-toggle" id="toggleSenha" aria-label="Mostrar senha" title="Mostrar senha">
+            <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" id="btnEntrar" class="btn" style="margin-top:6px">Entrar</button>
+    </form>
+    <div id="msgLogin" class="subtitle" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<div id="dashboardScreen" style="display:none">
+
+  <div class="dash-header">
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <h1>Execução de Sentença, RPV e Precatórios</h1>
+    <p>Pastas de cumprimento de sentença, RPV e precatório, com processo, cliente e valores — escolha os relatórios na lateral.</p>
+    <button id="btnSairDash" class="btn btn-danger btn-outline-inline">Sair</button>
+  </div>
+
+  <div class="dash-body">
+
+    <aside class="dash-filters card">
+      <h2>📋 Relatórios</h2>
+
+      <div class="marcar-todos">
+        <button type="button" id="btnMarcarTodos">Marcar todos</button>
+        <button type="button" id="btnDesmarcar">Desmarcar todos</button>
+      </div>
+
+      <ul class="lista-rel" id="listaRel"></ul>
+
+      <button type="button" id="btnGerar" class="btn" style="margin-top:14px" disabled>Gerar relatórios</button>
+      <p class="msg" id="msgGerar" style="font-size:.78rem;color:var(--danger);margin:8px 0 0"></p>
+    </aside>
+
+    <main class="dash-main">
+      <div class="topo-acoes" id="topoAcoes" hidden>
+        <button type="button" id="btnExcelTodos" class="btn btn-outline-inline">⬇️ Baixar Excel com todos</button>
+        <button type="button" id="btnImprimirTodos" class="btn btn-outline-inline">🖨️ Imprimir todos</button>
+      </div>
+
+      <div class="vazio" id="vazio">
+        <h2>Nenhum relatório gerado ainda</h2>
+        <p>Escolha os relatórios na lista ao lado e clique em Gerar relatórios. Cada um aparece aqui e pode ser baixado em Excel ou salvo em PDF.</p>
+      </div>
+
+      <div id="resultados"></div>
+    </main>
+
+  </div>
+</div>
+
+<div class="modal-overlay" id="infoModalOverlay">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <button class="modal-close" id="infoModalClose" type="button" aria-label="Fechar">✕</button>
+    <h2 class="modal-title">Sobre este relatório</h2>
+    <div class="modal-body">
+      <p>Gera relatórios de pastas agrupadas por prefixo (ex.: Cumprimento de Sentença, RPV, Precatório), com processo, cliente e valores de cada uma. É possível marcar vários relatórios e gerar todos de uma vez.</p>
+      <p style="color:var(--muted);font-size:.85rem;margin-top:10px">Este relatório apenas consulta informações — ele não altera, cria ou apaga nada nas pastas ou processos.</p>
+      <h3 style="margin:14px 0 8px">Se algo der errado no login</h3>
+      <ul>
+        <li>Confira se o e-mail está completo e sem espaço no fim.</li>
+        <li>Teste o mesmo acesso direto no sistema. Se não entrar lá, a senha é o problema.</li>
+        <li>Se entrar no sistema mas não aqui, avise o suporte: pode ser permissão de perfil.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========== Modal de informação (tela de login) ========== */
+(function(){
+  const overlay = document.getElementById('infoModalOverlay');
+  const btn = document.getElementById('infoLoginBtn');
+  const closeBtn = document.getElementById('infoModalClose');
+  if(overlay && btn){
+    const open = ()=> overlay.classList.add('open');
+    const close = ()=> overlay.classList.remove('open');
+    btn.addEventListener('click', open);
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && overlay.classList.contains('open')) close(); });
+  }
+})();
+
+/* ========== Mostrar/ocultar senha ========== */
+(function(){
+  const toggleSenhaBtn = document.getElementById('toggleSenha');
+  const senhaInput = document.getElementById('senha');
+  const eyeIcon = document.getElementById('eyeIcon');
+  const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+  const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.4 18.4 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/>';
+  if(toggleSenhaBtn){
+    toggleSenhaBtn.addEventListener('click', ()=>{
+      const showing = senhaInput.type === 'text';
+      senhaInput.type = showing ? 'password' : 'text';
+      eyeIcon.innerHTML = showing ? EYE_OPEN : EYE_OFF;
+      toggleSenhaBtn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+      toggleSenhaBtn.title = showing ? 'Mostrar senha' : 'Ocultar senha';
+    });
+  }
+})();
+
+/* =====================================================================
+   CONFIGURAÇÃO
+   Para incluir/remover relatórios, edite esta lista.
+   ===================================================================== */
+const RELATORIOS = [
+  { nome: 'CUMPRIMENTO DE SENTENÇA',      idPrefixo: 1019727 },
+  { nome: 'Aguardando Exp. RPV-PRC',      idPrefixo: 1019722 },
+  { nome: "RPV's expedidos",              idPrefixo: 1019737 },
+  { nome: 'RPV E PRECATÓRIO CADASTRADO',  idPrefixo: 1019736 },
+  { nome: 'Precatório 2026',              idPrefixo: 1019759 },
+  { nome: 'Precatório 2025',              idPrefixo: 1019756 },
+  { nome: 'Precatório 2027',              idPrefixo: 1308701 },
+];
+
+/* 🔐 EMAILS PERMITIDOS */
+const EMAILS_PERMITIDOS = [
+  'leideferreiramt@gmail.com'
+];
+
+const LOGIN_URL = 'https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum';
+const API = {
+  buscaPastas: (inicio, qtd) => `https://busca-avancada-api-prod.alkasoft.com.br/api/v1/pastas?ordenacao=ULTIMA_MODIFICACAO_DESC&inicio=${inicio}&quantidade=${qtd}`,
+  pasta:       id => `https://app-api-prod.alkasoft.com.br/api/v1/pastasprocessuais/${id}?marcarAcessada=false`,
+  processos:   id => `https://app-api-prod.alkasoft.com.br/api/v1/pastas-processuais/${id}/processos-judiciais/`,
+  prognostico: id => `https://app-api-prod.alkasoft.com.br/api/v1/pastasprocessuais/${id}/prognosticoevalores`,
+};
+
+const POR_PAGINA = 200;   // itens por página na busca de pastas
+const CONCORRENCIA = 3;   // pastas processadas ao mesmo tempo
+
+/* ===================================================================== */
+
+let BEARER_TOKEN = null;
+const estado = { gerando: false, resultados: new Map() };
+const el = id => document.getElementById(id);
+const esperar = ms => new Promise(r => setTimeout(r, ms));
+
+class ErroFatal extends Error {}
+
+/* ---------- formatação ---------- */
+const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const formataValorRS = v => moeda.format(v ?? 0);
+const paraNumero = v => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+const nomeArquivo = s => s.replace(/[\\/:*?"<>|]/g, '').trim() || 'relatorio';
+
+/* ---------- HTTP com novas tentativas ---------- */
+async function http(method, url, { body, headers = {} } = {}, tentativas = 3) {
+  const h = { ...headers };
+  if (body !== undefined) h['Content-Type'] = 'application/json';
+
+  for (let t = 1; ; t++) {
+    let resp;
+    try {
+      resp = await fetch(url, { method, headers: h, body: body !== undefined ? JSON.stringify(body) : undefined });
+    } catch (e) {
+      if (t < tentativas) { await esperar(800 * t); continue; }
+      throw new ErroFatal('O navegador não conseguiu acessar a API (conexão instável ou CORS). Tente novamente.');
+    }
+    if ((resp.status === 429 || resp.status >= 500) && t < tentativas) { await esperar(1000 * t); continue; }
+    return resp;
+  }
+}
+
+async function api(method, url, body) {
+  const resp = await http(method, url, { body, headers: { Authorization: 'Bearer ' + BEARER_TOKEN } });
+  if (resp.status === 401 || resp.status === 403) {
+    throw new ErroFatal(`A API recusou o token (HTTP ${resp.status}). Entre novamente.`);
+  }
+  if (!resp.ok) throw new Error(`HTTP ${resp.status} em ${url}`);
+  const txt = await resp.text();
+  return txt ? JSON.parse(txt) : null;
+}
+
+/* Igual a api(), mas HTTP 404 não é tratado como falha — só significa que
+   esse sub-recurso ainda não existe para o registro (ex.: pasta sem
+   prognóstico de valores cadastrado ainda). Resolve com null nesse caso,
+   em vez de rejeitar, pra não marcar a linha como "não carregou". */
+async function apiOpcional(method, url, body) {
+  const resp = await http(method, url, { body, headers: { Authorization: 'Bearer ' + BEARER_TOKEN } });
+  if (resp.status === 401 || resp.status === 403) {
+    throw new ErroFatal(`A API recusou o token (HTTP ${resp.status}). Entre novamente.`);
+  }
+  if (resp.status === 404) return null;
+  if (!resp.ok) throw new Error(`HTTP ${resp.status} em ${url}`);
+  const txt = await resp.text();
+  return txt ? JSON.parse(txt) : null;
+}
+
+/* ---------- login ---------- */
+async function fazerLogin(email, senha) {
+  const basic = btoa(unescape(encodeURIComponent(`${email}:${senha}`)));
+  const resp = await http('GET', LOGIN_URL, { headers: { Authorization: 'Basic ' + basic } }, 1);
+  if (resp.status === 401 || resp.status === 403) throw new Error('E-mail ou senha incorretos.');
+  if (!resp.ok) throw new Error(`O login falhou (HTTP ${resp.status}).`);
+  const auth = resp.headers.get('authorization');
+  if (!auth) throw new Error('O navegador não conseguiu ler o token da resposta.');
+  return auth.replace(/^Bearer\s+/i, '').trim();
+}
+
+/* ---------- executa tarefas com limite de simultaneidade ---------- */
+async function emParalelo(lista, limite, fn) {
+  const saida = new Array(lista.length);
+  let proximo = 0, fatal = null;
+  async function trabalhador() {
+    while (proximo < lista.length && !fatal) {
+      const i = proximo++;
+      try { saida[i] = await fn(lista[i], i); }
+      catch (e) { fatal = e; }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limite, lista.length) }, trabalhador));
+  if (fatal) throw fatal;
+  return saida;
+}
+
+/* ---------- geração do relatório ---------- */
+async function gerarRelatorio(rel, progresso) {
+  const body = { idsPrefixos: [rel.idPrefixo] };
+
+  progresso({ texto: 'Buscando pastas…' });
+  const primeira = await api('POST', API.buscaPastas(0, POR_PAGINA), body);
+  const total = primeira?.quantidadeTotal ?? 0;
+  const itens = [...(primeira?.itens ?? [])];
+  const paginas = Math.ceil(total / POR_PAGINA);
+  for (let p = 1; p < paginas; p++) {
+    const pg = await api('POST', API.buscaPastas(p * POR_PAGINA, POR_PAGINA), body);
+    itens.push(...(pg?.itens ?? []));
+  }
+
+  let feitos = 0;
+  const erros = [];
+  progresso({ feitos, total: itens.length });
+
+  const linhas = await emParalelo(itens, CONCORRENCIA, async (item) => {
+    const linha = {
+      pasta: '', processo: '',
+      cliente: item?.clientePrincipal?.descricao ?? '',
+      valorInicial: null, valorFinal: null, erro: null,
+    };
+    const [pasta, proc, prog] = await Promise.allSettled([
+      api('GET', API.pasta(item.id)),
+      api('GET', API.processos(item.id)),
+      apiOpcional('GET', API.prognostico(item.id)),
+    ]);
+    progresso({ feitos: ++feitos, total: itens.length });
+
+    const falhas = [];
+    for (const [r, oque] of [[pasta, 'dados da pasta'], [proc, 'processo'], [prog, 'valores']]) {
+      if (r.status === 'rejected') {
+        if (r.reason instanceof ErroFatal) throw r.reason;
+        const httpMsg = /HTTP \d+/.exec(r.reason?.message)?.[0] ?? r.reason?.message;
+        falhas.push(`${oque} (${httpMsg})`);
+      }
+    }
+    if (pasta.status === 'fulfilled') linha.pasta = pasta.value?.prefixo?.descricao ?? '';
+    if (proc.status === 'fulfilled') linha.processo = (proc.value?.quantidadeTotal > 0 && proc.value.itens?.[0]?.numeroCNJ) || '';
+    if (prog.status === 'fulfilled') {
+      linha.valorInicial = paraNumero(prog.value?.valorCausa);
+      linha.valorFinal = paraNumero(prog.value?.valorProvisionado);
+    }
+    if (falhas.length) {
+      linha.erro = 'Não carregou: ' + falhas.join(', ');
+      erros.push(`${linha.pasta || 'Pasta id ' + item.id} (${linha.cliente || 'sem cliente'}): ${falhas.join(', ')}`);
+    }
+    return linha;
+  });
+
+  linhas.sort((a, b) => a.pasta.localeCompare(b.pasta, 'pt-BR'));
+  const soma = campo => linhas.reduce((s, l) => s + (l[campo] ?? 0), 0);
+
+  return {
+    ...rel, linhas, erros,
+    totalInicial: soma('valorInicial'),
+    totalFinal: soma('valorFinal'),
+    geradoEm: new Date(),
+  };
+}
+
+/* ---------- renderização ---------- */
+function el2(tag, props = {}, ...filhos) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === 'class') n.className = v;
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v);
+  }
+  for (const f of filhos) if (f !== null && f !== undefined) n.append(f);
+  return n;
+}
+
+function renderizar(res) {
+  const quando = res.geradoEm.toLocaleDateString('pt-BR') + ' às ' +
+                 res.geradoEm.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const qtd = res.linhas.length;
+
+  const secao = el2('section', { class: 'relatorio card', id: 'rel-' + res.idPrefixo, 'aria-labelledby': 'h-' + res.idPrefixo },
+    el2('header', { class: 'rel-cab' },
+      el2('div', {},
+        el2('h3', { id: 'h-' + res.idPrefixo }, res.nome),
+        el2('p', { class: 'rel-meta' }, `Relatório Lawyer Eleven, ${qtd} ${qtd === 1 ? 'pasta' : 'pastas'}, gerado em ${quando}`)
+      ),
+      el2('div', { class: 'acoes' },
+        el2('button', { class: 'btn btn-outline-inline', onclick: () => baixarExcel([res]) }, 'Baixar Excel'),
+        el2('button', { class: 'btn btn-outline-inline', onclick: () => imprimir(res.idPrefixo) }, 'Imprimir ou salvar PDF')
+      )
+    )
+  );
+
+  if (res.erros.length) {
+    const lista = el2('ul');
+    res.erros.slice(0, 10).forEach(e => lista.append(el2('li', {}, e)));
+    if (res.erros.length > 10) lista.append(el2('li', {}, `e mais ${res.erros.length - 10}`));
+    secao.append(el2('div', { class: 'avisos', role: 'alert' },
+      `${res.erros.length} ${res.erros.length === 1 ? 'pasta não carregou' : 'pastas não carregaram'} por completo e ${res.erros.length === 1 ? 'aparece destacada' : 'aparecem destacadas'} na tabela. O que faltou fica em branco e não entra no total; gere de novo para tentar outra vez.`,
+      lista));
+  }
+
+  if (!qtd) {
+    secao.append(el2('p', { class: 'sem-dados' }, 'Nenhuma pasta encontrada com este prefixo.'));
+    return secao;
+  }
+
+  const tbody = el2('tbody');
+  for (const l of res.linhas) {
+    tbody.append(el2('tr', l.erro ? { class: 'falhou', title: l.erro } : {},
+      el2('td', {}, l.pasta || (l.erro ? 'Falha ao carregar' : '')),
+      el2('td', {}, l.processo),
+      el2('td', {}, l.cliente),
+      el2('td', { class: 'num' }, l.valorInicial === null ? '' : formataValorRS(l.valorInicial)),
+      el2('td', { class: 'num' }, l.valorFinal === null ? '' : formataValorRS(l.valorFinal)),
+    ));
+  }
+  tbody.append(el2('tr', { class: 'total' },
+    el2('td', {}, ''), el2('td', {}, ''), el2('td', {}, 'Total'),
+    el2('td', { class: 'num' }, formataValorRS(res.totalInicial)),
+    el2('td', { class: 'num' }, formataValorRS(res.totalFinal)),
+  ));
+
+  secao.append(el2('div', { class: 'table-wrap' },
+    el2('table', { class: 'dash-table' },
+      el2('thead', {}, el2('tr', {},
+        el2('th', { scope: 'col' }, 'Pasta'),
+        el2('th', { scope: 'col' }, 'Processo'),
+        el2('th', { scope: 'col' }, 'Cliente'),
+        el2('th', { scope: 'col', class: 'num' }, 'Valor inicial'),
+        el2('th', { scope: 'col', class: 'num' }, 'Valor final'),
+      )),
+      tbody
+    )
+  ));
+  return secao;
+}
+
+function atualizarResultados() {
+  const cont = el('resultados');
+  cont.replaceChildren();
+  const prontos = RELATORIOS.filter(r => estado.resultados.has(r.idPrefixo));
+
+  if (prontos.length > 1) {
+    cont.append(el2('nav', { class: 'indice-relatorios', 'aria-label': 'Relatórios gerados' },
+      ...prontos.map(r => {
+        const res = estado.resultados.get(r.idPrefixo);
+        const qtd = res.linhas.length;
+        return el2('a', { href: '#rel-' + r.idPrefixo, class: res.erros.length ? 'com-aviso' : '' },
+          r.nome, el2('span', { class: 'indice-qtd' }, `${qtd} ${qtd === 1 ? 'pasta' : 'pastas'}`));
+      })
+    ));
+  }
+
+  prontos.forEach((r, i) => {
+    const s = renderizar(estado.resultados.get(r.idPrefixo));
+    if (i === prontos.length - 1) s.classList.add('ultimo');
+    cont.append(s);
+  });
+  el('vazio').hidden = prontos.length > 0;
+  el('topoAcoes').hidden = prontos.length === 0;
+}
+
+/* ---------- Excel ---------- */
+function planilha(res) {
+  const aoa = [['Pasta', 'Processo', 'Cliente', 'ValorInicial', 'ValorFinal']];
+  res.linhas.forEach(l => aoa.push([l.pasta, l.processo, l.cliente, l.valorInicial, l.valorFinal]));
+  aoa.push(['', '', 'TOTAL', res.totalInicial, res.totalFinal]);
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  for (let r = 1; r < aoa.length; r++) {
+    for (const c of [3, 4]) {
+      const cel = ws[XLSX.utils.encode_cell({ r, c })];
+      if (cel && cel.t === 'n') cel.z = '"R$" #,##0.00';
+    }
+  }
+  ws['!cols'] = [{ wch: 28 }, { wch: 27 }, { wch: 42 }, { wch: 18 }, { wch: 18 }];
+  return ws;
+}
+
+function baixarExcel(lista) {
+  if (typeof XLSX === 'undefined') { alert('A biblioteca de Excel não carregou. Verifique a conexão com a internet.'); return; }
+  const wb = XLSX.utils.book_new();
+  const usados = new Set();
+  for (const res of lista) {
+    let nome = res.nome.replace(/[\\/?*\[\]:]/g, '').replace(/^'+|'+$/g, '').slice(0, 31) || 'Relatório';
+    let base = nome, n = 2;
+    while (usados.has(nome)) nome = base.slice(0, 28) + ' ' + n++;
+    usados.add(nome);
+    XLSX.utils.book_append_sheet(wb, planilha(res), nome);
+  }
+  const arquivo = lista.length === 1 ? nomeArquivo(lista[0].nome) : 'Relatorios Lawyer Eleven';
+  XLSX.writeFile(wb, arquivo + '.xlsx');
+}
+
+/* ---------- PDF via impressão ---------- */
+function imprimir(idPrefixo) {
+  const tituloOriginal = document.title;
+  if (idPrefixo) {
+    document.body.classList.add('imprimir-um');
+    el('rel-' + idPrefixo).classList.add('alvo');
+    document.title = nomeArquivo(estado.resultados.get(idPrefixo).nome);
+  }
+  const limpar = () => {
+    document.body.classList.remove('imprimir-um');
+    document.querySelectorAll('.relatorio.alvo').forEach(s => s.classList.remove('alvo'));
+    document.title = tituloOriginal;
+    window.removeEventListener('afterprint', limpar);
+  };
+  window.addEventListener('afterprint', limpar);
+  window.print();
+}
+
+/* ---------- lista lateral ---------- */
+function montarLista() {
+  const ul = el('listaRel');
+  ul.replaceChildren();
+  for (const r of RELATORIOS) {
+    ul.append(el2('li', { 'data-id': r.idPrefixo },
+      el2('label', { class: 'item' },
+        el2('input', { type: 'checkbox', checked: '', value: r.idPrefixo }),
+        el2('span', { class: 'nome' }, r.nome),
+        el2('span', { class: 'id' }, String(r.idPrefixo))
+      ),
+      el2('div', { class: 'estado' }, ''),
+      el2('div', { class: 'item-progress' }, el2('span'))
+    ));
+  }
+}
+
+function setEstado(id, texto, tipo = '', pct = null) {
+  const li = document.querySelector(`#listaRel li[data-id="${id}"]`);
+  const est = li.querySelector('.estado');
+  est.className = 'estado' + (tipo ? ' ' + tipo : '');
+  est.textContent = texto;
+  if (tipo === 'ok') {
+    est.append(' ', el2('a', { href: '#rel-' + id }, 'ver'));
+  }
+  const barra = li.querySelector('.item-progress');
+  barra.classList.toggle('ativa', pct !== null);
+  barra.firstChild.style.width = (pct ?? 0) + '%';
+}
+
+function atualizarBotoes() {
+  const algum = document.querySelectorAll('#listaRel input:checked').length > 0;
+  el('btnGerar').disabled = estado.gerando || !algum;
+}
+
+/* ---------- ações ---------- */
+async function gerarSelecionados() {
+  const ids = [...document.querySelectorAll('#listaRel input:checked')].map(i => Number(i.value));
+  const alvo = RELATORIOS.filter(r => ids.includes(r.idPrefixo));
+  estado.gerando = true;
+  atualizarBotoes();
+  el('btnGerar').textContent = 'Gerando…';
+  alvo.forEach(r => setEstado(r.idPrefixo, 'Na fila'));
+
+  let abortado = null;
+  for (const rel of alvo) {
+    if (abortado) { setEstado(rel.idPrefixo, 'Não gerado'); continue; }
+    try {
+      const res = await gerarRelatorio(rel, ({ texto, feitos, total }) => {
+        if (texto) setEstado(rel.idPrefixo, texto, '', 0);
+        else setEstado(rel.idPrefixo, `Carregando ${feitos} de ${total}`, '', total ? (feitos / total) * 100 : 100);
+      });
+      estado.resultados.set(rel.idPrefixo, res);
+      const q = res.linhas.length;
+      setEstado(rel.idPrefixo,
+        res.erros.length ? `Pronto, ${q} pastas, ${res.erros.length} com falha` : `Pronto, ${q} ${q === 1 ? 'pasta' : 'pastas'}`,
+        res.erros.length ? 'erro' : 'ok');
+      atualizarResultados();
+    } catch (e) {
+      setEstado(rel.idPrefixo, 'Erro: ' + e.message, 'erro');
+      if (e instanceof ErroFatal) {
+        abortado = e;
+        if (/token/i.test(e.message)) {
+          BEARER_TOKEN = null;
+          el('dashboardScreen').style.display = 'none';
+          el('loginScreen').parentElement.style.display = 'block';
+        }
+      }
+    }
+  }
+
+  estado.gerando = false;
+  el('btnGerar').textContent = 'Gerar relatórios';
+  atualizarBotoes();
+  if (abortado) { el('msgGerar').textContent = abortado.message; }
+}
+
+/* ---------- login ---------- */
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = el('msgLogin');
+  const email = el('email').value.trim();
+  const senha = el('senha').value;
+  if (!email || !senha) { msg.textContent = 'Informe e-mail e senha.'; return; }
+  if (!EMAILS_PERMITIDOS.includes(email.toLowerCase())) { msg.textContent = 'Acesso não autorizado.'; return; }
+  const btnEntrar = el('btnEntrar');
+  btnEntrar.disabled = true;
+  msg.textContent = 'Entrando…';
+  try {
+    BEARER_TOKEN = await fazerLogin(email, senha);
+    el('senha').value = '';
+    msg.textContent = '';
+    el('loginScreen').parentElement.style.display = 'none';
+    el('dashboardScreen').style.display = 'block';
+    montarLista();
+    atualizarBotoes();
+  } catch (err) {
+    msg.textContent = err.message;
+  } finally {
+    btnEntrar.disabled = false;
+  }
+});
+
+el('btnSairDash').addEventListener('click', () => location.reload());
+el('btnGerar').addEventListener('click', gerarSelecionados);
+el('listaRel').addEventListener('change', atualizarBotoes);
+el('btnMarcarTodos').addEventListener('click', () => { document.querySelectorAll('#listaRel input').forEach(i => i.checked = true); atualizarBotoes(); });
+el('btnDesmarcar').addEventListener('click', () => { document.querySelectorAll('#listaRel input').forEach(i => i.checked = false); atualizarBotoes(); });
+el('btnExcelTodos').addEventListener('click', () => baixarExcel(RELATORIOS.filter(r => estado.resultados.has(r.idPrefixo)).map(r => estado.resultados.get(r.idPrefixo))));
+el('btnImprimirTodos').addEventListener('click', () => imprimir(null));
+</script>
+</body>
+</html>
