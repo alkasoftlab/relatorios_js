@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Eleven · Tarefas | Alteração em lote</title>
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+/* O JS escreve a porcentagem dentro do próprio .fill */
+#fill{color:#fff;font-weight:700;font-size:.7rem;line-height:14px;text-align:center;white-space:nowrap;overflow:hidden}
+
+.lote-card{max-width:960px;margin:0 auto;padding:28px}
+.lote-card .brand-mark{justify-content:center}
+.lote-card h1{text-align:center}
+.lote-card > .subtitle{text-align:center}
+
+.par-titulo{font-size:.95rem;font-weight:600;color:var(--ink);margin:14px 0 6px}
+.par{display:grid;grid-template-columns:1fr 30px 1fr;gap:8px;align-items:end}
+.par .seta{height:30px;width:30px;margin-bottom:6px;padding:0;border:1px solid var(--border-strong);border-radius:7px;background:transparent;color:var(--muted);font-size:.95rem;line-height:1;cursor:pointer;transition:color .15s,border-color .15s}
+.par .seta:hover,.par .seta:focus-visible{color:var(--brand);border-color:var(--brand);outline:none}
+.par .seta:disabled{opacity:.4;cursor:not-allowed}
+
+/* ✕ dentro do select (estilo Material UI): só com valor e em hover/foco */
+.sel-wrap{position:relative}
+.sel-wrap .form-control{padding-right:60px}
+.sel-wrap .limpar{position:absolute;right:30px;top:50%;transform:translateY(-50%);width:26px;height:26px;padding:0;border:none;border-radius:50%;background:transparent;color:var(--danger);font-size:.9rem;font-weight:700;line-height:1;cursor:pointer;display:none}
+.sel-wrap.tem-valor:hover .limpar,.sel-wrap.tem-valor:focus-within .limpar{display:block}
+.sel-wrap .limpar:hover,.sel-wrap .limpar:focus-visible{color:var(--danger);background:rgba(255,92,114,.15);outline:none}
+.sel-wrap .limpar:disabled{display:none}
+@media (hover:none){
+  .sel-wrap.tem-valor .limpar{display:block}
+}
+.par .field{margin-bottom:0}
+
+.dica{min-height:20px;color:var(--orange);font-size:.85rem;margin:4px 0 14px}
+.aviso-limite{background:rgba(255,171,74,.08);border-color:rgba(255,171,74,.3);margin:6px 0 10px}
+
+.lista-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.lista-top h2{margin:0;font-size:1.05rem}
+.table-scroll{max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:10px;margin-top:8px}
+.table-scroll .table{margin-top:0}
+.table th{position:sticky;top:0;z-index:1}
+.table td.t a{color:var(--brand);text-decoration:underline}
+.table input[type=checkbox]{width:16px;height:16px;cursor:pointer}
+.table input[type=checkbox]:disabled{cursor:not-allowed;opacity:.4}
+.table tr.alterada td{opacity:.75}
+.table tr.alterada .badge{margin-left:6px;opacity:1}
+
+#btnConfirmar{margin-top:16px}
+.msg-ok{color:var(--success);font-weight:600;margin:12px 0 6px}
+.msg-erro{color:var(--danger);font-weight:600;margin:12px 0 6px}
+#erro:empty{display:none}
+#erro{background:rgba(255,92,114,.08);border:1px solid rgba(255,92,114,.3);border-radius:10px;padding:10px 14px;font-weight:500}
+
+dialog#dlg{background:var(--card);color:var(--ink);border:1px solid var(--border);border-radius:14px;max-width:520px;width:calc(100% - 32px);padding:22px}
+dialog#dlg::backdrop{background:rgba(0,0,0,.6)}
+dialog#dlg ul{padding-left:18px;margin:8px 0}
+dialog#dlg .confirma-email{display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:.87rem;line-height:1.4;cursor:pointer}
+dialog#dlg .confirma-email input{width:16px;height:16px;margin-top:2px;flex-shrink:0;cursor:pointer}
+dialog#dlg .btns .btn:disabled{opacity:.5;cursor:not-allowed;filter:none}
+dialog#dlg .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+dialog#dlg .btns .btn{width:auto;margin:0;padding:9px 18px}
+.btn-azul{background:var(--brand-2)}
+.btn-azul:disabled,#btnFiltrar:disabled{opacity:.5;cursor:not-allowed;filter:none}
+.btn-sec{background:transparent;border:1px solid var(--border-strong);color:var(--ink)}
+
+@media (max-width:520px){
+  .lote-card{padding:18px}
+  .par{grid-template-columns:1fr 28px 1fr;gap:6px}
+  .par .seta{width:28px;height:28px;margin-bottom:7px}
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<div class="card login-card center" id="login">
+    <button type="button" class="info-icon" id="infoLoginBtn" aria-label="Sobre esta ferramenta" title="Sobre esta ferramenta">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" font-family="Arial, Helvetica, sans-serif" fill="#08111a">i</text></svg>
+    </button>
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <p class="subtitle">Acessar: Tarefas - alteração em lote</p>
+    <form id="loginForm" style="width:100%">
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input type="text" id="email" class="form-control" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <div class="password-wrap">
+          <input type="password" id="senha" class="form-control" required autocomplete="current-password">
+          <button type="button" class="password-toggle" id="toggleSenha" aria-label="Mostrar senha" title="Mostrar senha">
+            <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn" id="btnEntrar">Entrar</button>
+    </form>
+    <div id="resultadoLogin" class="subtitle" style="margin-top:10px"></div>
+</div>
+
+<div class="card lote-card" id="lote" style="display:none">
+  <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+  <h1>Tarefas - alteração em lote</h1>
+  <p class="subtitle">Selecione o valor atual para filtrar as tarefas e o novo valor para a troca. Campos em branco são ignorados no filtro.</p>
+
+  <div class="filter-info aviso-limite"><strong>Observação:</strong> O limite para alterações em lote é de 500 tarefas por vez. Após finalizar o lote, será possível realizar um novo filtro e confirmar outra alteração em lote.</div>
+
+  <div class="filter-info aviso-limite"><strong>Notificações:</strong> Recomenda-se solicitar ao suporte que desabilite as notificações por e-mail do escritório antes de realizar a alteração em lote e que as reabilite ao terminar. Mesmo com o e-mail desabilitado, as alterações continuam gerando avisos na central de notificações do Eleven para os encarregados e interessados com acesso ao sistema.</div>
+
+  <div id="erro" class="msg-erro" role="alert"></div>
+
+  <div id="secoes"></div>
+
+  <button type="button" class="btn" id="btnFiltrar" disabled style="margin-top:16px">Filtrar tarefas</button>
+  <button type="button" class="btn btn-azul" id="btnLimparFiltros" disabled>Limpar filtros</button>
+  <div id="dica" class="dica"></div>
+
+  <div id="lista" style="display:none">
+    <div class="lista-top">
+      <h2>Tarefas selecionadas</h2>
+      <span class="small-muted" id="cnt"></span>
+    </div>
+    <div id="tabela"></div>
+  </div>
+
+  <button type="button" class="btn" id="btnConfirmar" disabled>Confirmar alteração em lote</button>
+
+  <div class="progress-wrap" id="bar">
+    <div class="progress"><div id="fill" class="fill">0%</div></div>
+  </div>
+  <div id="status" class="small-muted" style="margin-top:8px" role="status"></div>
+  <div id="resultado" role="alert"></div>
+
+  <button type="button" class="btn btn-danger" id="btnSair" style="margin-top:16px">Sair</button>
+</div>
+
+</div>
+
+<dialog id="dlg">
+  <h2 class="modal-title">Confirmar a troca?</h2>
+  <div id="resumo" class="modal-body"></div>
+  <label class="confirma-email">
+    <input type="checkbox" id="chkEmailDesabilitado">
+    <span>Estou ciente de que as alterações irão gerar avisos na central de notificações do Eleven e podem gerar notificações por e-mail, caso estas não estejam desabilitadas.</span>
+  </label>
+  <div class="btns">
+    <button type="button" class="btn btn-sec" id="btnCancelar">Cancelar</button>
+    <button type="button" class="btn" id="btnOk" disabled>Sim, trocar</button>
+  </div>
+</dialog>
+
+<div class="modal-overlay" id="infoModalOverlay">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <button class="modal-close" id="infoModalClose" type="button" aria-label="Fechar">✕</button>
+    <h2 class="modal-title">Sobre esta ferramenta</h2>
+    <div class="modal-body">
+      <p>Altera várias tarefas de uma só vez, trocando o <strong>Encarregado</strong>, a <strong>Categoria</strong> e/ou a <strong>Situação</strong> de todas as tarefas que atendam ao filtro.</p>
+      <ul>
+        <li><strong>De → Para</strong>Em cada bloco, escolha o valor atual (usado para filtrar) e o valor novo (usado na troca). Blocos em branco são ignorados.</li>
+        <li><strong>Filtrar</strong>A busca traz todas as tarefas (incluindo subtarefas) que têm todos os valores atuais informados. Todas vêm marcadas; desmarque as que não devem mudar.</li>
+        <li><strong>Confirmar</strong>Depois de confirmar, a troca é gravada no Eleven somente nas tarefas marcadas. As alterações geram avisos na central de notificações e podem gerar e-mails; recomenda-se solicitar ao suporte que desabilite as notificações por e-mail do escritório antes da alteração e que as reabilite ao terminar.</li>
+      </ul>
+      <p style="background:rgba(255,171,74,.12);border:1px solid rgba(255,171,74,.3);color:var(--orange);padding:10px 12px;border-radius:8px;margin-top:10px;line-height:1.4">⚠️ <strong>Atenção:</strong> esta ferramenta <strong>altera</strong> as tarefas no sistema. Confira a listagem antes de confirmar. O limite recomendado é de 500 tarefas por alteração.</p>
+      <h3 style="margin:14px 0 8px">Se alguma tarefa não for alterada</h3>
+      <ul>
+        <li>Ela aparece na lista de falhas com a mensagem do sistema e continua marcada para nova tentativa.</li>
+        <li>O motivo mais comum é falta de permissão de edição na tarefa ou campo obrigatório não preenchido nela.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========== Modal de informação (tela de login) ========== */
+(function(){
+    const overlay = document.getElementById('infoModalOverlay');
+    const btn = document.getElementById('infoLoginBtn');
+    const closeBtn = document.getElementById('infoModalClose');
+    if(overlay && btn){
+        const open = ()=> overlay.classList.add('open');
+        const close = ()=> overlay.classList.remove('open');
+        btn.addEventListener('click', open);
+        closeBtn.addEventListener('click', close);
+        overlay.addEventListener('click', (e)=>{
+            if(e.target===overlay){
+                close();
+            }
+        });
+        document.addEventListener('keydown', (e)=>{
+            if(e.key==='Escape' && overlay.classList.contains('open')){
+                close();
+            }
+        });
+    }
+})();
+
+/* ========== Mostrar/ocultar senha ========== */
+(function(){
+    const toggleSenhaBtn = document.getElementById('toggleSenha');
+    const senhaInput = document.getElementById('senha');
+    const eyeIcon = document.getElementById('eyeIcon');
+    const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+    const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.4 18.4 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/>';
+    if(toggleSenhaBtn){
+        toggleSenhaBtn.addEventListener('click',()=>{
+            const showing = senhaInput.type === 'text';
+            senhaInput.type = showing ? 'password' : 'text';
+            eyeIcon.innerHTML = showing ? EYE_OPEN : EYE_OFF;
+            toggleSenhaBtn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+            toggleSenhaBtn.title = showing ? 'Mostrar senha' : 'Ocultar senha';
+        });
+    }
+})();
+
+/* ========== Constantes e estado ========== */
+const LOGIN_URL  = 'https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum';
+const APP_URL    = 'https://app-api-prod.alkasoft.com.br/api/v1';
+const BUSCA_URL  = 'https://busca-avancada-api-prod.alkasoft.com.br/api/v1';
+const URL_TAREFA = 'https://eleven.alkasoft.com.br/auth/tarefas/';
+
+const PAGINA       = 100;
+const CONCORRENCIA = 5;
+
+const SITUACAO_FINALIZADA = 'TAREFA_FINALIZADA';
+
+const CAMPOS = [
+  { id:'encarregado', titulo:'Encarregado', de:'Encarregado atual', para:'Encarregado novo' },
+  { id:'categoria',   titulo:'Categoria',   de:'Categoria atual',   para:'Categoria nova' },
+  { id:'situacao',    titulo:'Situação',    de:'Situação atual',    para:'Situação nova' }
+];
+
+// Opções de cada campo: [{ id: string, nome: string }]
+const OPCOES = {
+  encarregado: [],
+  categoria: [],
+  situacao: [
+    { id:'EM_ANDAMENTO',        nome:'Em andamento' },
+    { id:'PENDENTE',            nome:'Pendente' },
+    { id:SITUACAO_FINALIZADA,   nome:'Finalizada' }
+  ]
+};
+
+let TOKEN = null;
+let filtradas = [];          // [{ id, descricao, encarregado, categoria, situacao }]
+let selecionadas = new Set(); // ids das tarefas marcadas
+let paresConfirmados = [];
+let ERRO_CARGA = '';
+
+/* ========== Helpers ========== */
+const el = id => document.getElementById(id);
+const esc = t => String(t ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
+const porNome = (a, b) => a.nome.localeCompare(b.nome, 'pt-BR');
+
+function auth(json){
+  const h = { Authorization: 'Bearer ' + TOKEN };
+  if(json){
+    h['Content-Type'] = 'application/json';
+  }
+  return h;
+}
+
+function progresso(p, texto){
+  el('bar').style.display = 'block';
+  el('fill').style.width = p + '%';
+  el('fill').textContent = Math.round(p) + '%';
+  el('status').textContent = texto || '';
+}
+
+function ocultarProgresso(){
+  el('bar').style.display = 'none';
+  el('status').textContent = '';
+}
+
+// A API responde erros como {"mensagem": "..."} (ou lista deles);
+// mostra a mensagem quando houver, senão o texto cru.
+async function mensagemDeErro(r){
+  const txt = await r.text().catch(() => '');
+  let mensagem = '';
+  try{
+    const j = JSON.parse(txt);
+    const lista = Array.isArray(j) ? j : [j];
+    mensagem = lista.map(e => e && e.mensagem).filter(Boolean).join('; ');
+  }catch(e){
+    mensagem = '';
+  }
+  if(mensagem){
+    return `${mensagem} (código ${r.status})`;
+  }
+  return `código ${r.status}${txt ? ': ' + txt.slice(0, 200) : ''}`;
+}
+
+// fetch rejeita com TypeError quando não há resposta (rede, CORS, URL inválida)
+function textoErro(err){
+  if(err && err.name === 'TypeError'){
+    return 'falha de conexão com o servidor';
+  }
+  return err.message;
+}
+
+function mostrarErro(msg){
+  el('erro').textContent = msg;
+}
+
+// erro de carregamento das listas continua visível até recarregar a página
+function limparErro(){
+  el('erro').textContent = ERRO_CARGA;
+}
+
+/* ========== Login ========== */
+el('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = el('email').value.trim();
+  const senha = el('senha').value.trim();
+  if(!email || !senha){
+    el('resultadoLogin').innerHTML = '<span style="color:var(--danger)">Informe e-mail e senha</span>';
+    return;
+  }
+  el('btnEntrar').disabled = true;
+  el('resultadoLogin').textContent = 'Entrando...';
+  try{
+    const r = await fetch(LOGIN_URL, { method:'GET', headers:{ Authorization:'Basic ' + btoa(email + ':' + senha) } });
+    if(!r.ok){
+      throw new Error('Falha no login: ' + r.status);
+    }
+    const header = r.headers.get('authorization') || '';
+    if(header){
+      TOKEN = header.replace(/^(Bearer|Basic)\s+/i, '').trim();
+    } else {
+      const j = await r.json().catch(() => ({}));
+      TOKEN = j?.token || j?.accessToken || j?.authorization || j?.tokenAcesso || '';
+    }
+    if(!TOKEN){
+      throw new Error('Token não recebido');
+    }
+    el('login').style.display = 'none';
+    el('lote').style.display = 'block';
+    await carregarOpcoes();
+  }catch(err){
+    console.error(err);
+    const msg = err && err.name === 'TypeError' ? 'Falha de conexão com o servidor' : 'E-mail ou senha inválidos';
+    el('resultadoLogin').innerHTML = `<span style="color:var(--danger)">${msg}</span>`;
+  }finally{
+    el('btnEntrar').disabled = false;
+  }
+});
+
+/* ========== Busca paginada (busca avançada) ========== */
+async function buscarPaginado(endpoint, ordenacao, body, aoAvancar){
+  const itens = [];
+  let inicio = 0;
+  while(true){
+    const url = `${BUSCA_URL}/${endpoint}?inicio=${inicio}&ordenacao=${ordenacao}&quantidade=${PAGINA}`;
+    const r = await fetch(url, { method:'POST', headers:auth(true), body:JSON.stringify(body) });
+    if(!r.ok){
+      throw new Error(`erro ao buscar ${endpoint} (${await mensagemDeErro(r)})`);
+    }
+    const j = await r.json();
+    const pagina = j.itens || [];
+    itens.push(...pagina);
+    const total = j.quantidadeTotal ?? itens.length;
+    if(aoAvancar){
+      aoAvancar(itens.length, total);
+    }
+    if(pagina.length === 0 || itens.length >= total){
+      break;
+    }
+    inicio += PAGINA;
+  }
+  return itens;
+}
+
+/* ========== Carga das opções ========== */
+async function buscarColaboradores(){
+  const body = {
+    cnpj:null, cpf:null, email:null, filtrosCamposExtras:[], nome:null,
+    nomeMae:null, nomePai:null, rg:null, telefone:null, ano:{}, dataCadastro:null,
+    dia:{}, discriminador:'COLABORADOR', idsEstadoCivil:[], idsProfissao:[],
+    tipo:'PESSOA', acessoSistema:null, idsCargos:[], idsGrupos:[], status:[]
+  };
+  const itens = await buscarPaginado('colaboradores', 'NOME_ASC', body);
+  return itens
+    .map(c => ({ id:String(c.id), nome:c.nome || c.descricao || '' }))
+    .filter(c => c.nome)
+    .sort(porNome);
+}
+
+async function buscarCategorias(){
+  const r = await fetch(`${APP_URL}/tarefas/categorias`, { headers:auth(false) });
+  if(!r.ok){
+    throw new Error(`erro ao buscar categorias (${await mensagemDeErro(r)})`);
+  }
+  const j = await r.json();
+  const itens = Array.isArray(j) ? j : (j.itens || []);
+  return itens
+    .map(c => ({ id:String(c.id), nome:c.nome || c.descricao || '' }))
+    .filter(c => c.nome)
+    .sort(porNome);
+}
+
+async function carregarOpcoes(){
+  progresso(15, 'Carregando colaboradores e categorias...');
+  ERRO_CARGA = '';
+  limparErro();
+  // independentes: a falha de uma lista não impede a outra de carregar
+  const [rColab, rCat] = await Promise.allSettled([buscarColaboradores(), buscarCategorias()]);
+  const erros = [];
+  if(rColab.status === 'fulfilled'){
+    OPCOES.encarregado = rColab.value;
+  } else {
+    console.error(rColab.reason);
+    erros.push('os encarregados (' + textoErro(rColab.reason) + ')');
+  }
+  if(rCat.status === 'fulfilled'){
+    OPCOES.categoria = rCat.value;
+  } else {
+    console.error(rCat.reason);
+    erros.push('as categorias (' + textoErro(rCat.reason) + ')');
+  }
+  ocultarProgresso();
+  if(erros.length){
+    ERRO_CARGA = 'Não foi possível carregar ' + erros.join(' e ') + '. Recarregue a página para tentar novamente.';
+    limparErro();
+  }
+  renderSecoes();
+  validaPares();
+}
+
+/* ========== Seleção De → Para ========== */
+function opcoesHtml(campo, placeholder){
+  return `<option value="">${esc(placeholder)}…</option>` +
+    OPCOES[campo.id].map(o => `<option value="${esc(o.id)}">${esc(o.nome)}</option>`).join('');
+}
+
+function renderSecoes(){
+  el('secoes').innerHTML = CAMPOS.map(c => `
+    <div class="par-titulo">${c.titulo}</div>
+    <div class="par">
+      <div class="field">
+        <label for="de_${c.id}">${c.de}</label>
+        <div class="sel-wrap">
+          <select id="de_${c.id}" class="form-control">${opcoesHtml(c, c.de)}</select>
+          <button type="button" class="limpar" data-alvo="de_${c.id}" aria-label="Limpar ${c.de.toLowerCase()}" title="Limpar">✕</button>
+        </div>
+      </div>
+      <button type="button" class="seta" data-campo="${c.id}" aria-label="Inverter ${c.de.toLowerCase()} e ${c.para.toLowerCase()}" title="Inverter atual e novo">⇄</button>
+      <div class="field">
+        <label for="para_${c.id}">${c.para}</label>
+        <div class="sel-wrap">
+          <select id="para_${c.id}" class="form-control">${opcoesHtml(c, c.para)}</select>
+          <button type="button" class="limpar" data-alvo="para_${c.id}" aria-label="Limpar ${c.para.toLowerCase()}" title="Limpar">✕</button>
+        </div>
+      </div>
+    </div>`).join('');
+  el('secoes').querySelectorAll('select').forEach(s => s.addEventListener('change', aoMudarSelecao));
+  el('secoes').querySelectorAll('.seta').forEach(b => b.addEventListener('click', () => inverterPar(b.dataset.campo)));
+  el('secoes').querySelectorAll('.limpar').forEach(b => b.addEventListener('click', () => limparSelect(b.dataset.alvo)));
+}
+
+// troca os valores entre "atual" e "novo" do bloco
+function inverterPar(campoId){
+  const de = el('de_' + campoId);
+  const para = el('para_' + campoId);
+  if(!de.value && !para.value){
+    return;
+  }
+  [de.value, para.value] = [para.value, de.value];
+  aoMudarSelecao();
+}
+
+function limparSelect(id){
+  el(id).value = '';
+  el(id).focus();
+  aoMudarSelecao();
+}
+
+function limparFiltros(){
+  el('secoes').querySelectorAll('select').forEach(s => { s.value = ''; });
+  aoMudarSelecao();
+}
+
+function aoMudarSelecao(){
+  // a listagem só vale para os pares com que foi filtrada
+  limparListagem();
+  validaPares();
+}
+
+function nomeOpcao(campoId, id){
+  const o = OPCOES[campoId].find(x => x.id === id);
+  return o ? o.nome : (id || '');
+}
+
+// Retorna { erro, pares: [{ campo, de, para, deNome, paraNome }] }
+function lerPares(){
+  const pares = [];
+  let erro = '';
+  for(const c of CAMPOS){
+    const de = el('de_' + c.id).value;
+    const para = el('para_' + c.id).value;
+    if(de && para){
+      if(de === para){
+        erro = erro || `Em "${c.titulo}", o valor atual e o novo devem ser diferentes.`;
+      } else {
+        pares.push({ campo:c, de, para, deNome:nomeOpcao(c.id, de), paraNome:nomeOpcao(c.id, para) });
+      }
+    } else if(de || para){
+      erro = erro || `Em "${c.titulo}", informe o valor atual e o novo.`;
+    }
+  }
+  if(!erro && !pares.length){
+    erro = 'Informe o atual e o novo em pelo menos um campo para habilitar o filtro.';
+  }
+  return { erro, pares };
+}
+
+function validaPares(){
+  // o ✕ de cada select só aparece quando ele tem valor
+  el('secoes').querySelectorAll('.sel-wrap').forEach(w => {
+    w.classList.toggle('tem-valor', !!w.querySelector('select').value);
+  });
+  el('btnLimparFiltros').disabled = !el('secoes').querySelector('.sel-wrap.tem-valor');
+  const { erro } = lerPares();
+  el('btnFiltrar').disabled = !!erro;
+  el('dica').textContent = erro;
+  return !erro;
+}
+
+/* ========== Filtrar ========== */
+function limparListagem(){
+  filtradas = [];
+  selecionadas = new Set();
+  el('lista').style.display = 'none';
+  el('tabela').innerHTML = '';
+  el('resultado').innerHTML = '';
+  atualizaContagem();
+}
+
+function paraLinha(t){
+  return {
+    id: t.id,
+    descricao: t.descricao || `Tarefa ${t.id}`,
+    encarregado: t.encarregado?.descricao || t.encarregado?.nome || '',
+    categoria: t.categoria?.nome || t.categoria?.descricao || '',
+    situacao: t.situacao?.descricao || nomeOpcao('situacao', t.situacao?.valor)
+  };
+}
+
+el('btnFiltrar').addEventListener('click', async () => {
+  const { erro, pares } = lerPares();
+  if(erro){
+    return;
+  }
+  limparListagem();
+  limparErro();
+  el('btnFiltrar').disabled = true;
+  const de = {};
+  pares.forEach(p => { de[p.campo.id] = p.de; });
+  const body = {
+    dataFinalizacao:null, dataInicio:null, dataTermino:null, descricao:null,
+    idsCategorias: de.categoria ? [Number(de.categoria)] : [],
+    idsClientes:[], idsColaboradores:[],
+    idsEncarregados: de.encarregado ? [Number(de.encarregado)] : [],
+    idsPastas:[], idsProcessosExtrajudiciais:[], idsProcessosJudiciais:[],
+    idsSolicitantes:[], idsTarefasPai:[],
+    situacoes: de.situacao ? [de.situacao] : []
+  };
+  try{
+    progresso(3, 'Buscando tarefas...');
+    const itens = await buscarPaginado('tarefas', 'DATA_FINALIZACAO_DESC', body, (qtd, total) => {
+      progresso(3 + 95 * qtd / Math.max(1, total), `Buscando tarefas ${qtd}/${total}`);
+    });
+    filtradas = itens.map(paraLinha);
+    selecionadas = new Set(filtradas.map(t => t.id));
+    ocultarProgresso();
+    renderLista();
+  }catch(err){
+    console.error(err);
+    ocultarProgresso();
+    mostrarErro('Erro ao buscar tarefas: ' + textoErro(err));
+  }finally{
+    validaPares();
+  }
+});
+
+/* ========== Listagem ========== */
+function renderLista(){
+  el('lista').style.display = 'block';
+  if(!filtradas.length){
+    el('tabela').innerHTML = '<div class="empty">Nenhuma tarefa encontrada com esse filtro.</div>';
+    atualizaContagem();
+    return;
+  }
+  el('tabela').innerHTML =
+    `<div class="table-scroll"><table class="table"><thead><tr>
+      <th><input type="checkbox" id="todas" aria-label="Selecionar todas"></th>
+      <th>Tarefa</th><th>Encarregado</th><th>Categoria</th><th>Situação</th>
+    </tr></thead><tbody>` +
+    filtradas.map(t => `<tr${t.alterada ? ' class="alterada"' : ''}>
+      <td><input type="checkbox" class="sel" data-id="${t.id}" ${selecionadas.has(t.id) ? 'checked' : ''} ${t.alterada ? 'disabled title="Tarefa já alterada neste lote"' : ''} aria-label="Selecionar tarefa"></td>
+      <td class="t"><a href="${URL_TAREFA}${encodeURIComponent(t.id)}/detalhamento" target="_blank" rel="noopener">${esc(t.descricao)}</a>${t.alterada ? '<span class="badge green">✓ alterada</span>' : ''}</td>
+      <td>${esc(t.encarregado)}</td>
+      <td>${esc(t.categoria)}</td>
+      <td>${esc(t.situacao)}</td>
+    </tr>`).join('') +
+    '</tbody></table></div>';
+
+  el('todas').addEventListener('change', (e) => {
+    selecionadas = new Set(e.target.checked ? alteraveis().map(t => t.id) : []);
+    el('tabela').querySelectorAll('.sel:not(:disabled)').forEach(i => { i.checked = e.target.checked; });
+    atualizaContagem();
+  });
+  el('tabela').querySelectorAll('.sel').forEach(i => {
+    i.addEventListener('change', () => {
+      const id = Number(i.dataset.id);
+      if(i.checked){
+        selecionadas.add(id);
+      } else {
+        selecionadas.delete(id);
+      }
+      atualizaContagem();
+    });
+  });
+  atualizaContagem();
+}
+
+// tarefas ainda não alteradas neste lote (as alteradas ficam bloqueadas
+// para não reaplicar a troca, p.ex. sobrescrevendo a data de finalização)
+function alteraveis(){
+  return filtradas.filter(t => !t.alterada);
+}
+
+function atualizaContagem(){
+  const total = alteraveis().length;
+  const alteradas = filtradas.length - total;
+  let texto = '';
+  if(filtradas.length){
+    texto = `${selecionadas.size} de ${total} selecionada(s)`;
+    if(alteradas){
+      texto += ` · ${alteradas} alterada(s)`;
+    }
+  }
+  el('cnt').textContent = texto;
+  el('btnConfirmar').disabled = selecionadas.size === 0;
+  const todas = el('todas');
+  if(todas){
+    todas.disabled = total === 0;
+    todas.checked = total > 0 && selecionadas.size === total;
+    todas.indeterminate = selecionadas.size > 0 && selecionadas.size < total;
+  }
+}
+
+/* ========== Confirmar alteração em lote ========== */
+el('btnLimparFiltros').addEventListener('click', limparFiltros);
+
+// o token só existe em memória: recarregar volta para o login
+el('btnSair').addEventListener('click', () => location.reload());
+
+el('btnConfirmar').addEventListener('click', () => {
+  el('resultado').innerHTML = '';
+  const { erro, pares } = lerPares();
+  if(erro){
+    el('resultado').innerHTML = `<p class="msg-erro">${esc(erro)}</p>`;
+    return;
+  }
+  if(!selecionadas.size){
+    el('resultado').innerHTML = '<p class="msg-erro">Nenhuma tarefa selecionada.</p>';
+    return;
+  }
+  paresConfirmados = pares;
+  el('resumo').innerHTML =
+    `<p><strong>${selecionadas.size}</strong> tarefa(s) serão alteradas:</p><ul>` +
+    pares.map(p => `<li>${esc(p.campo.titulo)}: ${esc(p.deNome)} → ${esc(p.paraNome)}</li>`).join('') +
+    '</ul>';
+  // a confirmação vale para cada lote: sempre abre desmarcada
+  el('chkEmailDesabilitado').checked = false;
+  el('btnOk').disabled = true;
+  el('dlg').showModal();
+});
+
+el('btnCancelar').addEventListener('click', () => el('dlg').close());
+
+el('chkEmailDesabilitado').addEventListener('change', (e) => {
+  el('btnOk').disabled = !e.target.checked;
+});
+
+el('btnOk').addEventListener('click', async () => {
+  if(!el('chkEmailDesabilitado').checked){
+    return;
+  }
+  el('dlg').close();
+  await aplicarLote(paresConfirmados);
+});
+
+// Troca os campos no objeto completo da tarefa (vindo do GET).
+function aplicarTrocas(tarefa, pares){
+  for(const p of pares){
+    if(p.campo.id === 'encarregado'){
+      tarefa.encarregado = { ...(tarefa.encarregado || {}), id:Number(p.para), descricao:p.paraNome };
+    } else if(p.campo.id === 'categoria'){
+      tarefa.categoria = { id:Number(p.para), nome:p.paraNome };
+    } else if(p.campo.id === 'situacao'){
+      tarefa.situacao = { valor:p.para, descricao:p.paraNome };
+      // backend: finalizada exige data de finalização; as demais exigem null
+      tarefa.dataHoraFinalizacao = p.para === SITUACAO_FINALIZADA ? new Date().toISOString() : null;
+    }
+  }
+  return tarefa;
+}
+
+// O PUT sobrescreve a tarefa inteira (campo ausente vira null), por isso
+// busca o objeto completo antes e reenvia tudo com as trocas aplicadas.
+async function atualizarTarefa(id, pares){
+  const rGet = await fetch(`${APP_URL}/tarefas/${id}`, { headers:auth(false) });
+  if(!rGet.ok){
+    throw new Error('ao carregar a tarefa, ' + await mensagemDeErro(rGet));
+  }
+  const tarefa = aplicarTrocas(await rGet.json(), pares);
+  const rPut = await fetch(`${APP_URL}/tarefas/${id}`, {
+    method:'PUT', headers:auth(true), body:JSON.stringify(tarefa)
+  });
+  if(!rPut.ok){
+    throw new Error(await mensagemDeErro(rPut));
+  }
+}
+
+function marcarComoAlterada(id, pares){
+  const t = filtradas.find(x => x.id === id);
+  if(!t){
+    return;
+  }
+  for(const p of pares){
+    t[p.campo.id] = p.paraNome;
+  }
+  t.alterada = true;
+}
+
+async function aplicarLote(pares){
+  const ids = filtradas.filter(t => selecionadas.has(t.id)).map(t => t.id);
+  const fila = [...ids];
+  const falhas = [];
+  let concluidas = 0;
+  let sucesso = 0;
+
+  el('btnConfirmar').disabled = true;
+  el('btnFiltrar').disabled = true;
+  el('btnLimparFiltros').disabled = true;
+  el('btnSair').disabled = true;
+  el('secoes').querySelectorAll('select, .seta, .limpar').forEach(s => { s.disabled = true; });
+  progresso(0, `Alterando tarefas 0/${ids.length}`);
+
+  async function trabalhador(){
+    while(fila.length){
+      const id = fila.shift();
+      try{
+        await atualizarTarefa(id, pares);
+        marcarComoAlterada(id, pares);
+        selecionadas.delete(id);
+        sucesso++;
+      }catch(err){
+        console.error('Falha na tarefa', id, err);
+        falhas.push({ id, mensagem:textoErro(err) });
+      }
+      concluidas++;
+      progresso(100 * concluidas / ids.length, `Alterando tarefas ${concluidas}/${ids.length}`);
+    }
+  }
+
+  await Promise.all(Array.from({ length:Math.min(CONCORRENCIA, ids.length) }, trabalhador));
+
+  ocultarProgresso();
+  el('secoes').querySelectorAll('select, .seta, .limpar').forEach(s => { s.disabled = false; });
+  el('btnSair').disabled = false;
+  renderLista();
+  renderResultado(sucesso, falhas);
+  validaPares();
+}
+
+function renderResultado(sucesso, falhas){
+  let html = '';
+  if(sucesso){
+    html += `<p class="msg-ok">✅ Troca aplicada em ${sucesso} tarefa(s).</p>`;
+  }
+  if(falhas.length){
+    html += `<p class="msg-erro">${falhas.length} tarefa(s) não foram alteradas e continuam marcadas na lista, clique em "Confirmar alteração em lote" acima para tentar novamente.</p>` +
+      '<div class="table-scroll"><table class="table"><thead><tr><th>Tarefa</th><th>Erro</th></tr></thead><tbody>' +
+      falhas.map(f => {
+        const t = filtradas.find(x => x.id === f.id);
+        return `<tr><td class="t"><a href="${URL_TAREFA}${encodeURIComponent(f.id)}/detalhamento" target="_blank" rel="noopener">${esc(t ? t.descricao : f.id)}</a></td><td>${esc(f.mensagem)}</td></tr>`;
+      }).join('') +
+      '</tbody></table></div>';
+  }
+  el('resultado').innerHTML = html;
+}
+</script>
+
+</body>
+</html>
