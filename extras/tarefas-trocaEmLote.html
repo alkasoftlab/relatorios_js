@@ -249,6 +249,7 @@ let filtradas = [];          // [{ id, descricao, encarregado, categoria, situac
 let selecionadas = new Set(); // ids das tarefas marcadas
 let paresConfirmados = [];
 let ERRO_CARGA = '';
+let ocupado = false;         // busca ou gravação em andamento: tela travada
 
 /* ========== Helpers ========== */
 const el = id => document.getElementById(id);
@@ -516,14 +517,27 @@ function lerPares(){
   return { erro, pares };
 }
 
+// Durante a busca e a gravação nada pode mudar: filtros alterados no meio da
+// busca deixariam a listagem diferente dos pares, e marcar/desmarcar no meio
+// do lote reabilitaria o botão de confirmar (lote em dobro) sem afetar o lote atual.
+function travarTela(travar){
+  ocupado = travar;
+  el('secoes').querySelectorAll('select, .seta, .limpar').forEach(s => { s.disabled = travar; });
+  el('btnSair').disabled = travar;
+  // tarefas já alteradas continuam bloqueadas
+  el('tabela').querySelectorAll('.sel').forEach(i => { i.disabled = travar || i.closest('tr').classList.contains('alterada'); });
+  validaPares();
+  atualizaContagem();
+}
+
 function validaPares(){
   // o ✕ de cada select só aparece quando ele tem valor
   el('secoes').querySelectorAll('.sel-wrap').forEach(w => {
     w.classList.toggle('tem-valor', !!w.querySelector('select').value);
   });
-  el('btnLimparFiltros').disabled = !el('secoes').querySelector('.sel-wrap.tem-valor');
+  el('btnLimparFiltros').disabled = ocupado || !el('secoes').querySelector('.sel-wrap.tem-valor');
   const { erro } = lerPares();
-  el('btnFiltrar').disabled = !!erro;
+  el('btnFiltrar').disabled = ocupado || !!erro;
   el('dica').textContent = erro;
   return !erro;
 }
@@ -550,12 +564,12 @@ function paraLinha(t){
 
 el('btnFiltrar').addEventListener('click', async () => {
   const { erro, pares } = lerPares();
-  if(erro){
+  if(erro || ocupado){
     return;
   }
   limparListagem();
   limparErro();
-  el('btnFiltrar').disabled = true;
+  travarTela(true);
   const de = {};
   pares.forEach(p => { de[p.campo.id] = p.de; });
   const body = {
@@ -581,7 +595,7 @@ el('btnFiltrar').addEventListener('click', async () => {
     ocultarProgresso();
     mostrarErro('Erro ao buscar tarefas: ' + textoErro(err));
   }finally{
-    validaPares();
+    travarTela(false);
   }
 });
 
@@ -643,10 +657,10 @@ function atualizaContagem(){
     }
   }
   el('cnt').textContent = texto;
-  el('btnConfirmar').disabled = selecionadas.size === 0;
+  el('btnConfirmar').disabled = ocupado || selecionadas.size === 0;
   const todas = el('todas');
   if(todas){
-    todas.disabled = total === 0;
+    todas.disabled = ocupado || total === 0;
     todas.checked = total > 0 && selecionadas.size === total;
     todas.indeterminate = selecionadas.size > 0 && selecionadas.size < total;
   }
@@ -659,6 +673,9 @@ el('btnLimparFiltros').addEventListener('click', limparFiltros);
 el('btnSair').addEventListener('click', () => location.reload());
 
 el('btnConfirmar').addEventListener('click', () => {
+  if(ocupado){
+    return;
+  }
   el('resultado').innerHTML = '';
   const { erro, pares } = lerPares();
   if(erro){
@@ -687,7 +704,7 @@ el('chkEmailDesabilitado').addEventListener('change', (e) => {
 });
 
 el('btnOk').addEventListener('click', async () => {
-  if(!el('chkEmailDesabilitado').checked){
+  if(!el('chkEmailDesabilitado').checked || ocupado){
     return;
   }
   el('dlg').close();
@@ -744,11 +761,7 @@ async function aplicarLote(pares){
   let concluidas = 0;
   let sucesso = 0;
 
-  el('btnConfirmar').disabled = true;
-  el('btnFiltrar').disabled = true;
-  el('btnLimparFiltros').disabled = true;
-  el('btnSair').disabled = true;
-  el('secoes').querySelectorAll('select, .seta, .limpar').forEach(s => { s.disabled = true; });
+  travarTela(true);
   progresso(0, `Alterando tarefas 0/${ids.length}`);
 
   async function trabalhador(){
@@ -771,11 +784,9 @@ async function aplicarLote(pares){
   await Promise.all(Array.from({ length:Math.min(CONCORRENCIA, ids.length) }, trabalhador));
 
   ocultarProgresso();
-  el('secoes').querySelectorAll('select, .seta, .limpar').forEach(s => { s.disabled = false; });
-  el('btnSair').disabled = false;
   renderLista();
+  travarTela(false);
   renderResultado(sucesso, falhas);
-  validaPares();
 }
 
 function renderResultado(sucesso, falhas){

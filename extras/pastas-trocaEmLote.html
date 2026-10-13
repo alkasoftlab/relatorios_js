@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Eleven · Pastas | Alteração em lote</title>
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+/* O JS escreve a porcentagem dentro do próprio .fill */
+#fill{color:#fff;font-weight:700;font-size:.7rem;line-height:14px;text-align:center;white-space:nowrap;overflow:hidden}
+
+.lote-card{max-width:960px;margin:0 auto;padding:28px}
+.lote-card .brand-mark{justify-content:center}
+.lote-card h1{text-align:center}
+.lote-card > .subtitle{text-align:center}
+
+.par-titulo{font-size:.95rem;font-weight:600;color:var(--ink);margin:14px 0 6px}
+.par{display:grid;grid-template-columns:1fr 30px 1fr;gap:8px;align-items:end}
+.par .seta{height:30px;width:30px;margin-bottom:6px;padding:0;border:1px solid var(--border-strong);border-radius:7px;background:transparent;color:var(--muted);font-size:.95rem;line-height:1;cursor:pointer;transition:color .15s,border-color .15s}
+.par .seta:hover,.par .seta:focus-visible{color:var(--brand);border-color:var(--brand);outline:none}
+.par .seta:disabled{opacity:.4;cursor:not-allowed}
+
+/* ✕ dentro do select (estilo Material UI): só com valor e em hover/foco */
+.sel-wrap{position:relative}
+.sel-wrap .form-control{padding-right:60px}
+.sel-wrap .limpar{position:absolute;right:30px;top:50%;transform:translateY(-50%);width:26px;height:26px;padding:0;border:none;border-radius:50%;background:transparent;color:var(--danger);font-size:.9rem;font-weight:700;line-height:1;cursor:pointer;display:none}
+.sel-wrap.tem-valor:hover .limpar,.sel-wrap.tem-valor:focus-within .limpar{display:block}
+.sel-wrap .limpar:hover,.sel-wrap .limpar:focus-visible{color:var(--danger);background:rgba(255,92,114,.15);outline:none}
+.sel-wrap .limpar:disabled{display:none}
+@media (hover:none){
+  .sel-wrap.tem-valor .limpar{display:block}
+}
+.par .field{margin-bottom:0}
+
+.dica{min-height:20px;color:var(--orange);font-size:.85rem;margin:4px 0 14px}
+.aviso-limite{background:rgba(255,171,74,.08);border-color:rgba(255,171,74,.3);margin:6px 0 10px}
+
+.lista-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.lista-top h2{margin:0;font-size:1.05rem}
+.table-scroll{max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:10px;margin-top:8px}
+.table-scroll .table{margin-top:0}
+.table th{position:sticky;top:0;z-index:1}
+.table td.t a{color:var(--brand);text-decoration:underline}
+.table input[type=checkbox]{width:16px;height:16px;cursor:pointer}
+.table input[type=checkbox]:disabled{cursor:not-allowed;opacity:.4}
+.table tr.alterada td{opacity:.75}
+.table tr.alterada .badge{margin-left:6px;opacity:1}
+.table td.t .badge{margin-left:6px}
+
+.incluir-arquivadas{display:flex;gap:8px;align-items:center;margin:16px 0 0;font-size:.92rem;cursor:pointer;width:fit-content}
+.incluir-arquivadas input{width:16px;height:16px;cursor:pointer}
+.incluir-arquivadas input:disabled{cursor:not-allowed;opacity:.4}
+
+#btnConfirmar{margin-top:16px}
+.msg-ok{color:var(--success);font-weight:600;margin:12px 0 6px}
+.msg-erro{color:var(--danger);font-weight:600;margin:12px 0 6px}
+#erro:empty{display:none}
+#erro{background:rgba(255,92,114,.08);border:1px solid rgba(255,92,114,.3);border-radius:10px;padding:10px 14px;font-weight:500}
+
+dialog#dlg{background:var(--card);color:var(--ink);border:1px solid var(--border);border-radius:14px;max-width:520px;width:calc(100% - 32px);padding:22px}
+dialog#dlg::backdrop{background:rgba(0,0,0,.6)}
+dialog#dlg ul{padding-left:18px;margin:8px 0}
+dialog#dlg .confirma-numeracao{display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:.87rem;line-height:1.4;cursor:pointer}
+dialog#dlg .confirma-numeracao input{width:16px;height:16px;margin-top:2px;flex-shrink:0;cursor:pointer}
+dialog#dlg .btns .btn:disabled{opacity:.5;cursor:not-allowed;filter:none}
+dialog#dlg .aviso-dlg{background:rgba(255,171,74,.12);border:1px solid rgba(255,171,74,.3);color:var(--orange);padding:10px 12px;border-radius:8px;margin-top:10px;font-size:.87rem;line-height:1.4}
+dialog#dlg .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+dialog#dlg .btns .btn{width:auto;margin:0;padding:9px 18px}
+.btn-azul{background:var(--brand-2)}
+.btn-azul:disabled,#btnFiltrar:disabled{opacity:.5;cursor:not-allowed;filter:none}
+.btn-sec{background:transparent;border:1px solid var(--border-strong);color:var(--ink)}
+
+@media (max-width:520px){
+  .lote-card{padding:18px}
+  .par{grid-template-columns:1fr 28px 1fr;gap:6px}
+  .par .seta{width:28px;height:28px;margin-bottom:7px}
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<div class="card login-card center" id="login">
+    <button type="button" class="info-icon" id="infoLoginBtn" aria-label="Sobre esta ferramenta" title="Sobre esta ferramenta">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" font-family="Arial, Helvetica, sans-serif" fill="#08111a">i</text></svg>
+    </button>
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <p class="subtitle">Acessar: Pastas - alteração em lote</p>
+    <form id="loginForm" style="width:100%">
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input type="text" id="email" class="form-control" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <div class="password-wrap">
+          <input type="password" id="senha" class="form-control" required autocomplete="current-password">
+          <button type="button" class="password-toggle" id="toggleSenha" aria-label="Mostrar senha" title="Mostrar senha">
+            <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn" id="btnEntrar">Entrar</button>
+    </form>
+    <div id="resultadoLogin" class="subtitle" style="margin-top:10px"></div>
+</div>
+
+<div class="card lote-card" id="lote" style="display:none">
+  <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+  <h1>Pastas - alteração em lote</h1>
+  <p class="subtitle">Selecione o valor atual para filtrar as pastas e o novo valor para a troca. Campos em branco são ignorados no filtro.</p>
+
+  <div class="filter-info aviso-limite"><strong>Observação:</strong> O limite para alterações em lote é de 500 pastas por vez. Após finalizar o lote, será possível realizar um novo filtro e confirmar outra alteração em lote.</div>
+
+  <div class="filter-info aviso-limite"><strong>Atenção:</strong> para as pastas que já estiverem arquivadas, será necessário desarquivá-las, informando o motivo do desarquivamento (ex.: “Troca de encarregado”). Em seguida, arquive a pasta novamente. Esse procedimento é feito manualmente no Eleven; enquanto a pasta estiver arquivada, a ferramenta não consegue alterá-la.</div>
+
+  <div id="erro" class="msg-erro" role="alert"></div>
+
+  <div id="secoes"></div>
+
+  <label class="incluir-arquivadas">
+    <input type="checkbox" id="chkArquivadas">
+    <span>Incluir pastas arquivadas</span>
+  </label>
+
+  <button type="button" class="btn" id="btnFiltrar" disabled style="margin-top:16px">Filtrar pastas</button>
+  <button type="button" class="btn btn-azul" id="btnLimparFiltros" disabled>Limpar filtros</button>
+  <div id="dica" class="dica"></div>
+
+  <div id="lista" style="display:none">
+    <div class="lista-top">
+      <h2>Pastas selecionadas</h2>
+      <span class="small-muted" id="cnt"></span>
+    </div>
+    <div id="tabela"></div>
+  </div>
+
+  <button type="button" class="btn" id="btnConfirmar" disabled>Confirmar alteração em lote</button>
+
+  <div class="progress-wrap" id="bar">
+    <div class="progress"><div id="fill" class="fill">0%</div></div>
+  </div>
+  <div id="status" class="small-muted" style="margin-top:8px" role="status"></div>
+  <div id="resultado" role="alert"></div>
+
+  <button type="button" class="btn btn-danger" id="btnSair" style="margin-top:16px">Sair</button>
+</div>
+
+</div>
+
+<dialog id="dlg">
+  <h2 class="modal-title">Confirmar a troca?</h2>
+  <div id="resumo" class="modal-body"></div>
+  <label class="confirma-numeracao" id="confirmaNumeracao">
+    <input type="checkbox" id="chkNumeracao">
+    <span>Ao alterar o prefixo de uma pasta, sua numeração também será alterada para o próximo número da sequência correspondente àquele prefixo.</span>
+  </label>
+  <div class="btns">
+    <button type="button" class="btn btn-sec" id="btnCancelar">Cancelar</button>
+    <button type="button" class="btn" id="btnOk">Sim, trocar</button>
+  </div>
+</dialog>
+
+<div class="modal-overlay" id="infoModalOverlay">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <button class="modal-close" id="infoModalClose" type="button" aria-label="Fechar">✕</button>
+    <h2 class="modal-title">Sobre esta ferramenta</h2>
+    <div class="modal-body">
+      <p>Altera várias pastas de uma só vez, trocando o <strong>Identificador</strong>, o <strong>Encarregado</strong>, a <strong>Categoria</strong> e/ou a <strong>Situação</strong> de todas as pastas que atendam ao filtro.</p>
+      <ul>
+        <li><strong>De → Para</strong>Em cada bloco, escolha o valor atual (usado para filtrar) e o valor novo (usado na troca). Blocos em branco são ignorados.</li>
+        <li><strong>Filtrar</strong>A busca traz as pastas que têm todos os valores atuais informados. Por padrão, só as não arquivadas; marque "Incluir pastas arquivadas" para trazer também as arquivadas. Todas vêm marcadas; desmarque as que não devem mudar.</li>
+        <li><strong>Confirmar</strong>Depois de confirmar, a troca é gravada no Eleven somente nas pastas marcadas. Pastas arquivadas não são alteradas: desarquive-as manualmente no Eleven, informando o motivo do desarquivamento (ex.: “Troca de encarregado”), faça a alteração em lote e depois arquive-as novamente.</li>
+      </ul>
+      <p style="background:rgba(255,171,74,.12);border:1px solid rgba(255,171,74,.3);color:var(--orange);padding:10px 12px;border-radius:8px;margin-top:10px;line-height:1.4">⚠️ <strong>Atenção:</strong> esta ferramenta <strong>altera</strong> as pastas no sistema. Confira a listagem antes de confirmar. Ao alterar o prefixo de uma pasta, sua numeração também será alterada para o próximo número da sequência correspondente àquele prefixo. O limite recomendado é de 500 pastas por alteração.</p>
+      <h3 style="margin:14px 0 8px">Se alguma pasta não for alterada</h3>
+      <ul>
+        <li>Ela aparece na lista de falhas com a mensagem do sistema e continua marcada para nova tentativa.</li>
+        <li>O motivo mais comum é falta de permissão de edição na pasta ou campo obrigatório não preenchido nela (p.ex. cliente principal).</li>
+        <li>Pasta ainda arquivada também aparece nas falhas; desarquive-a no Eleven e tente novamente.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========== Modal de informação (tela de login) ========== */
+(function(){
+    const overlay = document.getElementById('infoModalOverlay');
+    const btn = document.getElementById('infoLoginBtn');
+    const closeBtn = document.getElementById('infoModalClose');
+    if(overlay && btn){
+        const open = ()=> overlay.classList.add('open');
+        const close = ()=> overlay.classList.remove('open');
+        btn.addEventListener('click', open);
+        closeBtn.addEventListener('click', close);
+        overlay.addEventListener('click', (e)=>{
+            if(e.target===overlay){
+                close();
+            }
+        });
+        document.addEventListener('keydown', (e)=>{
+            if(e.key==='Escape' && overlay.classList.contains('open')){
+                close();
+            }
+        });
+    }
+})();
+
+/* ========== Mostrar/ocultar senha ========== */
+(function(){
+    const toggleSenhaBtn = document.getElementById('toggleSenha');
+    const senhaInput = document.getElementById('senha');
+    const eyeIcon = document.getElementById('eyeIcon');
+    const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+    const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.4 18.4 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/>';
+    if(toggleSenhaBtn){
+        toggleSenhaBtn.addEventListener('click',()=>{
+            const showing = senhaInput.type === 'text';
+            senhaInput.type = showing ? 'password' : 'text';
+            eyeIcon.innerHTML = showing ? EYE_OPEN : EYE_OFF;
+            toggleSenhaBtn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+            toggleSenhaBtn.title = showing ? 'Mostrar senha' : 'Ocultar senha';
+        });
+    }
+})();
+
+/* ========== Constantes e estado ========== */
+const LOGIN_URL  = 'https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum';
+const APP_URL    = 'https://app-api-prod.alkasoft.com.br/api/v1';
+const BUSCA_URL  = 'https://busca-avancada-api-prod.alkasoft.com.br/api/v1';
+const URL_PASTA  = 'https://eleven.alkasoft.com.br/auth/pastas/';
+
+const PAGINA       = 100;
+const PAGINA_ITENS = 200;  // máximo aceito pelos conjuntos de valores
+
+// conjunto: id do conjunto de valores no Eleven (identificador = prefixo da pasta)
+const CAMPOS = [
+  { id:'identificador', titulo:'Identificador', de:'Identificador atual', para:'Identificador novo', conjunto:'PREFIXO_DA_PASTA_PROCESSUAL' },
+  { id:'encarregado',   titulo:'Encarregado',   de:'Encarregado atual',   para:'Encarregado novo' },
+  { id:'categoria',     titulo:'Categoria',     de:'Categoria atual',     para:'Categoria nova',     conjunto:'CATEGORIA_DA_PASTA_PROCESSUAL' },
+  { id:'situacao',      titulo:'Situação',      de:'Situação atual',      para:'Situação nova',      conjunto:'SITUACAO_PASTA_PROCESSUAL' }
+];
+
+// Opções de cada campo: [{ id: string, nome: string }]
+const OPCOES = {
+  identificador: [],
+  encarregado: [],
+  categoria: [],
+  situacao: []
+};
+
+let TOKEN = null;
+let filtradas = [];          // [{ id, prefixo, numero, assunto, identificador, encarregado, categoria, situacao, arquivada }]
+let selecionadas = new Set(); // ids das pastas marcadas
+let paresConfirmados = [];
+let ERRO_CARGA = '';
+let ocupado = false;         // busca ou gravação em andamento: tela travada
+
+/* ========== Helpers ========== */
+const el = id => document.getElementById(id);
+const esc = t => String(t ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
+const porNome = (a, b) => a.nome.localeCompare(b.nome, 'pt-BR');
+// comparação sem diferenciar acentos nem maiúsculas
+const norm = t => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+
+function auth(json){
+  const h = { Authorization: 'Bearer ' + TOKEN };
+  if(json){
+    h['Content-Type'] = 'application/json';
+  }
+  return h;
+}
+
+function progresso(p, texto){
+  el('bar').style.display = 'block';
+  el('fill').style.width = p + '%';
+  el('fill').textContent = Math.round(p) + '%';
+  el('status').textContent = texto || '';
+}
+
+function ocultarProgresso(){
+  el('bar').style.display = 'none';
+  el('status').textContent = '';
+}
+
+// A API responde erros como {"mensagem": "..."} (ou lista deles);
+// mostra a mensagem quando houver, senão o texto cru.
+async function mensagemDeErro(r){
+  const txt = await r.text().catch(() => '');
+  let mensagem = '';
+  try{
+    const j = JSON.parse(txt);
+    const lista = Array.isArray(j) ? j : [j];
+    mensagem = lista.map(e => e && e.mensagem).filter(Boolean).join('; ');
+  }catch(e){
+    mensagem = '';
+  }
+  if(mensagem){
+    return `${mensagem} (código ${r.status})`;
+  }
+  return `código ${r.status}${txt ? ': ' + txt.slice(0, 200) : ''}`;
+}
+
+// fetch rejeita com TypeError quando não há resposta (rede, CORS, URL inválida)
+function textoErro(err){
+  if(err && err.name === 'TypeError'){
+    return 'falha de conexão com o servidor';
+  }
+  return err.message;
+}
+
+function mostrarErro(msg){
+  el('erro').textContent = msg;
+}
+
+// erro de carregamento das listas continua visível até recarregar a página
+function limparErro(){
+  el('erro').textContent = ERRO_CARGA;
+}
+
+/* ========== Login ========== */
+el('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = el('email').value.trim();
+  const senha = el('senha').value.trim();
+  if(!email || !senha){
+    el('resultadoLogin').innerHTML = '<span style="color:var(--danger)">Informe e-mail e senha</span>';
+    return;
+  }
+  el('btnEntrar').disabled = true;
+  el('resultadoLogin').textContent = 'Entrando...';
+  try{
+    const r = await fetch(LOGIN_URL, { method:'GET', headers:{ Authorization:'Basic ' + btoa(email + ':' + senha) } });
+    if(!r.ok){
+      throw new Error('Falha no login: ' + r.status);
+    }
+    const header = r.headers.get('authorization') || '';
+    if(header){
+      TOKEN = header.replace(/^(Bearer|Basic)\s+/i, '').trim();
+    } else {
+      const j = await r.json().catch(() => ({}));
+      TOKEN = j?.token || j?.accessToken || j?.authorization || j?.tokenAcesso || '';
+    }
+    if(!TOKEN){
+      throw new Error('Token não recebido');
+    }
+    el('login').style.display = 'none';
+    el('lote').style.display = 'block';
+    await carregarOpcoes();
+  }catch(err){
+    console.error(err);
+    const msg = err && err.name === 'TypeError' ? 'Falha de conexão com o servidor' : 'E-mail ou senha inválidos';
+    el('resultadoLogin').innerHTML = `<span style="color:var(--danger)">${msg}</span>`;
+  }finally{
+    el('btnEntrar').disabled = false;
+  }
+});
+
+/* ========== Busca paginada (busca avançada) ========== */
+async function buscarPaginado(endpoint, ordenacao, body, aoAvancar){
+  const itens = [];
+  let inicio = 0;
+  while(true){
+    const url = `${BUSCA_URL}/${endpoint}?inicio=${inicio}&ordenacao=${ordenacao}&quantidade=${PAGINA}`;
+    const r = await fetch(url, { method:'POST', headers:auth(true), body:JSON.stringify(body) });
+    if(!r.ok){
+      throw new Error(`erro ao buscar ${endpoint} (${await mensagemDeErro(r)})`);
+    }
+    const j = await r.json();
+    const pagina = j.itens || [];
+    itens.push(...pagina);
+    const total = j.quantidadeTotal ?? itens.length;
+    if(aoAvancar){
+      aoAvancar(itens.length, total);
+    }
+    if(pagina.length === 0 || itens.length >= total){
+      break;
+    }
+    inicio += PAGINA;
+  }
+  return itens;
+}
+
+/* ========== Carga das opções ========== */
+async function buscarColaboradores(){
+  const body = {
+    cnpj:null, cpf:null, email:null, filtrosCamposExtras:[], nome:null,
+    nomeMae:null, nomePai:null, rg:null, telefone:null, ano:{}, dataCadastro:null,
+    dia:{}, discriminador:'COLABORADOR', idsEstadoCivil:[], idsProfissao:[],
+    tipo:'PESSOA', acessoSistema:null, idsCargos:[], idsGrupos:[], status:[]
+  };
+  const itens = await buscarPaginado('colaboradores', 'NOME_ASC', body);
+  return itens
+    .map(c => ({ id:String(c.id), nome:c.nome || c.descricao || '' }))
+    .filter(c => c.nome)
+    .sort(porNome);
+}
+
+// Itens de um conjunto de valores (identificadores, categorias, situações da pasta)
+async function buscarConjunto(campo){
+  const itens = [];
+  let inicio = 0;
+  while(true){
+    const url = `${APP_URL}/conjuntosdevalores/${campo.conjunto}/identificadordecadastro/itens?descricao=&inicio=${inicio}&quantidade=${PAGINA_ITENS}`;
+    const r = await fetch(url, { headers:auth(false) });
+    if(!r.ok){
+      throw new Error(`erro ao buscar ${campo.titulo.toLowerCase()} (${await mensagemDeErro(r)})`);
+    }
+    const j = await r.json();
+    const pagina = Array.isArray(j) ? j : (j.itens || []);
+    itens.push(...pagina);
+    const total = Array.isArray(j) ? itens.length : (j.quantidadeTotal ?? itens.length);
+    if(pagina.length === 0 || itens.length >= total){
+      break;
+    }
+    inicio += PAGINA_ITENS;
+  }
+  return itens
+    .filter(i => !i.removido)
+    .map(i => ({ id:String(i.id), nome:i.descricao || i.nome || '' }))
+    .filter(i => i.nome)
+    .sort(porNome);
+}
+
+async function carregarOpcoes(){
+  progresso(15, 'Carregando identificadores, encarregados, categorias e situações...');
+  ERRO_CARGA = '';
+  limparErro();
+  // independentes: a falha de uma lista não impede as outras de carregar
+  const resultados = await Promise.allSettled(CAMPOS.map(c => c.conjunto ? buscarConjunto(c) : buscarColaboradores()));
+  const erros = [];
+  resultados.forEach((r, i) => {
+    const c = CAMPOS[i];
+    if(r.status === 'fulfilled'){
+      OPCOES[c.id] = r.value;
+    } else {
+      console.error(r.reason);
+      erros.push(`${c.titulo.toLowerCase()} (${textoErro(r.reason)})`);
+    }
+  });
+  ocultarProgresso();
+  if(erros.length){
+    ERRO_CARGA = 'Não foi possível carregar: ' + erros.join('; ') + '. Recarregue a página para tentar novamente.';
+    limparErro();
+  }
+  renderSecoes();
+  validaPares();
+}
+
+/* ========== Seleção De → Para ========== */
+function opcoesHtml(campo, placeholder){
+  return `<option value="">${esc(placeholder)}…</option>` +
+    OPCOES[campo.id].map(o => `<option value="${esc(o.id)}">${esc(o.nome)}</option>`).join('');
+}
+
+function renderSecoes(){
+  el('secoes').innerHTML = CAMPOS.map(c => `
+    <div class="par-titulo">${c.titulo}</div>
+    <div class="par">
+      <div class="field">
+        <label for="de_${c.id}">${c.de}</label>
+        <div class="sel-wrap">
+          <select id="de_${c.id}" class="form-control">${opcoesHtml(c, c.de)}</select>
+          <button type="button" class="limpar" data-alvo="de_${c.id}" aria-label="Limpar ${c.de.toLowerCase()}" title="Limpar">✕</button>
+        </div>
+      </div>
+      <button type="button" class="seta" data-campo="${c.id}" aria-label="Inverter ${c.de.toLowerCase()} e ${c.para.toLowerCase()}" title="Inverter atual e novo">⇄</button>
+      <div class="field">
+        <label for="para_${c.id}">${c.para}</label>
+        <div class="sel-wrap">
+          <select id="para_${c.id}" class="form-control">${opcoesHtml(c, c.para)}</select>
+          <button type="button" class="limpar" data-alvo="para_${c.id}" aria-label="Limpar ${c.para.toLowerCase()}" title="Limpar">✕</button>
+        </div>
+      </div>
+    </div>`).join('');
+  el('secoes').querySelectorAll('select').forEach(s => s.addEventListener('change', aoMudarSelecao));
+  el('secoes').querySelectorAll('.seta').forEach(b => b.addEventListener('click', () => inverterPar(b.dataset.campo)));
+  el('secoes').querySelectorAll('.limpar').forEach(b => b.addEventListener('click', () => limparSelect(b.dataset.alvo)));
+}
+
+// troca os valores entre "atual" e "novo" do bloco
+function inverterPar(campoId){
+  const de = el('de_' + campoId);
+  const para = el('para_' + campoId);
+  if(!de.value && !para.value){
+    return;
+  }
+  [de.value, para.value] = [para.value, de.value];
+  aoMudarSelecao();
+}
+
+function limparSelect(id){
+  el(id).value = '';
+  el(id).focus();
+  aoMudarSelecao();
+}
+
+function limparFiltros(){
+  el('secoes').querySelectorAll('select').forEach(s => { s.value = ''; });
+  el('chkArquivadas').checked = false;
+  aoMudarSelecao();
+}
+
+function aoMudarSelecao(){
+  // a listagem só vale para os pares com que foi filtrada
+  limparListagem();
+  validaPares();
+}
+
+function nomeOpcao(campoId, id){
+  const o = OPCOES[campoId].find(x => x.id === id);
+  return o ? o.nome : (id || '');
+}
+
+// Retorna { erro, pares: [{ campo, de, para, deNome, paraNome }] }
+function lerPares(){
+  const pares = [];
+  let erro = '';
+  for(const c of CAMPOS){
+    const de = el('de_' + c.id).value;
+    const para = el('para_' + c.id).value;
+    if(de && para){
+      if(de === para){
+        erro = erro || `Em "${c.titulo}", o valor atual e o novo devem ser diferentes.`;
+      } else {
+        pares.push({ campo:c, de, para, deNome:nomeOpcao(c.id, de), paraNome:nomeOpcao(c.id, para) });
+      }
+    } else if(de || para){
+      erro = erro || `Em "${c.titulo}", informe o valor atual e o novo.`;
+    }
+  }
+  if(!erro && !pares.length){
+    erro = 'Informe o atual e o novo em pelo menos um campo para habilitar o filtro.';
+  }
+  return { erro, pares };
+}
+
+// Durante a busca e a gravação nada pode mudar: filtros alterados no meio da
+// busca deixariam a listagem diferente dos pares, e marcar/desmarcar no meio
+// do lote reabilitaria o botão de confirmar (lote em dobro) sem afetar o lote atual.
+function travarTela(travar){
+  ocupado = travar;
+  el('secoes').querySelectorAll('select, .seta, .limpar').forEach(s => { s.disabled = travar; });
+  el('chkArquivadas').disabled = travar;
+  el('btnSair').disabled = travar;
+  // pastas já alteradas continuam bloqueadas
+  el('tabela').querySelectorAll('.sel').forEach(i => { i.disabled = travar || i.closest('tr').classList.contains('alterada'); });
+  validaPares();
+  atualizaContagem();
+}
+
+function validaPares(){
+  // o ✕ de cada select só aparece quando ele tem valor
+  el('secoes').querySelectorAll('.sel-wrap').forEach(w => {
+    w.classList.toggle('tem-valor', !!w.querySelector('select').value);
+  });
+  el('btnLimparFiltros').disabled = ocupado || (!el('secoes').querySelector('.sel-wrap.tem-valor') && !el('chkArquivadas').checked);
+  const { erro } = lerPares();
+  el('btnFiltrar').disabled = ocupado || !!erro;
+  el('dica').textContent = erro;
+  return !erro;
+}
+
+el('chkArquivadas').addEventListener('change', aoMudarSelecao);
+
+/* ========== Filtrar ========== */
+function limparListagem(){
+  filtradas = [];
+  selecionadas = new Set();
+  el('lista').style.display = 'none';
+  el('tabela').innerHTML = '';
+  el('resultado').innerHTML = '';
+  atualizaContagem();
+}
+
+// Identificador exibido no Eleven: "Prefixo/Número - Assunto"
+function textoIdentificador(p){
+  const base = [p.prefixo, p.numero].filter(v => v !== '' && v !== null && v !== undefined).join('/');
+  return (p.assunto ? `${base} - ${p.assunto}` : base) || `Pasta ${p.id}`;
+}
+
+// item da busca avançada → linha da listagem
+function paraLinha(p){
+  const linha = {
+    id: p.id,
+    prefixo: p.prefixo?.descricao || '',
+    numero: p.numero ?? '',
+    assunto: p.assunto || '',
+    encarregado: p.encarregado?.descricao || '',
+    categoria: p.categoria?.descricao || '',
+    situacao: p.situacao?.descricao || '',
+    arquivada: p.arquivada === true,
+    ids: {
+      identificador: String(p.prefixo?.id ?? ''),
+      encarregado: String(p.encarregado?.id ?? ''),
+      categoria: String(p.categoria?.id ?? ''),
+      situacao: String(p.situacao?.id ?? '')
+    }
+  };
+  linha.identificador = textoIdentificador(linha);
+  return linha;
+}
+
+// confere no navegador: mesmo id ou, na falta dele, mesmo nome (sem acento/maiúsculas)
+function atendeFiltro(linha, pares){
+  return pares.every(p => {
+    if(linha.ids[p.campo.id]){
+      return linha.ids[p.campo.id] === p.de;
+    }
+    const nome = p.campo.id === 'identificador' ? linha.prefixo : linha[p.campo.id];
+    return norm(nome) === norm(p.deNome);
+  });
+}
+
+el('btnFiltrar').addEventListener('click', async () => {
+  const { erro, pares } = lerPares();
+  if(erro || ocupado){
+    return;
+  }
+  limparListagem();
+  limparErro();
+  travarTela(true);
+  const de = {};
+  pares.forEach(p => { de[p.campo.id] = p.de; });
+  const body = {
+    arquivada: el('chkArquivadas').checked ? 'TODAS' : 'NAO_ARQUIVADAS',
+    idsPrefixos: de.identificador ? [Number(de.identificador)] : [],
+    idsColaboradores: de.encarregado ? [Number(de.encarregado)] : [],
+    idsCategorias: de.categoria ? [Number(de.categoria)] : [],
+    idsSituacoes: de.situacao ? [Number(de.situacao)] : [],
+    filtrosCamposExtras:[]
+  };
+  try{
+    progresso(3, 'Buscando pastas...');
+    const itens = await buscarPaginado('pastas', 'IDENTIFICADOR_ASC', body, (qtd, total) => {
+      progresso(3 + 95 * qtd / Math.max(1, total), `Buscando pastas ${qtd}/${total}`);
+    });
+    // a paginação pode repetir pasta se houver alteração durante a busca
+    const vistos = new Set();
+    filtradas = itens
+      .filter(p => {
+        if(vistos.has(p.id)){
+          return false;
+        }
+        vistos.add(p.id);
+        return true;
+      })
+      .map(paraLinha)
+      .filter(l => atendeFiltro(l, pares));
+    selecionadas = new Set(filtradas.map(p => p.id));
+    ocultarProgresso();
+    renderLista();
+  }catch(err){
+    console.error(err);
+    ocultarProgresso();
+    mostrarErro('Erro ao buscar pastas: ' + textoErro(err));
+  }finally{
+    travarTela(false);
+  }
+});
+
+/* ========== Listagem ========== */
+function renderLista(){
+  el('lista').style.display = 'block';
+  if(!filtradas.length){
+    el('tabela').innerHTML = '<div class="empty">Nenhuma pasta encontrada com esse filtro.</div>';
+    atualizaContagem();
+    return;
+  }
+  el('tabela').innerHTML =
+    `<div class="table-scroll"><table class="table"><thead><tr>
+      <th><input type="checkbox" id="todas" aria-label="Selecionar todas"></th>
+      <th>Identificador</th><th>Encarregado</th><th>Categoria</th><th>Situação</th>
+    </tr></thead><tbody>` +
+    filtradas.map(p => `<tr${p.alterada ? ' class="alterada"' : ''}>
+      <td><input type="checkbox" class="sel" data-id="${p.id}" ${selecionadas.has(p.id) ? 'checked' : ''} ${p.alterada ? 'disabled title="Pasta já alterada neste lote"' : ''} aria-label="Selecionar pasta"></td>
+      <td class="t"><a href="${URL_PASTA}${encodeURIComponent(p.id)}/detalhamento" target="_blank" rel="noopener">${esc(p.identificador)}</a>${p.arquivada ? '<span class="badge orange">arquivada</span>' : ''}${p.alterada ? '<span class="badge green">✓ alterada</span>' : ''}</td>
+      <td>${esc(p.encarregado)}</td>
+      <td>${esc(p.categoria)}</td>
+      <td>${esc(p.situacao)}</td>
+    </tr>`).join('') +
+    '</tbody></table></div>';
+
+  el('todas').addEventListener('change', (e) => {
+    selecionadas = new Set(e.target.checked ? alteraveis().map(p => p.id) : []);
+    el('tabela').querySelectorAll('.sel:not(:disabled)').forEach(i => { i.checked = e.target.checked; });
+    atualizaContagem();
+  });
+  el('tabela').querySelectorAll('.sel').forEach(i => {
+    i.addEventListener('change', () => {
+      const id = Number(i.dataset.id);
+      if(i.checked){
+        selecionadas.add(id);
+      } else {
+        selecionadas.delete(id);
+      }
+      atualizaContagem();
+    });
+  });
+  atualizaContagem();
+}
+
+// pastas ainda não alteradas neste lote (as alteradas ficam bloqueadas
+// para não reaplicar a troca, p.ex. renumerando de novo a pasta)
+function alteraveis(){
+  return filtradas.filter(p => !p.alterada);
+}
+
+function atualizaContagem(){
+  const total = alteraveis().length;
+  const alteradas = filtradas.length - total;
+  let texto = '';
+  if(filtradas.length){
+    texto = `${selecionadas.size} de ${total} selecionada(s)`;
+    if(alteradas){
+      texto += ` · ${alteradas} alterada(s)`;
+    }
+  }
+  el('cnt').textContent = texto;
+  el('btnConfirmar').disabled = ocupado || selecionadas.size === 0;
+  const todas = el('todas');
+  if(todas){
+    todas.disabled = ocupado || total === 0;
+    todas.checked = total > 0 && selecionadas.size === total;
+    todas.indeterminate = selecionadas.size > 0 && selecionadas.size < total;
+  }
+}
+
+/* ========== Confirmar alteração em lote ========== */
+el('btnLimparFiltros').addEventListener('click', limparFiltros);
+
+// o token só existe em memória: recarregar volta para o login
+el('btnSair').addEventListener('click', () => location.reload());
+
+el('btnConfirmar').addEventListener('click', () => {
+  if(ocupado){
+    return;
+  }
+  el('resultado').innerHTML = '';
+  const { erro, pares } = lerPares();
+  if(erro){
+    el('resultado').innerHTML = `<p class="msg-erro">${esc(erro)}</p>`;
+    return;
+  }
+  if(!selecionadas.size){
+    el('resultado').innerHTML = '<p class="msg-erro">Nenhuma pasta selecionada.</p>';
+    return;
+  }
+  paresConfirmados = pares;
+  const arquivadas = filtradas.filter(p => selecionadas.has(p.id) && p.arquivada).length;
+  let avisos = '';
+  if(arquivadas){
+    avisos += `<p class="aviso-dlg"><strong>${arquivadas}</strong> pasta(s) estão arquivadas e não serão alteradas. Desarquive-as manualmente no Eleven, informando o motivo (ex.: “Troca de encarregado”), e arquive-as novamente depois da alteração.</p>`;
+  }
+  // arquivadas continuam marcadas, mas a conta mostra separado o que de fato muda
+  const aAlterar = selecionadas.size - arquivadas;
+  const contagem = arquivadas
+    ? `<p><strong>${selecionadas.size}</strong> pasta(s) selecionada(s): <strong>${aAlterar}</strong> serão alteradas e <strong>${arquivadas}</strong> estão arquivadas.</p><p>Trocas:</p><ul>`
+    : `<p><strong>${selecionadas.size}</strong> pasta(s) serão alteradas:</p><ul>`;
+  el('resumo').innerHTML =
+    contagem +
+    pares.map(p => `<li>${esc(p.campo.titulo)}: ${esc(p.deNome)} → ${esc(p.paraNome)}</li>`).join('') +
+    '</ul>' + avisos;
+  // troca de identificador renumera as pastas: exige ciência a cada lote
+  const trocaIdentificador = pares.some(p => p.campo.id === 'identificador');
+  el('confirmaNumeracao').style.display = trocaIdentificador ? 'flex' : 'none';
+  el('chkNumeracao').checked = false;
+  el('btnOk').disabled = trocaIdentificador;
+  el('dlg').showModal();
+});
+
+el('btnCancelar').addEventListener('click', () => el('dlg').close());
+
+el('chkNumeracao').addEventListener('change', (e) => {
+  el('btnOk').disabled = !e.target.checked;
+});
+
+el('btnOk').addEventListener('click', async () => {
+  if(el('btnOk').disabled || ocupado){
+    return;
+  }
+  el('dlg').close();
+  await aplicarLote(paresConfirmados);
+});
+
+// Troca os campos no objeto completo da pasta (vindo do GET).
+function aplicarTrocas(pasta, pares){
+  for(const p of pares){
+    if(p.campo.id === 'identificador'){
+      // prefixo diferente: o backend descarta o número e gera o próximo do novo prefixo
+      pasta.prefixo = { id:Number(p.para), descricao:p.paraNome };
+    } else if(p.campo.id === 'encarregado'){
+      // o backend exige tipoDoCadastro no colaborador responsável
+      pasta.colaboradorResponsavel = { id:Number(p.para), descricao:p.paraNome, tipoDoCadastro:'COLABORADOR' };
+    } else if(p.campo.id === 'categoria'){
+      pasta.categoria = { id:Number(p.para), descricao:p.paraNome };
+    } else if(p.campo.id === 'situacao'){
+      pasta.situacao = { id:Number(p.para), descricao:p.paraNome };
+    }
+  }
+  return pasta;
+}
+
+async function requisitar(url, metodo, body, contexto){
+  const r = await fetch(url, { method:metodo, headers:auth(!!body), body:body ? JSON.stringify(body) : undefined });
+  if(!r.ok){
+    throw new Error((contexto ? contexto + ', ' : '') + await mensagemDeErro(r));
+  }
+  return r.json().catch(() => null);
+}
+
+// O PUT sobrescreve a pasta inteira (campo ausente vira null), por isso
+// busca o objeto completo antes e reenvia tudo com as trocas aplicadas.
+async function atualizarPasta(id, pares){
+  const pasta = await requisitar(`${APP_URL}/pastasprocessuais/${id}?marcarAcessada=false`, 'GET', null, 'ao carregar a pasta');
+  // o backend não aceita edição de pasta arquivada; o desarquivamento é manual
+  if(pasta.conclusao?.arquivada === true){
+    throw new Error('pasta arquivada: desarquive-a no Eleven, informando o motivo (ex.: “Troca de encarregado”), e tente novamente');
+  }
+  return requisitar(`${APP_URL}/pastasprocessuais/${id}`, 'PUT', aplicarTrocas(pasta, pares));
+}
+
+// atualiza a linha com o que o backend gravou (inclui o número novo ao trocar o identificador)
+function marcarComoAlterada(id, pares, pasta){
+  const linha = filtradas.find(x => x.id === id);
+  if(!linha){
+    return;
+  }
+  for(const p of pares){
+    if(p.campo.id === 'identificador'){
+      linha.prefixo = p.paraNome;
+    } else {
+      linha[p.campo.id] = p.paraNome;
+    }
+  }
+  if(pasta){
+    linha.prefixo = pasta.prefixo?.descricao || linha.prefixo;
+    linha.numero = pasta.numero ?? linha.numero;
+    linha.encarregado = pasta.colaboradorResponsavel?.descricao || linha.encarregado;
+    linha.categoria = pasta.categoria?.descricao || linha.categoria;
+    linha.situacao = pasta.situacao?.descricao || linha.situacao;
+  }
+  linha.identificador = textoIdentificador(linha);
+  linha.alterada = true;
+}
+
+async function aplicarLote(pares){
+  const ids = filtradas.filter(p => selecionadas.has(p.id)).map(p => p.id);
+  const falhas = [];
+  let concluidas = 0;
+  let sucesso = 0;
+
+  travarTela(true);
+  progresso(0, `Alterando pastas 0/${ids.length}`);
+
+  // uma pasta por vez: o número novo da troca de identificador vem de um
+  // contador único por prefixo, e gravações simultâneas disputariam o mesmo número
+  for(const id of ids){
+    try{
+      const pasta = await atualizarPasta(id, pares);
+      marcarComoAlterada(id, pares, pasta);
+      selecionadas.delete(id);
+      sucesso++;
+    }catch(err){
+      console.error('Falha na pasta', id, err);
+      falhas.push({ id, mensagem:textoErro(err) });
+    }
+    concluidas++;
+    progresso(100 * concluidas / ids.length, `Alterando pastas ${concluidas}/${ids.length}`);
+  }
+
+  ocultarProgresso();
+  renderLista();
+  travarTela(false);
+  renderResultado(sucesso, falhas);
+}
+
+function renderResultado(sucesso, falhas){
+  let html = '';
+  if(sucesso){
+    html += `<p class="msg-ok">✅ Troca aplicada em ${sucesso} pasta(s).</p>`;
+  }
+  if(falhas.length){
+    html += `<p class="msg-erro">${falhas.length} pasta(s) não foram alteradas e continuam marcadas na lista, clique em "Confirmar alteração em lote" acima para tentar novamente.</p>` +
+      '<div class="table-scroll"><table class="table"><thead><tr><th>Pasta</th><th>Erro</th></tr></thead><tbody>' +
+      falhas.map(f => {
+        const p = filtradas.find(x => x.id === f.id);
+        return `<tr><td class="t"><a href="${URL_PASTA}${encodeURIComponent(f.id)}/detalhamento" target="_blank" rel="noopener">${esc(p ? p.identificador : f.id)}</a></td><td>${esc(f.mensagem)}</td></tr>`;
+      }).join('') +
+      '</tbody></table></div>';
+  }
+  el('resultado').innerHTML = html;
+}
+</script>
+
+</body>
+</html>
