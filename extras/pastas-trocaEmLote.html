@@ -111,7 +111,7 @@ dialog#dlg .btns .btn{width:auto;margin:0;padding:9px 18px}
 <div class="card lote-card" id="lote" style="display:none">
   <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
   <h1>Pastas - alteração em lote</h1>
-  <p class="subtitle">Selecione o valor atual para filtrar as pastas e o novo valor para a troca. Campos em branco são ignorados no filtro.</p>
+  <p class="subtitle">Selecione o valor atual para filtrar as pastas e o novo valor para a troca. O novo é opcional: um bloco só com o atual apenas filtra e mantém o valor. Blocos em branco são ignorados.</p>
 
   <div class="filter-info aviso-limite"><strong>Observação:</strong> O limite para alterações em lote é de 500 pastas por vez. Após finalizar o lote, será possível realizar um novo filtro e confirmar outra alteração em lote.</div>
 
@@ -171,7 +171,7 @@ dialog#dlg .btns .btn{width:auto;margin:0;padding:9px 18px}
     <div class="modal-body">
       <p>Altera várias pastas de uma só vez, trocando o <strong>Identificador</strong>, o <strong>Encarregado</strong>, a <strong>Categoria</strong> e/ou a <strong>Situação</strong> de todas as pastas que atendam ao filtro.</p>
       <ul>
-        <li><strong>De → Para</strong>Em cada bloco, escolha o valor atual (usado para filtrar) e o valor novo (usado na troca). Blocos em branco são ignorados.</li>
+        <li><strong>De → Para</strong>Em cada bloco, escolha o valor atual (usado para filtrar) e, se quiser trocá-lo, o valor novo. Um bloco só com o atual apenas filtra e mantém o valor; o novo nunca pode ser informado sem o atual. Pelo menos um bloco precisa ter o atual e o novo. Blocos em branco são ignorados.</li>
         <li><strong>Filtrar</strong>A busca traz as pastas que têm todos os valores atuais informados. Por padrão, só as não arquivadas; marque "Incluir pastas arquivadas" para trazer também as arquivadas. Todas vêm marcadas; desmarque as que não devem mudar.</li>
         <li><strong>Confirmar</strong>Depois de confirmar, a troca é gravada no Eleven somente nas pastas marcadas. Pastas arquivadas não são alteradas: desarquive-as manualmente no Eleven, informando o motivo do desarquivamento (ex.: “Troca de encarregado”), faça a alteração em lote e depois arquive-as novamente.</li>
       </ul>
@@ -239,10 +239,10 @@ const PAGINA_ITENS = 200;  // máximo aceito pelos conjuntos de valores
 
 // conjunto: id do conjunto de valores no Eleven (identificador = prefixo da pasta)
 const CAMPOS = [
-  { id:'identificador', titulo:'Identificador', de:'Identificador atual', para:'Identificador novo', conjunto:'PREFIXO_DA_PASTA_PROCESSUAL' },
-  { id:'encarregado',   titulo:'Encarregado',   de:'Encarregado atual',   para:'Encarregado novo' },
-  { id:'categoria',     titulo:'Categoria',     de:'Categoria atual',     para:'Categoria nova',     conjunto:'CATEGORIA_DA_PASTA_PROCESSUAL' },
-  { id:'situacao',      titulo:'Situação',      de:'Situação atual',      para:'Situação nova',      conjunto:'SITUACAO_PASTA_PROCESSUAL' }
+  { id:'identificador', titulo:'Identificador', de:'Identificador atual', para:'Identificador novo', manter:'Manter identificador atual', conjunto:'PREFIXO_DA_PASTA_PROCESSUAL' },
+  { id:'encarregado',   titulo:'Encarregado',   de:'Encarregado atual',   para:'Encarregado novo',   manter:'Manter encarregado atual' },
+  { id:'categoria',     titulo:'Categoria',     de:'Categoria atual',     para:'Categoria nova',     manter:'Manter categoria atual',     conjunto:'CATEGORIA_DA_PASTA_PROCESSUAL' },
+  { id:'situacao',      titulo:'Situação',      de:'Situação atual',      para:'Situação nova',      manter:'Manter situação atual',      conjunto:'SITUACAO_PASTA_PROCESSUAL' }
 ];
 
 // Opções de cada campo: [{ id: string, nome: string }]
@@ -452,8 +452,9 @@ async function carregarOpcoes(){
 }
 
 /* ========== Seleção De → Para ========== */
-function opcoesHtml(campo, placeholder){
-  return `<option value="">${esc(placeholder)}…</option>` +
+// a opção vazia do "atual" é um placeholder; no "novo", vazio = manter o valor atual
+function opcoesHtml(campo, textoVazio){
+  return `<option value="">${esc(textoVazio)}</option>` +
     OPCOES[campo.id].map(o => `<option value="${esc(o.id)}">${esc(o.nome)}</option>`).join('');
 }
 
@@ -464,7 +465,7 @@ function renderSecoes(){
       <div class="field">
         <label for="de_${c.id}">${c.de}</label>
         <div class="sel-wrap">
-          <select id="de_${c.id}" class="form-control">${opcoesHtml(c, c.de)}</select>
+          <select id="de_${c.id}" class="form-control">${opcoesHtml(c, c.de + '…')}</select>
           <button type="button" class="limpar" data-alvo="de_${c.id}" aria-label="Limpar ${c.de.toLowerCase()}" title="Limpar">✕</button>
         </div>
       </div>
@@ -472,7 +473,7 @@ function renderSecoes(){
       <div class="field">
         <label for="para_${c.id}">${c.para}</label>
         <div class="sel-wrap">
-          <select id="para_${c.id}" class="form-control">${opcoesHtml(c, c.para)}</select>
+          <select id="para_${c.id}" class="form-control">${opcoesHtml(c, c.manter)}</select>
           <button type="button" class="limpar" data-alvo="para_${c.id}" aria-label="Limpar ${c.para.toLowerCase()}" title="Limpar">✕</button>
         </div>
       </div>
@@ -516,27 +517,32 @@ function nomeOpcao(campoId, id){
   return o ? o.nome : (id || '');
 }
 
-// Retorna { erro, pares: [{ campo, de, para, deNome, paraNome }] }
+// Atual preenchido = filtra; novo preenchido = troca. O novo exige o atual.
+// Retorna { erro, filtros: [{ campo, de, deNome }], pares: [{ campo, de, para, deNome, paraNome }] }
+// - filtros: todos os blocos com atual (vão para a busca)
+// - pares: só os blocos com atual e novo (são trocados)
 function lerPares(){
+  const filtros = [];
   const pares = [];
   let erro = '';
   for(const c of CAMPOS){
     const de = el('de_' + c.id).value;
     const para = el('para_' + c.id).value;
-    if(de && para){
-      if(de === para){
-        erro = erro || `Em "${c.titulo}", o valor atual e o novo devem ser diferentes.`;
-      } else {
+    if(para && !de){
+      erro = erro || `Em "${c.titulo}", informe o valor atual.`;
+    } else if(de && para && de === para){
+      erro = erro || `Em "${c.titulo}", o valor atual e o novo devem ser diferentes.`;
+    } else if(de){
+      filtros.push({ campo:c, de, deNome:nomeOpcao(c.id, de) });
+      if(para){
         pares.push({ campo:c, de, para, deNome:nomeOpcao(c.id, de), paraNome:nomeOpcao(c.id, para) });
       }
-    } else if(de || para){
-      erro = erro || `Em "${c.titulo}", informe o valor atual e o novo.`;
     }
   }
   if(!erro && !pares.length){
     erro = 'Informe o atual e o novo em pelo menos um campo para habilitar o filtro.';
   }
-  return { erro, pares };
+  return { erro, filtros, pares };
 }
 
 // Durante a busca e a gravação nada pode mudar: filtros alterados no meio da
@@ -606,18 +612,18 @@ function paraLinha(p){
 }
 
 // confere no navegador: mesmo id ou, na falta dele, mesmo nome (sem acento/maiúsculas)
-function atendeFiltro(linha, pares){
-  return pares.every(p => {
-    if(linha.ids[p.campo.id]){
-      return linha.ids[p.campo.id] === p.de;
+function atendeFiltro(linha, filtros){
+  return filtros.every(f => {
+    if(linha.ids[f.campo.id]){
+      return linha.ids[f.campo.id] === f.de;
     }
-    const nome = p.campo.id === 'identificador' ? linha.prefixo : linha[p.campo.id];
-    return norm(nome) === norm(p.deNome);
+    const nome = f.campo.id === 'identificador' ? linha.prefixo : linha[f.campo.id];
+    return norm(nome) === norm(f.deNome);
   });
 }
 
 el('btnFiltrar').addEventListener('click', async () => {
-  const { erro, pares } = lerPares();
+  const { erro, filtros } = lerPares();
   if(erro || ocupado){
     return;
   }
@@ -625,7 +631,7 @@ el('btnFiltrar').addEventListener('click', async () => {
   limparErro();
   travarTela(true);
   const de = {};
-  pares.forEach(p => { de[p.campo.id] = p.de; });
+  filtros.forEach(f => { de[f.campo.id] = f.de; });
   const body = {
     arquivada: el('chkArquivadas').checked ? 'TODAS' : 'NAO_ARQUIVADAS',
     idsPrefixos: de.identificador ? [Number(de.identificador)] : [],
@@ -650,7 +656,7 @@ el('btnFiltrar').addEventListener('click', async () => {
         return true;
       })
       .map(paraLinha)
-      .filter(l => atendeFiltro(l, pares));
+      .filter(l => atendeFiltro(l, filtros));
     selecionadas = new Set(filtradas.map(p => p.id));
     ocultarProgresso();
     renderLista();
@@ -741,7 +747,7 @@ el('btnConfirmar').addEventListener('click', () => {
     return;
   }
   el('resultado').innerHTML = '';
-  const { erro, pares } = lerPares();
+  const { erro, filtros, pares } = lerPares();
   if(erro){
     el('resultado').innerHTML = `<p class="msg-erro">${esc(erro)}</p>`;
     return;
@@ -751,6 +757,7 @@ el('btnConfirmar').addEventListener('click', () => {
     return;
   }
   paresConfirmados = pares;
+  const mantidos = filtros.filter(f => !pares.some(p => p.campo.id === f.campo.id));
   const arquivadas = filtradas.filter(p => selecionadas.has(p.id) && p.arquivada).length;
   let avisos = '';
   if(arquivadas){
@@ -764,6 +771,7 @@ el('btnConfirmar').addEventListener('click', () => {
   el('resumo').innerHTML =
     contagem +
     pares.map(p => `<li>${esc(p.campo.titulo)}: ${esc(p.deNome)} → ${esc(p.paraNome)}</li>`).join('') +
+    mantidos.map(f => `<li>${esc(f.campo.titulo)}: ${esc(f.deNome)} (mantido)</li>`).join('') +
     '</ul>' + avisos;
   // troca de identificador renumera as pastas: exige ciência a cada lote
   const trocaIdentificador = pares.some(p => p.campo.id === 'identificador');
