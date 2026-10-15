@@ -19,6 +19,7 @@
         h1{margin:0 0 8px;font-size:1.6rem}
         h2{margin:0 0 10px;font-size:1.15rem}
         .subtitle{font-size:1rem;color:var(--muted);margin-bottom:20px}
+        .build-info{font-size:.78rem;color:var(--muted);margin:2px 0 0}
         .form-control{width:100%;padding:14px;border:1px solid var(--border);border-radius:10px;font-size:1.1rem;margin-bottom:12px;outline:none}
         .form-control-sm{padding:8px 10px;font-size:.9rem;margin-bottom:0;border:1px solid var(--border);border-radius:8px;width:140px}
         .btn{width:100%;padding:15px;border:none;border-radius:10px;background:var(--brand);color:#fff;font-weight:700;cursor:pointer;font-size:1.1rem;margin-bottom:10px}
@@ -149,19 +150,20 @@
     <div id="loginScreen" class="card login-card center">
         <button class="help-btn" aria-label="Como funciona a importação" title="Como funciona a importação" onclick="abrirAjuda('login')"><span aria-hidden="true">i</span></button>
         <h1>Lawyer Eleven</h1>
-        <p class="subtitle">Controladoria de Prazos</p>
+        <p class="subtitle">GMP - Controladoria de Prazos</p>
         <form id="loginForm" style="width:100%">
             <input type="text" id="email" class="form-control" placeholder="E-mail" required>
             <input type="password" id="senha" class="form-control" placeholder="Senha" required>
-            <button type="submit" class="btn">Entrar Agora</button>
+            <button type="submit" class="btn">Entrar (Controladoria de Prazos)</button>
         </form>
+        <p class="build-info" id="buildInfo">Build: carregando...</p>
         <div id="resultadoLogin" class="subtitle" style="margin-top:10px"></div>
     </div>
 
     <!-- TELA 2: UPLOAD -->
     <div id="uploadScreen" class="card login-card center" style="display:none">
         <button class="help-btn" aria-label="Ajuda sobre a planilha" title="Ajuda sobre a planilha" onclick="abrirAjuda('upload')"><span aria-hidden="true">i</span></button>
-        <h1>Importar Planilha de Prazos</h1>
+        <h1>Importar Planilha da Controladoria de Prazos</h1>
         <p class="subtitle">Selecione o arquivo .xlsx no padrão da planilha de prazos (colunas: ID, Processo, Cliente, Encarregado, Matéria, Ato, Fundamento, Prazo (dias), Regime, Base de contagem, Data-base, Início da contagem, Último dia do prazo (fatal), Duplicada, Linhas duplicadas (relatório), Custas, Motivo custas, Status).</p>
         <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
             📄 Clique para selecionar o arquivo .xlsx<br>
@@ -174,9 +176,9 @@
     <!-- TELA 3: BUSCA AUTOMATICA (encarregados + processos) -->
     <div id="buscaScreen" class="card wide-card" style="display:none">
         <button class="help-btn" aria-label="Ajuda sobre a conferência de dados" title="Ajuda sobre a conferência de dados" onclick="abrirAjuda('busca')"><span aria-hidden="true">i</span></button>
-        <h1>Conferindo os Dados na Base</h1>
+        <h1>Conferência de Dados: Planilha x Lawyer Eleven</h1>
         <div class="filter-info">
-            🔎 Estamos localizando automaticamente na base do escritório: o <strong>Encarregado</strong> de cada tarefa, o <strong>Processo</strong> (com Cliente e Pasta Processual vinculados) e o <strong>texto completo da publicação</strong> de origem.
+            🔎 Estamos localizando automaticamente no Lawyer Eleven: o <strong>Encarregado</strong> de cada tarefa, o <strong>Processo</strong> (com Cliente e Pasta Processual vinculados) e o <strong>texto completo da publicação</strong> de origem.
             Também carregamos as opções cadastradas de <strong>Matéria</strong>, <strong>Regime</strong> e <strong>Custas</strong>, para preencher esses campos corretamente na tarefa. Isso evita erros de digitação e garante que a tarefa fique corretamente vinculada.
         </div>
 
@@ -443,6 +445,16 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && document.getElementById('modalAjuda').classList.contains('aberto')) fecharAjuda();
 });
 
+// Exibe automaticamente a data da última modificação do próprio arquivo HTML.
+const DATA_ULTIMA_ATUALIZACAO = new Date(document.lastModified);
+document.getElementById('buildInfo').innerText = Number.isNaN(DATA_ULTIMA_ATUALIZACAO.getTime())
+    ? 'Build: data indisponível'
+    : 'Build: ' + DATA_ULTIMA_ATUALIZACAO.toLocaleString('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: false
+    }).replace(',', '');
+
 /* =========================================================
    ESTADO GLOBAL
    ========================================================= */
@@ -459,12 +471,14 @@ let LOG_RESULTADO = [];
 // tempo de execução, buscando pelo NOME do campo (ver buscarCamposExtrasPorNome()).
 // NOMES_CAMPOS_EXTRAS = nome exato do campo extra cadastrado no Eleven (tipo TAREFA).
 const NOMES_CAMPOS_EXTRAS = {
-    MATERIA: 'Matéria',           // LISTA_DE_ITEM
-    ATO: 'Ato',                   // TEXTO_CURTO
-    FUNDAMENTO: 'Fundamento',     // TEXTO_CURTO
-    REGIME: 'Regime',             // LISTA_DE_ITEM
-    CUSTAS: 'Custas',             // LISTA_DE_ITEM
-    MOTIVO_CUSTAS: 'Motivo custas' // TEXTO_CURTO
+    MATERIA: 'Controladoria de Prazos - Matéria',                         // LISTA_DE_ITEM
+    ATO: 'Controladoria de Prazos - Ato',                                 // TEXTO_CURTO
+    FUNDAMENTO: 'Controladoria de Prazos - Fundamento',                   // TEXTO_CURTO
+    REGIME: 'Controladoria de Prazos - Regime',                           // LISTA_DE_ITEM
+    CUSTAS: 'Controladoria de Prazos - Custas',                           // LISTA_DE_ITEM
+    MOTIVO_CUSTAS: 'Controladoria de Prazos - Motivo Custas',             // TEXTO_CURTO
+    CRIACAO_AUTOMATICA: 'Controladoria de Prazos - criação automática?',  // LISTA_DE_ITEM
+    DATA_CRIACAO_AUTOMATICA: 'Controladoria de Prazos - data da criação automática' // DATA
 };
 // Preenchido em tempo de execução: { MATERIA: <id ou null>, ATO: <id ou null>, ... }
 let CAMPOS_EXTRAS_RESOLVIDOS = {};
@@ -660,7 +674,7 @@ async function buscarCamposExtrasPorNome() {
             'Campo extra',
             NOMES_CAMPOS_EXTRAS[chave],
             achado ? 'Encontrado' : 'Não encontrado',
-            achado ? `id ${achado.id}` : 'Nenhum campo extra de TAREFA com esse nome nesta base'
+            achado ? `id ${achado.id}` : 'Erro: nenhum campo extra de TAREFA foi encontrado com esse nome'
         );
     }
     return resolvidos;
@@ -683,6 +697,19 @@ function resolverItemCampoExtra(chaveCampo, valorTexto) {
     const lista = CACHE_ITENS_CAMPO_EXTRA[chaveCampo] || [];
     const alvo = normalizarTexto(valorTexto);
     return lista.find(i => normalizarTexto(i.descricao) === alvo) || null;
+}
+
+function resolverItemCampoExtraComPadrao(chaveCampo, valorTexto, valorPadrao) {
+    return resolverItemCampoExtra(chaveCampo, valorTexto)
+        || resolverItemCampoExtra(chaveCampo, valorPadrao);
+}
+
+function dataAtualSaoPauloISO() {
+    const partes = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(new Date());
+    const obter = tipo => partes.find(p => p.type === tipo)?.value;
+    return `${obter('year')}-${obter('month')}-${obter('day')}`;
 }
 
 async function buscarPublicacaoPorId(id) {
@@ -714,7 +741,8 @@ async function buscarTudo() {
     const camposLista = [
         { chave: 'MATERIA', nome: NOMES_CAMPOS_EXTRAS.MATERIA },
         { chave: 'REGIME', nome: NOMES_CAMPOS_EXTRAS.REGIME },
-        { chave: 'CUSTAS', nome: NOMES_CAMPOS_EXTRAS.CUSTAS }
+        { chave: 'CUSTAS', nome: NOMES_CAMPOS_EXTRAS.CUSTAS },
+        { chave: 'CRIACAO_AUTOMATICA', nome: NOMES_CAMPOS_EXTRAS.CRIACAO_AUTOMATICA }
     ];
     for (const campo of camposLista) {
         const id = CAMPOS_EXTRAS_RESOLVIDOS[campo.chave];
@@ -806,9 +834,11 @@ async function buscarTudo() {
 
     const semEnc = Object.values(CACHE_ENCARREGADOS).filter(x => !x.encontrado).length;
     const semProc = Object.values(CACHE_PROCESSOS).filter(x => !x.encontrado).length;
-    document.getElementById('resumoBusca').innerText =
-        `Busca concluída. ${encarregados.length} encarregado(s) e ${processos.length} processo(s) pesquisados. ${semEnc} encarregado(s) e ${semProc} processo(s) não encontrados.`;
-    document.getElementById('btnAvancarPreview').disabled = false;
+    const houveErro = LOG_BUSCA.some(item => item.statusTxt !== 'Encontrado');
+    document.getElementById('resumoBusca').innerText = houveErro
+        ? `Conferência concluída com erro. Corrija os itens não localizados antes de avançar. ${semEnc} encarregado(s) e ${semProc} processo(s) não encontrados.`
+        : `Busca concluída. ${encarregados.length} encarregado(s) e ${processos.length} processo(s) pesquisados. ${semEnc} encarregado(s) e ${semProc} processo(s) não encontrados.`;
+    document.getElementById('btnAvancarPreview').disabled = houveErro;
 }
 
 /* =========================================================
@@ -939,7 +969,7 @@ function montarValoresCamposExtras(l) {
     // Campos do tipo LISTA_DE_ITEM: só entram se o campo extra foi encontrado nesta
     // base (ids.X != null) E o valor da planilha bate com algum item cadastrado.
     if (ids.MATERIA) {
-        const materiaItem = resolverItemCampoExtra('MATERIA', l['Matéria']);
+        const materiaItem = resolverItemCampoExtraComPadrao('MATERIA', l['Matéria'], 'Valor não encontrado');
         if (materiaItem) {
             arr.push({
                 idCampoExtra: ids.MATERIA,
@@ -960,7 +990,7 @@ function montarValoresCamposExtras(l) {
     }
 
     if (ids.REGIME) {
-        const regimeItem = resolverItemCampoExtra('REGIME', l['Regime']);
+        const regimeItem = resolverItemCampoExtraComPadrao('REGIME', l['Regime'], 'Valor não encontrado');
         if (regimeItem) {
             arr.push({
                 idCampoExtra: ids.REGIME,
@@ -972,7 +1002,7 @@ function montarValoresCamposExtras(l) {
     }
 
     if (ids.CUSTAS) {
-        const custasItem = resolverItemCampoExtra('CUSTAS', l['Custas']);
+        const custasItem = resolverItemCampoExtraComPadrao('CUSTAS', l['Custas'], 'Valor não encontrado');
         if (custasItem) {
             arr.push({
                 idCampoExtra: ids.CUSTAS,
@@ -985,6 +1015,30 @@ function montarValoresCamposExtras(l) {
 
     if (ids.MOTIVO_CUSTAS && l['Motivo custas']) {
         arr.push({ idCampoExtra: ids.MOTIVO_CUSTAS, typeClass: "ValorTextoDoCampoExtra", valor: String(l['Motivo custas']) });
+    }
+
+    if (ids.CRIACAO_AUTOMATICA) {
+        const criacaoAutomaticaItem = resolverItemCampoExtra('CRIACAO_AUTOMATICA', 'Sim');
+        if (criacaoAutomaticaItem) {
+            arr.push({
+                idCampoExtra: ids.CRIACAO_AUTOMATICA,
+                typeClass: "ValorItemDoCampoExtra",
+                itemDoCampoExtra: {
+                    id: criacaoAutomaticaItem.id,
+                    idCampoExtra: ids.CRIACAO_AUTOMATICA,
+                    descricao: criacaoAutomaticaItem.descricao
+                },
+                valor: criacaoAutomaticaItem.descricao
+            });
+        }
+    }
+
+    if (ids.DATA_CRIACAO_AUTOMATICA) {
+        arr.push({
+            idCampoExtra: ids.DATA_CRIACAO_AUTOMATICA,
+            typeClass: "ValorTextoDoCampoExtra",
+            valor: dataAtualSaoPauloISO()
+        });
     }
 
     return arr;
