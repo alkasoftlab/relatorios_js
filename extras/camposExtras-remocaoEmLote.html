@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Eleven · Campos extras | Remoção dos valores em lote</title>
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+/* O JS escreve a porcentagem dentro do próprio .fill */
+#fill{color:#fff;font-weight:700;font-size:.7rem;line-height:14px;text-align:center;white-space:nowrap;overflow:hidden}
+
+.lote-card{max-width:960px;margin:0 auto;padding:28px}
+.lote-card .brand-mark{justify-content:center}
+.lote-card h1{text-align:center}
+.lote-card > .subtitle{text-align:center}
+
+.aviso-limite{background:rgba(255,171,74,.08);border-color:rgba(255,171,74,.3);margin:6px 0 10px}
+
+.grade{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.grade .field{margin-bottom:0}
+.form-control:disabled{opacity:.5;cursor:not-allowed}
+
+#motivoBox{display:none;margin-top:14px}
+#motivoBox textarea{min-height:80px;resize:vertical}
+.req{color:var(--danger)}
+#motivoErro{display:none;color:var(--danger);font-size:.82rem;margin-top:4px}
+
+#info{min-height:20px;color:var(--muted);font-size:.88rem;margin:12px 0 14px}
+#info b{color:var(--ink)}
+
+#lista{display:none;border:1px solid var(--border);border-radius:10px;padding:16px;margin-top:14px}
+#msg{margin:0;font-size:1rem;color:var(--ink)}
+#msg.msg-ok{color:var(--success);font-weight:600}
+#msg.msg-erro{color:var(--danger);font-weight:600}
+.aviso-pasta{background:rgba(255,171,74,.12);border:1px solid rgba(255,171,74,.3);color:var(--orange);padding:10px 12px;border-radius:8px;margin-top:10px;font-size:.87rem;line-height:1.4}
+.aviso-pasta:empty{display:none}
+#btns{display:flex;gap:10px;margin-top:14px}
+#btns .btn{flex:1;margin:0}
+
+.table-scroll{max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:10px;margin-top:8px}
+.table-scroll .table{margin-top:0}
+.table th{position:sticky;top:0;z-index:1}
+.table td.t a{color:var(--brand);text-decoration:underline}
+
+.msg-ok{color:var(--success);font-weight:600;margin:12px 0 6px}
+.msg-erro{color:var(--danger);font-weight:600;margin:12px 0 6px}
+#erro:empty{display:none}
+#erro{background:rgba(255,92,114,.08);border:1px solid rgba(255,92,114,.3);border-radius:10px;padding:10px 14px;font-weight:500}
+
+.btn-azul{background:var(--brand-2)}
+.btn-sec{background:transparent;border:1px solid var(--border-strong);color:var(--ink)}
+.btn:disabled{opacity:.5;cursor:not-allowed;filter:none}
+
+@media (max-width:520px){
+  .lote-card{padding:18px}
+  .grade{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<div class="card login-card center" id="login">
+    <button type="button" class="info-icon" id="infoLoginBtn" aria-label="Sobre esta ferramenta" title="Sobre esta ferramenta">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" font-family="Arial, Helvetica, sans-serif" fill="#08111a">i</text></svg>
+    </button>
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <p class="subtitle">Acessar: Campos extras - remoção dos valores em lote</p>
+    <form id="loginForm" style="width:100%">
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input type="text" id="email" class="form-control" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <div class="password-wrap">
+          <input type="password" id="senha" class="form-control" required autocomplete="current-password">
+          <button type="button" class="password-toggle" id="toggleSenha" aria-label="Mostrar senha" title="Mostrar senha">
+            <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn" id="btnEntrar">Entrar</button>
+    </form>
+    <div id="resultadoLogin" class="subtitle" style="margin-top:10px"></div>
+</div>
+
+<div class="card lote-card" id="lote" style="display:none">
+  <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+  <h1>Campos extras - remoção dos valores em lote</h1>
+  <p class="subtitle">Selecione o cadastro para ver a relação dos campos extras disponíveis nele.</p>
+
+  <div class="filter-info aviso-limite"><strong>Observação:</strong> esta ferramenta apaga os valores preenchidos do campo extra nos registros do cadastro. A remoção do campo extra nas configurações do sistema deverá ser realizada manualmente pelo usuário depois disso.</div>
+
+  <div id="erro" class="msg-erro" role="alert"></div>
+
+  <div class="grade">
+    <div class="field">
+      <label for="cadastro">Cadastro</label>
+      <select id="cadastro" class="form-control"></select>
+    </div>
+    <div class="field">
+      <label for="campo">Campo extra</label>
+      <select id="campo" class="form-control" disabled></select>
+    </div>
+  </div>
+
+  <div id="motivoBox" class="field">
+    <label for="motivo">Motivo do desarquivamento <span class="req" aria-hidden="true">*</span></label>
+    <textarea id="motivo" class="form-control" maxlength="1000" required aria-required="true" placeholder="Digite o motivo do desarquivamento…"></textarea>
+    <div id="motivoErro" role="alert">Campo obrigatório.</div>
+  </div>
+
+  <div id="info" role="status"></div>
+
+  <button type="button" class="btn" id="btnFiltrar" disabled>Filtrar cadastro</button>
+  <button type="button" class="btn btn-azul" id="btnLimparFiltros">Limpar filtros</button>
+
+  <div class="progress-wrap" id="bar">
+    <div class="progress"><div id="fill" class="fill">0%</div></div>
+  </div>
+  <div id="status" class="small-muted" style="margin-top:8px" role="status"></div>
+
+  <div id="lista">
+    <p id="msg" role="status"></p>
+    <div id="avisoPasta" class="aviso-pasta"></div>
+    <div id="btns">
+      <button type="button" class="btn" id="btnSim">Sim, remover</button>
+      <button type="button" class="btn btn-sec" id="btnCancelar">Cancelar</button>
+    </div>
+    <div id="resultado" role="alert"></div>
+  </div>
+
+  <button type="button" class="btn btn-danger" id="btnSair" style="margin-top:16px">Sair</button>
+</div>
+
+</div>
+
+<div class="modal-overlay" id="infoModalOverlay">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <button class="modal-close" id="infoModalClose" type="button" aria-label="Fechar">✕</button>
+    <h2 class="modal-title">Sobre esta ferramenta</h2>
+    <div class="modal-body">
+      <p>Apaga, de uma só vez, os valores preenchidos de um <strong>campo extra</strong> em todos os registros de um cadastro, para que o campo possa depois ser removido nas configurações do Eleven.</p>
+      <ul>
+        <li><strong>Cadastro e campo</strong><br>Escolha o cadastro (processo judicial, pasta, contrato, cliente, contato, financeiro, processo extrajudicial ou tarefa) e o campo extra que terá os valores removidos.</li>
+        <li><strong>Filtrar cadastro</strong><br>Verifica se o campo tem valor preenchido em algum registro. Se tiver, pede a confirmação da remoção dos valores; se não, informa que não existe remoção a ser realizada.</li>
+        <li><strong>Sim, remover</strong><br>Apaga o valor do campo em cada registro encontrado, mantendo os demais campos extras e dados do registro.</li>
+        <li><strong>Pastas arquivadas</strong><br>Para o cadastro Pasta, informe o motivo do desarquivamento: as pastas arquivadas são desarquivadas com esse motivo, têm o valor do campo apagado e são arquivadas novamente.</li>
+      </ul>
+      <p style="background:rgba(255,171,74,.12);border:1px solid rgba(255,171,74,.3);color:var(--orange);padding:10px 12px;border-radius:8px;margin-top:10px;line-height:1.4">⚠️ <strong>Atenção:</strong> esta ferramenta <strong>apaga</strong> valores no sistema e a operação não pode ser desfeita. Só são verificados e alterados os registros que o usuário tem permissão de acessar. A remoção do campo extra nas configurações deve ser feita manualmente depois.</p>
+      <h3 style="margin:14px 0 8px">Se algum registro não for alterado</h3>
+      <ul>
+        <li>Ele aparece na lista de falhas com a mensagem do sistema; clique em "Sim, remover" para tentar novamente só esses registros.</li>
+        <li>Os motivos mais comuns são falta de permissão de edição, campo obrigatório não preenchido no registro ou, no financeiro, lançamento realizado em período já fechado.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========== Modal de informação (tela de login) ========== */
+(function(){
+    const overlay = document.getElementById('infoModalOverlay');
+    const btn = document.getElementById('infoLoginBtn');
+    const closeBtn = document.getElementById('infoModalClose');
+    if(overlay && btn){
+        const open = ()=> overlay.classList.add('open');
+        const close = ()=> overlay.classList.remove('open');
+        btn.addEventListener('click', open);
+        closeBtn.addEventListener('click', close);
+        overlay.addEventListener('click', (e)=>{
+            if(e.target===overlay){
+                close();
+            }
+        });
+        document.addEventListener('keydown', (e)=>{
+            if(e.key==='Escape' && overlay.classList.contains('open')){
+                close();
+            }
+        });
+    }
+})();
+
+/* ========== Mostrar/ocultar senha ========== */
+(function(){
+    const toggleSenhaBtn = document.getElementById('toggleSenha');
+    const senhaInput = document.getElementById('senha');
+    const eyeIcon = document.getElementById('eyeIcon');
+    const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+    const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.4 18.4 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/>';
+    if(toggleSenhaBtn){
+        toggleSenhaBtn.addEventListener('click',()=>{
+            const showing = senhaInput.type === 'text';
+            senhaInput.type = showing ? 'password' : 'text';
+            eyeIcon.innerHTML = showing ? EYE_OPEN : EYE_OFF;
+            toggleSenhaBtn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+            toggleSenhaBtn.title = showing ? 'Mostrar senha' : 'Ocultar senha';
+        });
+    }
+})();
+
+/* ========== Constantes e estado ========== */
+const LOGIN_URL  = 'https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum';
+const APP_URL    = 'https://app-api-prod.alkasoft.com.br/api/v1';
+const BUSCA_URL  = 'https://busca-avancada-api-prod.alkasoft.com.br/api/v1';
+const ELEVEN_URL = 'https://eleven.alkasoft.com.br/auth/';
+
+const PAGINA = 200;  // máximo aceito pela busca avançada
+
+// Identificador exibido no Eleven: "Prefixo/Número - Assunto"
+function textoIdentificador(p){
+  const base = [p.prefixo?.descricao, p.numero].filter(v => v !== '' && v !== null && v !== undefined).join('/');
+  return p.assunto ? `${base} - ${p.assunto}` : base;
+}
+
+// tipo: identificador do cadastro nos campos extras do Eleven
+// buscas: onde procurar os registros na busca avançada (o financeiro é uma por tipo de lançamento)
+//   - recurso: caminho do registro na API (GET e PUT)
+//   - rota: caminho do detalhamento no Eleven
+const CADASTROS = [
+  { tipo:'CLIENTE', nome:'Cliente', rotulo:c => c.nome, buscas:[
+    { endpoint:'contatos', ordenacao:'DATA_CADASTRO_ASC', filtros:{ discriminador:'CLIENTE' }, recurso:i => `clientes/${i.id}`, rota:'clientes' }
+  ]},
+  { tipo:'CONTATO', nome:'Contato', rotulo:c => c.nome, buscas:[
+    { endpoint:'contatos', ordenacao:'DATA_CADASTRO_ASC', filtros:{ discriminador:'CONTATO' }, recurso:i => `contatos/${i.id}`, rota:'contatos' }
+  ]},
+  { tipo:'CONTRATO', nome:'Contrato', rotulo:c => [c.numero, c.titulo].filter(Boolean).join(' - '), buscas:[
+    { endpoint:'contratos', ordenacao:'DATA_CADASTRO_ASC', recurso:i => `pastasprocessuais/${i.pasta.id}/contratos/${i.id}`, rota:'contratos' }
+  ]},
+  { tipo:'FINANCEIRO', nome:'Financeiro', rotulo:m => m.descricao?.descricao, buscas:[
+    { endpoint:'movimentos-futuros', ordenacao:'DATA_DE_VENCIMENTO_ASC', filtros:{ tipo:'RECEITA_FUTURA' }, recurso:i => `financeiros/receitasfuturas/${i.id}`, rota:'receitas-previstas' },
+    { endpoint:'movimentos-futuros', ordenacao:'DATA_DE_VENCIMENTO_ASC', filtros:{ tipo:'DESPESA_FUTURA' }, recurso:i => `financeiros/despesasfuturas/${i.id}`, rota:'despesas-previstas' },
+    { endpoint:'movimentos-realizados', ordenacao:'DATA_DE_VENCIMENTO_ASC', filtros:{ tipo:'RECEITA_REALIZADA' }, recurso:i => `financeiros/receitasrealizadas/${i.id}`, rota:'receitas-realizadas' },
+    { endpoint:'movimentos-realizados', ordenacao:'DATA_DE_VENCIMENTO_ASC', filtros:{ tipo:'DESPESA_REALIZADA' }, recurso:i => `financeiros/despesasrealizadas/${i.id}`, rota:'despesas-realizadas' }
+  ]},
+  { tipo:'PASTA_PROCESSUAL', nome:'Pasta', rotulo:textoIdentificador, buscas:[
+    { endpoint:'pastas', ordenacao:'IDENTIFICADOR_ASC', filtros:{ arquivada:'TODAS' }, recurso:i => `pastasprocessuais/${i.id}`, rota:'pastas' }
+  ]},
+  // nos processos a busca traz a pasta resumida: o id fica em pasta.identificador
+  { tipo:'PROCESSO_EXTRA_JUDICIAL', nome:'Processo extrajudicial', rotulo:p => p.protocolo, buscas:[
+    { endpoint:'processos-extrajudiciais', ordenacao:'DATA_CADASTRO_ASC', recurso:i => `pastasprocessuais/${i.pasta.identificador.id}/processosextrajudiciais/${i.id}`, rota:'processos-extrajudiciais' }
+  ]},
+  { tipo:'PROCESSO_JUDICIAL', nome:'Processo judicial', rotulo:p => p.numeroCNJ, buscas:[
+    { endpoint:'processos-judiciais', ordenacao:'DATA_CADASTRO_ASC', recurso:i => `pastas-processuais/${i.pasta.identificador.id}/processos-judiciais/${i.id}`, rota:'processos-judiciais' }
+  ]},
+  { tipo:'TAREFA', nome:'Tarefa', rotulo:t => t.descricao, buscas:[
+    { endpoint:'tarefas', ordenacao:'DATA_INICIO_ASC', recurso:i => `tarefas/${i.id}`, parametrosPut:'?deveNotificarInteressados=false', rota:'tarefas' }
+  ]}
+];
+
+let TOKEN = null;
+let campos = [];      // campos extras do cadastro selecionado: [{ id, nome, tipo:{ valor } }]
+let emUso = [];       // registros com valor no campo: [{ chave, id, rotulo, recurso, link, parametrosPut, arquivada, removido, conclusao }]
+let ocupado = false;  // verificação ou remoção em andamento: tela travada
+let cargaCampos = 0;  // descarta a resposta de um cadastro que já foi trocado
+
+/* ========== Helpers ========== */
+const el = id => document.getElementById(id);
+const esc = t => String(t ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
+const opcao = (valor, texto) => `<option value="${esc(valor)}">${esc(texto)}</option>`;
+
+function auth(json){
+  const h = { Authorization: 'Bearer ' + TOKEN };
+  if(json){
+    h['Content-Type'] = 'application/json';
+  }
+  return h;
+}
+
+function progresso(p, texto){
+  el('bar').style.display = 'block';
+  el('fill').style.width = p + '%';
+  el('fill').textContent = Math.round(p) + '%';
+  el('status').textContent = texto || '';
+}
+
+function ocultarProgresso(){
+  el('bar').style.display = 'none';
+  el('status').textContent = '';
+}
+
+// A API responde erros como {"mensagem": "..."} (ou lista deles);
+// mostra a mensagem quando houver, senão o texto cru.
+async function mensagemDeErro(r){
+  const txt = await r.text().catch(() => '');
+  let mensagem = '';
+  try{
+    const j = JSON.parse(txt);
+    const lista = Array.isArray(j) ? j : [j];
+    mensagem = lista.map(e => e && e.mensagem).filter(Boolean).join('; ');
+  }catch(e){
+    mensagem = '';
+  }
+  if(mensagem){
+    return `${mensagem} (código ${r.status})`;
+  }
+  return `código ${r.status}${txt ? ': ' + txt.slice(0, 200) : ''}`;
+}
+
+// fetch rejeita com TypeError quando não há resposta (rede, CORS, URL inválida)
+function textoErro(err){
+  if(err && err.name === 'TypeError'){
+    return 'falha de conexão com o servidor';
+  }
+  return err.message;
+}
+
+function mostrarErro(msg){
+  el('erro').textContent = msg;
+}
+
+async function requisitar(url, metodo, body, contexto){
+  const r = await fetch(url, { method:metodo, headers:auth(!!body), body:body ? JSON.stringify(body) : undefined });
+  if(!r.ok){
+    throw new Error((contexto ? contexto + ', ' : '') + await mensagemDeErro(r));
+  }
+  return r.json().catch(() => null);
+}
+
+function cadastroAtual(){
+  return CADASTROS.find(c => c.tipo === el('cadastro').value) || null;
+}
+
+function campoAtual(){
+  return campos.find(c => String(c.id) === el('campo').value) || null;
+}
+
+function ehPasta(){
+  return el('cadastro').value === 'PASTA_PROCESSUAL';
+}
+
+/* ========== Login ========== */
+el('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = el('email').value.trim();
+  const senha = el('senha').value.trim();
+  if(!email || !senha){
+    el('resultadoLogin').innerHTML = '<span style="color:var(--danger)">Informe e-mail e senha</span>';
+    return;
+  }
+  el('btnEntrar').disabled = true;
+  el('resultadoLogin').textContent = 'Entrando...';
+  try{
+    const r = await fetch(LOGIN_URL, { method:'GET', headers:{ Authorization:'Basic ' + btoa(email + ':' + senha) } });
+    if(!r.ok){
+      throw new Error('Falha no login: ' + r.status);
+    }
+    const header = r.headers.get('authorization') || '';
+    if(header){
+      TOKEN = header.replace(/^(Bearer|Basic)\s+/i, '').trim();
+    } else {
+      const j = await r.json().catch(() => ({}));
+      TOKEN = j?.token || j?.accessToken || j?.authorization || j?.tokenAcesso || '';
+    }
+    if(!TOKEN){
+      throw new Error('Token não recebido');
+    }
+    el('login').style.display = 'none';
+    el('lote').style.display = 'block';
+  }catch(err){
+    console.error(err);
+    const msg = err && err.name === 'TypeError' ? 'Falha de conexão com o servidor' : 'E-mail ou senha inválidos';
+    el('resultadoLogin').innerHTML = `<span style="color:var(--danger)">${msg}</span>`;
+  }finally{
+    el('btnEntrar').disabled = false;
+  }
+});
+
+/* ========== Cadastro e campo extra ========== */
+el('cadastro').innerHTML = opcao('', 'Selecione o cadastro…') + CADASTROS.map(c => opcao(c.tipo, c.nome)).join('');
+
+function resetCampo(texto){
+  campos = [];
+  el('campo').innerHTML = opcao('', texto);
+  el('campo').disabled = true;
+}
+resetCampo('Selecione um cadastro primeiro');
+
+el('cadastro').addEventListener('change', async () => {
+  const cad = cadastroAtual();
+  const carga = ++cargaCampos;
+  mostrarErro('');
+  el('info').textContent = '';
+  ocultarResultado();
+  el('motivoBox').style.display = ehPasta() ? 'block' : 'none';
+  el('motivo').value = '';
+  el('motivoErro').style.display = 'none';
+  if(!cad){
+    resetCampo('Selecione um cadastro primeiro');
+    atualizaFiltrar();
+    return;
+  }
+  resetCampo('Carregando campos extras…');
+  atualizaFiltrar();
+  try{
+    const lista = await requisitar(`${APP_URL}/tiposdocadastro/${cad.tipo}/camposextras`, 'GET', null, 'erro ao carregar os campos extras');
+    if(carga !== cargaCampos){
+      return;
+    }
+    const encontrados = (Array.isArray(lista) ? lista : []).slice().sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+    if(!encontrados.length){
+      resetCampo('Nenhum campo extra neste cadastro');
+      return;
+    }
+    campos = encontrados;
+    el('campo').innerHTML = opcao('', 'Selecione o campo extra…') + campos.map(c => opcao(c.id, c.nome)).join('');
+    el('campo').disabled = ocupado;
+    el('info').innerHTML = `<b>${campos.length}</b> campo(s) extra(s) em <b>${esc(cad.nome)}</b>.`;
+  }catch(err){
+    if(carga !== cargaCampos){
+      return;
+    }
+    console.error(err);
+    resetCampo('Não foi possível carregar os campos extras');
+    mostrarErro(textoErro(err));
+  }finally{
+    if(carga === cargaCampos){
+      atualizaFiltrar();
+    }
+  }
+});
+
+// trocar o campo invalida a verificação feita: é preciso filtrar de novo
+el('campo').addEventListener('change', () => {
+  ocultarResultado();
+  atualizaFiltrar();
+});
+
+el('motivo').addEventListener('input', () => {
+  if(el('motivo').value.trim()){
+    el('motivoErro').style.display = 'none';
+  }
+  atualizaFiltrar();
+});
+
+el('motivo').addEventListener('blur', () => {
+  if(!el('motivo').value.trim()){
+    el('motivoErro').style.display = 'block';
+  }
+});
+
+function motivoOk(){
+  return !ehPasta() || el('motivo').value.trim() !== '';
+}
+
+function atualizaFiltrar(){
+  el('btnFiltrar').disabled = ocupado || !(cadastroAtual() && campoAtual() && motivoOk());
+}
+
+el('btnLimparFiltros').addEventListener('click', () => {
+  if(ocupado){
+    return;
+  }
+  cargaCampos++;
+  el('cadastro').value = '';
+  resetCampo('Selecione um cadastro primeiro');
+  el('info').textContent = '';
+  el('motivoBox').style.display = 'none';
+  el('motivo').value = '';
+  el('motivoErro').style.display = 'none';
+  mostrarErro('');
+  ocultarResultado();
+  atualizaFiltrar();
+});
+
+// o token só existe em memória: recarregar volta para o login
+el('btnSair').addEventListener('click', () => location.reload());
+
+// Durante a verificação e a remoção nada pode mudar: trocar o cadastro ou o
+// campo no meio deixaria a lista de registros diferente do campo removido.
+function travarTela(travar){
+  ocupado = travar;
+  el('cadastro').disabled = travar;
+  el('campo').disabled = travar || !campos.length;
+  el('motivo').disabled = travar;
+  el('btnLimparFiltros').disabled = travar;
+  el('btnSim').disabled = travar;
+  el('btnCancelar').disabled = travar;
+  el('btnSair').disabled = travar;
+  atualizaFiltrar();
+}
+
+/* ========== Verificação de uso ========== */
+function ocultarResultado(){
+  emUso = [];
+  el('lista').style.display = 'none';
+  el('msg').textContent = '';
+  el('msg').className = '';
+  el('avisoPasta').innerHTML = '';
+  el('resultado').innerHTML = '';
+}
+
+async function buscarPaginado(endpoint, ordenacao, body, aoAvancar){
+  const itens = [];
+  let inicio = 0;
+  while(true){
+    const url = `${BUSCA_URL}/${endpoint}?inicio=${inicio}&ordenacao=${ordenacao}&quantidade=${PAGINA}`;
+    const r = await fetch(url, { method:'POST', headers:auth(true), body:JSON.stringify(body) });
+    if(!r.ok){
+      throw new Error(`erro ao buscar ${endpoint} (${await mensagemDeErro(r)})`);
+    }
+    const j = await r.json();
+    const pagina = j.itens || [];
+    itens.push(...pagina);
+    const total = j.quantidadeTotal ?? itens.length;
+    if(aoAvancar){
+      aoAvancar(itens.length, total);
+    }
+    if(pagina.length === 0 || itens.length >= total){
+      break;
+    }
+    inicio += PAGINA;
+  }
+  return itens;
+}
+
+// A busca avançada não tem filtro "campo preenchido". Quando o tipo do campo
+// permite, usa um filtro que cobre qualquer valor gravado:
+// - numérico: a partir de 0 (o Eleven não aceita gravar número negativo)
+// - data: a partir de 0001-01-01
+// - lista: todos os itens do campo
+// Texto, texto curto, link e alfanumérico só filtram por "começa com" e o
+// decimal aceita negativos; para eles retorna null e a busca traz todos os
+// registros do cadastro, conferidos um a um no navegador.
+async function filtroPreenchido(cad, campo){
+  const tipo = campo.tipo?.valor;
+  if(tipo === 'NUMERICO'){
+    return { tipo, idCampoExtra:campo.id, valorMinimo:'0' };
+  }
+  if(tipo === 'DATA'){
+    return { tipo, idCampoExtra:campo.id, valorMinimo:'0001-01-01' };
+  }
+  if(tipo === 'LISTA_DE_ITEM'){
+    const j = await requisitar(`${APP_URL}/tiposdocadastro/${cad.tipo}/camposextras/${campo.id}/itens`, 'GET', null, 'erro ao carregar os itens do campo');
+    const itens = Array.isArray(j) ? j : (j?.itens || []);
+    return { tipo, idCampoExtra:campo.id, idsItens:itens.map(i => i.id) };
+  }
+  return null;
+}
+
+// A busca traz os valores dos campos extras de cada registro (null quando não
+// há nenhum). Se a propriedade não vier, não dá para saber se o campo está em
+// uso: interrompe em vez de concluir que não está.
+function temValorNoItem(item, idCampo){
+  if(item.valoresCamposExtras === undefined){
+    throw new Error('a busca não retornou os valores dos campos extras dos registros');
+  }
+  return (item.valoresCamposExtras || []).some(v => String(v.idCampoExtra) === String(idCampo));
+}
+
+async function verificarUso(cad, campo){
+  const filtro = await filtroPreenchido(cad, campo);
+  // lista sem itens: nenhum registro pode ter valor
+  if(filtro?.idsItens && !filtro.idsItens.length){
+    return [];
+  }
+  const registros = [];
+  const vistos = new Set();
+  for(const [n, busca] of cad.buscas.entries()){
+    const etapa = cad.buscas.length > 1 ? ` (${n + 1}/${cad.buscas.length})` : '';
+    const body = { ...(busca.filtros || {}), filtrosCamposExtras:filtro ? [filtro] : [] };
+    const itens = await buscarPaginado(busca.endpoint, busca.ordenacao, body, (qtd, total) => {
+      progresso(100 * (n + qtd / Math.max(1, total)) / cad.buscas.length, `Verificando registros${etapa} ${qtd}/${total}`);
+    });
+    for(const item of itens){
+      const recurso = busca.recurso(item);
+      // a paginação pode repetir registro se houver alteração durante a busca
+      if(vistos.has(recurso) || !temValorNoItem(item, campo.id)){
+        continue;
+      }
+      vistos.add(recurso);
+      registros.push({
+        chave: recurso,
+        id: item.id,
+        rotulo: cad.rotulo(item) || `${cad.nome} ${item.id}`,
+        recurso,
+        link: `${ELEVEN_URL}${busca.rota}/${encodeURIComponent(item.id)}/detalhamento`,
+        parametrosPut: busca.parametrosPut || '',
+        arquivada: item.arquivada === true
+      });
+    }
+  }
+  return registros;
+}
+
+el('btnFiltrar').addEventListener('click', async () => {
+  const cad = cadastroAtual();
+  const campo = campoAtual();
+  if(ocupado || !cad || !campo){
+    return;
+  }
+  if(!motivoOk()){
+    el('motivoErro').style.display = 'block';
+    return;
+  }
+  ocultarResultado();
+  mostrarErro('');
+  travarTela(true);
+  progresso(0, 'Verificando registros...');
+  try{
+    emUso = await verificarUso(cad, campo);
+    ocultarProgresso();
+    renderVerificacao(cad);
+  }catch(err){
+    console.error(err);
+    ocultarProgresso();
+    mostrarErro('Erro ao verificar o uso do campo extra: ' + textoErro(err));
+  }finally{
+    travarTela(false);
+  }
+});
+
+function pendentes(){
+  return emUso.filter(r => !r.removido);
+}
+
+function renderVerificacao(cad){
+  el('lista').style.display = 'block';
+  el('resultado').innerHTML = '';
+  if(!emUso.length){
+    el('msg').textContent = 'Não existe remoção a ser realizada';
+    el('btns').style.display = 'none';
+    return;
+  }
+  el('msg').innerHTML = `O campo extra selecionado está preenchido em <strong>${emUso.length}</strong> registro(s) de ${esc(cad.nome.toLowerCase())}. Deseja realmente remover os valores desse campo nesses registros?`;
+  const arquivadas = emUso.filter(r => r.arquivada).length;
+  el('avisoPasta').innerHTML = arquivadas
+    ? `<strong>${arquivadas}</strong> pasta(s) estão arquivadas: serão desarquivadas com o motivo informado, terão o valor do campo removido e serão arquivadas novamente.`
+    : '';
+  el('btns').style.display = 'flex';
+}
+
+el('btnCancelar').addEventListener('click', () => {
+  if(ocupado){
+    return;
+  }
+  ocultarResultado();
+});
+
+/* ========== Remoção ========== */
+function temCampo(obj, idCampo){
+  return Array.isArray(obj?.valoresCamposExtras) && obj.valoresCamposExtras.some(v => String(v.idCampoExtra) === String(idCampo));
+}
+
+// Tira só os valores do campo. O backend apaga e regrava todos os campos
+// extras do registro a partir da lista enviada, então os demais vão de volta.
+function tirarCampo(obj, idCampo){
+  if(!temCampo(obj, idCampo)){
+    return false;
+  }
+  obj.valoresCamposExtras = obj.valoresCamposExtras.filter(v => String(v.idCampoExtra) !== String(idCampo));
+  return true;
+}
+
+// O PUT sobrescreve o registro inteiro (campo ausente vira null), por isso
+// busca o objeto completo antes e reenvia tudo sem o campo extra.
+async function removerDoRegistro(reg, idCampo){
+  const url = `${APP_URL}/${reg.recurso}`;
+  const obj = await requisitar(url, 'GET', null, 'ao carregar o registro');
+  if(!tirarCampo(obj, idCampo)){
+    return;
+  }
+  await requisitar(url + reg.parametrosPut, 'PUT', obj, 'ao gravar o registro');
+}
+
+// O backend não aceita edição de pasta arquivada: desarquiva com o motivo,
+// tira o campo e arquiva de novo com a mesma conclusão.
+async function removerDaPasta(reg, idCampo, motivo){
+  const url = `${APP_URL}/pastasprocessuais/${reg.id}`;
+  let pasta = await requisitar(`${url}?marcarAcessada=false`, 'GET', null, 'ao carregar a pasta');
+  if(pasta.conclusao?.arquivada === true){
+    if(!temCampo(pasta, idCampo)){
+      return;
+    }
+    reg.conclusao = pasta.conclusao;
+    await requisitar(`${url}/actions/desarquivar`, 'PUT', { anotacoesDesarquivamento:motivo }, 'ao desarquivar a pasta');
+    pasta = null;
+  }
+  let erro = null;
+  try{
+    if(!pasta){
+      pasta = await requisitar(`${url}?marcarAcessada=false`, 'GET', null, 'ao carregar a pasta desarquivada');
+    }
+    if(tirarCampo(pasta, idCampo)){
+      await requisitar(url, 'PUT', pasta, 'ao gravar a pasta');
+    }
+  }catch(err){
+    erro = err;
+  }
+  // desarquivada por esta ferramenta (agora ou numa tentativa anterior):
+  // arquiva de novo mesmo se a gravação falhou, para não deixá-la desarquivada
+  if(reg.conclusao){
+    const c = reg.conclusao;
+    const conclusao = {
+      resultadoConclusao: c.resultadoConclusao,
+      anotacoesConclusao: c.anotacoesConclusao,
+      valorFinalCausa: c.valorFinalCausa,
+      dataConclusao: c.dataConclusao,
+      arquivada: true
+    };
+    try{
+      await requisitar(`${url}/conclusao`, 'PUT', conclusao, 'ao arquivar a pasta novamente');
+      reg.conclusao = null;
+    }catch(err){
+      erro = erro ? new Error(`${textoErro(erro)}; ${textoErro(err)}`) : err;
+    }
+  }
+  if(erro){
+    throw erro;
+  }
+}
+
+el('btnSim').addEventListener('click', async () => {
+  const cad = cadastroAtual();
+  const campo = campoAtual();
+  const motivo = el('motivo').value.trim();
+  if(ocupado || !cad || !campo){
+    return;
+  }
+  if(ehPasta() && !motivo){
+    el('motivoErro').style.display = 'block';
+    el('motivo').focus();
+    return;
+  }
+  const lote = pendentes();
+  const falhas = [];
+  let concluidos = 0;
+
+  el('resultado').innerHTML = '';
+  travarTela(true);
+  progresso(0, `Removendo valores 0/${lote.length}`);
+
+  // um registro por vez, como nas demais alterações em lote
+  for(const reg of lote){
+    try{
+      if(ehPasta()){
+        await removerDaPasta(reg, campo.id, motivo);
+      } else {
+        await removerDoRegistro(reg, campo.id);
+      }
+      reg.removido = true;
+    }catch(err){
+      console.error('Falha no registro', reg.recurso, err);
+      falhas.push({ reg, mensagem:textoErro(err) });
+    }
+    concluidos++;
+    progresso(100 * concluidos / lote.length, `Removendo valores ${concluidos}/${lote.length}`);
+  }
+
+  ocultarProgresso();
+  travarTela(false);
+  renderRemocao(falhas);
+});
+
+function renderRemocao(falhas){
+  el('avisoPasta').innerHTML = '';
+  if(!falhas.length){
+    emUso = [];
+    el('msg').textContent = 'Remoção confirmada.';
+    el('msg').className = 'msg-ok';
+    el('btns').style.display = 'none';
+    el('resultado').innerHTML = '';
+    return;
+  }
+  const removidos = emUso.length - pendentes().length;
+  el('msg').textContent = `Não foi possível remover o valor do campo extra em ${falhas.length} registro(s)` +
+    (removidos ? ` (valor removido com sucesso em ${removidos} registro(s))` : '') +
+    '. Clique em "Sim, remover" para tentar novamente.';
+  el('msg').className = 'msg-erro';
+  el('btns').style.display = 'flex';
+  el('resultado').innerHTML =
+    '<div class="table-scroll"><table class="table"><thead><tr><th>Registro</th><th>Erro</th></tr></thead><tbody>' +
+    falhas.map(f => `<tr><td class="t"><a href="${esc(f.reg.link)}" target="_blank" rel="noopener">${esc(f.reg.rotulo)}</a></td><td>${esc(f.mensagem)}</td></tr>`).join('') +
+    '</tbody></table></div>';
+}
+</script>
+
+</body>
+</html>
