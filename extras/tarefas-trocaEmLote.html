@@ -174,6 +174,7 @@ dialog#dlg .btns .btn{width:auto;margin:0;padding:9px 18px}
   </div>
 </div>
 
+<script src="../js/camposExtras.js"></script>
 <script>
 /* ========== Modal de informação (tela de login) ========== */
 (function(){
@@ -743,6 +744,7 @@ async function atualizarTarefa(id, pares){
     throw new Error('ao carregar a tarefa, ' + await mensagemDeErro(rGet));
   }
   const tarefa = aplicarTrocas(await rGet.json(), pares);
+  await CamposExtras.prepararParaPut(tarefa, APP_URL, 'TAREFA', auth(false));
   const rPut = await fetch(`${APP_URL}/tarefas/${id}`, {
     method:'PUT', headers:auth(true), body:JSON.stringify(tarefa)
   });

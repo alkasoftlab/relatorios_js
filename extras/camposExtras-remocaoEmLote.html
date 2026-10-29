@@ -161,6 +161,7 @@
   </div>
 </div>
 
+<script src="../js/camposExtras.js"></script>
 <script>
 /* ========== Modal de informação (tela de login) ========== */
 (function(){
@@ -653,6 +654,7 @@ function tirarCampo(obj, idCampo){
     return false;
   }
   obj.valoresCamposExtras = obj.valoresCamposExtras.filter(v => String(v.idCampoExtra) !== String(idCampo));
+  CamposExtras.completarCasasDecimais(obj, campos);
   return true;
 }
 

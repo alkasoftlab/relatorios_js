@@ -186,6 +186,7 @@ dialog#dlg .btns .btn{width:auto;margin:0;padding:9px 18px}
   </div>
 </div>
 
+<script src="../js/camposExtras.js"></script>
 <script>
 /* ========== Modal de informação (tela de login) ========== */
 (function(){
@@ -829,7 +830,9 @@ async function atualizarPasta(id, pares){
   if(pasta.conclusao?.arquivada === true){
     throw new Error('pasta arquivada: desarquive-a no Eleven, informando o motivo (ex.: “Troca de encarregado”), e tente novamente');
   }
-  return requisitar(`${APP_URL}/pastasprocessuais/${id}`, 'PUT', aplicarTrocas(pasta, pares));
+  const alterada = aplicarTrocas(pasta, pares);
+  await CamposExtras.prepararParaPut(alterada, APP_URL, 'PASTA_PROCESSUAL', auth(false));
+  return requisitar(`${APP_URL}/pastasprocessuais/${id}`, 'PUT', alterada);
 }
 
 // atualiza a linha com o que o backend gravou (inclui o número novo ao trocar o identificador)
