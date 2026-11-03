@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Eleven · Pastas | Arquivamento em lote</title>
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+/* O JS escreve a porcentagem dentro do próprio .fill */
+#fill{color:#fff;font-weight:700;font-size:.7rem;line-height:14px;text-align:center;white-space:nowrap;overflow:hidden}
+
+.lote-card{max-width:960px;margin:0 auto;padding:28px}
+.lote-card .brand-mark{justify-content:center}
+.lote-card h1{text-align:center}
+.lote-card > .subtitle{text-align:center}
+
+.orientacoes{margin:6px 0 14px}
+.orientacoes ul{margin:8px 0 0;padding-left:18px}
+.orientacoes li{margin-bottom:4px}
+.orientacoes details{margin-top:10px}
+.orientacoes summary{cursor:pointer;font-weight:600;color:var(--brand)}
+.orientacoes details p{margin:8px 0 0}
+.orientacoes figure{margin:12px 0 0}
+.orientacoes img{display:block;max-width:100%;height:auto;border:1px solid var(--border);border-radius:8px}
+.orientacoes figcaption{color:var(--muted);font-size:.85rem;margin-top:6px}
+
+.secao-titulo{margin:18px 0 0;font-size:1.05rem}
+.grade{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px}
+.grade .field{margin-bottom:0}
+.form-control:disabled{opacity:.5;cursor:not-allowed}
+.req{color:var(--danger)}
+#conclusaoErro{display:none;color:var(--danger);font-size:.82rem;margin-top:4px}
+textarea.form-control{min-height:80px;resize:vertical}
+#ids{min-height:160px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.contador{text-align:right;color:var(--muted);font-size:.8rem;margin-top:2px}
+
+#btnValidar{margin-top:4px}
+
+.lista-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:18px}
+.lista-top h2{margin:0;font-size:1.05rem}
+.nota{color:var(--muted);font-size:.88rem;margin:4px 0 0}
+.table-scroll{max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:10px;margin-top:8px}
+.table-scroll .table{margin-top:0}
+.table th{position:sticky;top:0;z-index:1}
+.table td.t a{color:var(--brand);text-decoration:underline}
+.table td.t .badge{margin-left:6px}
+.table input[type=checkbox]{width:16px;height:16px;cursor:pointer}
+.table input[type=checkbox]:disabled{cursor:not-allowed;opacity:.4}
+.table tr.arquivada td{opacity:.75}
+.table tr.arquivada .badge{opacity:1}
+
+#btnConfirmar{margin-top:16px}
+.msg-ok{color:var(--success);font-weight:600;margin:12px 0 6px}
+.msg-erro{color:var(--danger);font-weight:600;margin:12px 0 6px}
+#erro:empty,#validacao:empty{display:none}
+#erro{background:rgba(255,92,114,.08);border:1px solid rgba(255,92,114,.3);border-radius:10px;padding:10px 14px;font-weight:500}
+
+dialog#dlg{background:var(--card);color:var(--ink);border:1px solid var(--border);border-radius:14px;max-width:520px;width:calc(100% - 32px);padding:22px}
+dialog#dlg::backdrop{background:rgba(0,0,0,.6)}
+dialog#dlg ul{padding-left:18px;margin:8px 0}
+dialog#dlg .aviso-dlg{background:rgba(255,171,74,.12);border:1px solid rgba(255,171,74,.3);color:var(--orange);padding:10px 12px;border-radius:8px;margin-top:10px;font-size:.87rem;line-height:1.4}
+dialog#dlg .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+dialog#dlg .btns .btn{width:auto;margin:0;padding:9px 18px}
+.btn-azul{background:var(--brand-2)}
+.btn-sec{background:transparent;border:1px solid var(--border-strong);color:var(--ink)}
+.btn:disabled{opacity:.5;cursor:not-allowed;filter:none}
+
+@media (max-width:520px){
+  .lote-card{padding:18px}
+  .grade{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<div class="card login-card center" id="login">
+    <button type="button" class="info-icon" id="infoLoginBtn" aria-label="Sobre esta ferramenta" title="Sobre esta ferramenta">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" font-family="Arial, Helvetica, sans-serif" fill="#08111a">i</text></svg>
+    </button>
+    <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+    <p class="subtitle">Acessar: Pastas - arquivamento em lote</p>
+    <form id="loginForm" style="width:100%">
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input type="text" id="email" class="form-control" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <div class="password-wrap">
+          <input type="password" id="senha" class="form-control" required autocomplete="current-password">
+          <button type="button" class="password-toggle" id="toggleSenha" aria-label="Mostrar senha" title="Mostrar senha">
+            <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn" id="btnEntrar">Entrar</button>
+    </form>
+    <div id="resultadoLogin" class="subtitle" style="margin-top:10px"></div>
+</div>
+
+<div class="card lote-card" id="lote" style="display:none">
+  <div class="brand-mark"><span class="word">Lawyer Eleven</span></div>
+  <h1>Pastas - arquivamento em lote</h1>
+  <p class="subtitle">Cole os IDs das pastas, valide e confirme o arquivamento.</p>
+
+  <div class="filter-info orientacoes">
+    <strong>Antes de validar:</strong>
+    <ul>
+      <li>Cole no campo <strong>IDs das pastas</strong> o ID de cada pasta, um por linha. Também é possível separar por espaço, vírgula ou ponto e vírgula.</li>
+      <li>Use o <strong>ID</strong> da pasta, e não o identificador (prefixo/número) nem o ID de outro cadastro.</li>
+      <li>Ao validar, a lista mostra as pastas que serão arquivadas, todas marcadas: confira e desmarque as que não devem ser arquivadas. Pastas já arquivadas e IDs não encontrados aparecem separados e não são alterados.</li>
+    </ul>
+    <details>
+      <summary>Onde encontrar os IDs das pastas</summary>
+      <p>Na exportação de uma consulta, selecione no lado esquerdo em <strong>grupos</strong> a opção <strong>Pasta</strong> e, no lado direito, o campo <strong>ID</strong>. O nome da coluna depende da consulta:</p>
+      <ul>
+        <li>Na consulta de <strong>pastas</strong>, o ID da pasta vem na coluna <strong>ID</strong>.</li>
+        <li>Na consulta de um cadastro ligado à pasta (por exemplo, processos), o ID da pasta vem na coluna <strong>Pasta - ID</strong>.</li>
+      </ul>
+      <p>Copie a coluna inteira, com ou sem o cabeçalho.</p>
+      <figure>
+        <img src="../img/exportacao-pasta-id.png" alt="Tela de seleção de campos para exportação da consulta de pastas, com o grupo Pasta selecionado à esquerda e o campo ID marcado à direita" loading="lazy">
+        <figcaption>Exemplo da tela de exportação: grupo <strong>Pasta</strong> à esquerda e campo <strong>ID</strong> marcado à direita.</figcaption>
+      </figure>
+    </details>
+  </div>
+
+  <div id="erro" class="msg-erro" role="alert"></div>
+
+  <h2 class="secao-titulo">Conclusão</h2>
+  <div class="grade">
+    <div class="field">
+      <label for="conclusao">Resultado <span class="req" aria-hidden="true">*</span></label>
+      <select id="conclusao" class="form-control" required aria-required="true"></select>
+      <div id="conclusaoErro" role="alert">Campo obrigatório.</div>
+    </div>
+    <div class="field">
+      <label for="dataConclusao">Data de conclusão</label>
+      <input type="date" id="dataConclusao" class="form-control">
+    </div>
+  </div>
+
+  <div class="field" style="margin-top:14px">
+    <label for="anotacoes">Anotações</label>
+    <textarea id="anotacoes" class="form-control" maxlength="1000" placeholder="Digite suas anotações…"></textarea>
+    <div class="contador" id="contAnotacoes">0/1000</div>
+  </div>
+
+  <div class="field">
+    <label for="ids">IDs das pastas</label>
+    <textarea id="ids" class="form-control" placeholder="Cole aqui os IDs das pastas, um por linha…" spellcheck="false"></textarea>
+  </div>
+
+  <button type="button" class="btn" id="btnValidar" disabled>Validar</button>
+  <button type="button" class="btn btn-azul" id="btnLimpar" disabled>Limpar</button>
+
+  <div class="progress-wrap" id="bar">
+    <div class="progress"><div id="fill" class="fill">0%</div></div>
+  </div>
+  <div id="status" class="small-muted" style="margin-top:8px" role="status"></div>
+
+  <div id="validacao" role="status"></div>
+
+  <div id="lista" style="display:none">
+    <div class="lista-top">
+      <h2>Pastas a arquivar</h2>
+      <span class="small-muted" id="cnt"></span>
+    </div>
+    <p class="nota">Só as pastas marcadas serão arquivadas. Desmarque as que não devem ser arquivadas.</p>
+    <div id="tabela"></div>
+  </div>
+
+  <div id="arquivadas" style="display:none">
+    <div class="lista-top">
+      <h2>Pastas já arquivadas</h2>
+      <span class="small-muted" id="cntArquivadas"></span>
+    </div>
+    <p class="nota">Estas pastas já estão arquivadas e não serão alteradas pelo arquivamento em lote.</p>
+    <div id="tabelaArquivadas"></div>
+  </div>
+
+  <div id="invalidos" style="display:none">
+    <div class="lista-top">
+      <h2>IDs não encontrados ou inválidos</h2>
+      <span class="small-muted" id="cntInvalidos"></span>
+    </div>
+    <p class="nota">Estes valores foram ignorados. Confira se são IDs de pastas.</p>
+    <div id="tabelaInvalidos"></div>
+  </div>
+
+  <button type="button" class="btn" id="btnConfirmar" disabled>Confirmar o arquivamento em lote</button>
+
+  <div id="resultado" role="alert"></div>
+
+  <button type="button" class="btn btn-danger" id="btnSair" style="margin-top:16px">Sair</button>
+</div>
+
+</div>
+
+<dialog id="dlg">
+  <h2 class="modal-title">Confirmar o arquivamento?</h2>
+  <div id="resumo" class="modal-body"></div>
+  <div class="btns">
+    <button type="button" class="btn btn-sec" id="btnCancelar">Cancelar</button>
+    <button type="button" class="btn" id="btnOk">Sim, arquivar</button>
+  </div>
+</dialog>
+
+<div class="modal-overlay" id="infoModalOverlay">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <button class="modal-close" id="infoModalClose" type="button" aria-label="Fechar">✕</button>
+    <h2 class="modal-title">Sobre esta ferramenta</h2>
+    <div class="modal-body">
+      <p>Arquiva várias pastas de uma só vez, a partir de uma lista de <strong>IDs</strong> de pastas. Só são arquivadas as pastas que ainda não estão arquivadas.</p>
+      <ul>
+        <li><strong>Conclusão</strong><br>Escolha o resultado (obrigatório) e, se quiser, a data de conclusão e as anotações. Os mesmos dados são gravados em todas as pastas do lote.</li>
+        <li><strong>IDs das pastas</strong><br>Cole os IDs das pastas, um por linha (ou separados por espaço, vírgula ou ponto e vírgula). Os IDs repetidos são considerados uma vez só. Se copiar a coluna de uma exportação, o cabeçalho é ignorado: na consulta de pastas, use a coluna <strong>ID</strong>; na de um cadastro ligado à pasta (por exemplo, processos), use <strong>Pasta - ID</strong>.</li>
+        <li><strong>Validar</strong><br>Busca as pastas no Eleven e separa as que serão arquivadas, as que já estão arquivadas (não são alteradas) e os IDs não encontrados ou inválidos. As pastas a arquivar vêm todas marcadas; desmarque as que não devem ser arquivadas. Ao alterar os IDs, é preciso validar de novo.</li>
+        <li><strong>Confirmar</strong><br>Arquiva as pastas marcadas na lista "Pastas a arquivar", uma por vez.</li>
+      </ul>
+      <p style="background:rgba(255,171,74,.12);border:1px solid rgba(255,171,74,.3);color:var(--orange);padding:10px 12px;border-radius:8px;margin-top:10px;line-height:1.4">⚠️ <strong>Atenção:</strong> esta ferramenta <strong>arquiva</strong> as pastas no sistema. Para desfazer, é preciso desarquivar cada pasta manualmente no Eleven, informando o motivo. Confira a listagem antes de confirmar.</p>
+      <h3 style="margin:14px 0 8px">Se alguma pasta não for arquivada</h3>
+      <ul>
+        <li>Ela aparece na lista de falhas com a mensagem do sistema e continua marcada na lista de pastas a arquivar; clique em "Confirmar o arquivamento em lote" para tentar novamente só essas pastas.</li>
+        <li>O motivo mais comum é falta de permissão de edição na pasta.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========== Modal de informação (tela de login) ========== */
+(function(){
+    const overlay = document.getElementById('infoModalOverlay');
+    const btn = document.getElementById('infoLoginBtn');
+    const closeBtn = document.getElementById('infoModalClose');
+    if(overlay && btn){
+        const open = ()=> overlay.classList.add('open');
+        const close = ()=> overlay.classList.remove('open');
+        btn.addEventListener('click', open);
+        closeBtn.addEventListener('click', close);
+        overlay.addEventListener('click', (e)=>{
+            if(e.target===overlay){
+                close();
+            }
+        });
+        document.addEventListener('keydown', (e)=>{
+            if(e.key==='Escape' && overlay.classList.contains('open')){
+                close();
+            }
+        });
+    }
+})();
+
+/* ========== Mostrar/ocultar senha ========== */
+(function(){
+    const toggleSenhaBtn = document.getElementById('toggleSenha');
+    const senhaInput = document.getElementById('senha');
+    const eyeIcon = document.getElementById('eyeIcon');
+    const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+    const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.4 18.4 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/>';
+    if(toggleSenhaBtn){
+        toggleSenhaBtn.addEventListener('click',()=>{
+            const showing = senhaInput.type === 'text';
+            senhaInput.type = showing ? 'password' : 'text';
+            eyeIcon.innerHTML = showing ? EYE_OPEN : EYE_OFF;
+            toggleSenhaBtn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+            toggleSenhaBtn.title = showing ? 'Mostrar senha' : 'Ocultar senha';
+        });
+    }
+})();
+
+/* ========== Constantes e estado ========== */
+const LOGIN_URL  = 'https://app-api-prod.alkasoft.com.br/api/v1/login?tipo=comum';
+const APP_URL    = 'https://app-api-prod.alkasoft.com.br/api/v1';
+const BUSCA_URL  = 'https://busca-avancada-api-prod.alkasoft.com.br/api/v1';
+const URL_PASTA  = 'https://eleven.alkasoft.com.br/auth/pastas/';
+
+const PAGINA       = 100;
+const PAGINA_ITENS = 200;  // máximo aceito pelos conjuntos de valores
+const BLOCO_IDS    = 500;  // ids por busca, para o corpo da requisição não crescer demais
+const CONJUNTO_RESULTADO = 'RESULTADO_CONCLUSAO_DA_PASTA_PROCESSUAL';
+
+let TOKEN = null;
+let RESULTADOS = [];         // itens do conjunto de valores, enviados inteiros no PUT
+let aArquivar = [];          // [{ id, identificador, cliente, parteContraria, encarregado, arquivada }]
+let jaArquivadas = [];       // mesmas linhas, das pastas que já estavam arquivadas na validação
+let invalidos = [];          // [{ valor, motivo }]
+let selecionadas = new Set(); // ids marcados: só esses são arquivados
+let ERRO_CARGA = '';
+let ocupado = false;         // validação ou arquivamento em andamento: tela travada
+
+/* ========== Helpers ========== */
+const el = id => document.getElementById(id);
+const esc = t => String(t ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
+// comparação sem diferenciar acentos nem maiúsculas
+const norm = t => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+
+function auth(json){
+  const h = { Authorization: 'Bearer ' + TOKEN };
+  if(json){
+    h['Content-Type'] = 'application/json';
+  }
+  return h;
+}
+
+function progresso(p, texto){
+  el('bar').style.display = 'block';
+  el('fill').style.width = p + '%';
+  el('fill').textContent = Math.round(p) + '%';
+  el('status').textContent = texto || '';
+}
+
+function ocultarProgresso(){
+  el('bar').style.display = 'none';
+  el('status').textContent = '';
+}
+
+// A API responde erros como {"mensagem": "..."} (ou lista deles);
+// mostra a mensagem quando houver, senão o texto cru.
+async function mensagemDeErro(r){
+  const txt = await r.text().catch(() => '');
+  let mensagem = '';
+  try{
+    const j = JSON.parse(txt);
+    const lista = Array.isArray(j) ? j : [j];
+    mensagem = lista.map(e => e && e.mensagem).filter(Boolean).join('; ');
+  }catch(e){
+    mensagem = '';
+  }
+  if(mensagem){
+    return `${mensagem} (código ${r.status})`;
+  }
+  return `código ${r.status}${txt ? ': ' + txt.slice(0, 200) : ''}`;
+}
+
+// fetch rejeita com TypeError quando não há resposta (rede, CORS, URL inválida)
+function textoErro(err){
+  if(err && err.name === 'TypeError'){
+    return 'falha de conexão com o servidor';
+  }
+  return err.message;
+}
+
+function mostrarErro(msg){
+  el('erro').textContent = msg;
+}
+
+// erro de carregamento das conclusões continua visível até recarregar a página
+function limparErro(){
+  el('erro').textContent = ERRO_CARGA;
+}
+
+async function requisitar(url, metodo, body, contexto){
+  const r = await fetch(url, { method:metodo, headers:auth(!!body), body:body ? JSON.stringify(body) : undefined });
+  if(!r.ok){
+    throw new Error((contexto ? contexto + ', ' : '') + await mensagemDeErro(r));
+  }
+  return r.json().catch(() => null);
+}
+
+/* ========== Login ========== */
+el('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = el('email').value.trim();
+  const senha = el('senha').value.trim();
+  if(!email || !senha){
+    el('resultadoLogin').innerHTML = '<span style="color:var(--danger)">Informe e-mail e senha</span>';
+    return;
+  }
+  el('btnEntrar').disabled = true;
+  el('resultadoLogin').textContent = 'Entrando...';
+  try{
+    const r = await fetch(LOGIN_URL, { method:'GET', headers:{ Authorization:'Basic ' + btoa(email + ':' + senha) } });
+    if(!r.ok){
+      throw new Error('Falha no login: ' + r.status);
+    }
+    const header = r.headers.get('authorization') || '';
+    if(header){
+      TOKEN = header.replace(/^(Bearer|Basic)\s+/i, '').trim();
+    } else {
+      const j = await r.json().catch(() => ({}));
+      TOKEN = j?.token || j?.accessToken || j?.authorization || j?.tokenAcesso || '';
+    }
+    if(!TOKEN){
+      throw new Error('Token não recebido');
+    }
+    el('login').style.display = 'none';
+    el('lote').style.display = 'block';
+    await carregarResultados();
+  }catch(err){
+    console.error(err);
+    const msg = err && err.name === 'TypeError' ? 'Falha de conexão com o servidor' : 'E-mail ou senha inválidos';
+    el('resultadoLogin').innerHTML = `<span style="color:var(--danger)">${msg}</span>`;
+  }finally{
+    el('btnEntrar').disabled = false;
+  }
+});
+
+/* ========== Busca paginada (busca avançada) ========== */
+async function buscarPaginado(endpoint, ordenacao, body){
+  const itens = [];
+  let inicio = 0;
+  while(true){
+    const url = `${BUSCA_URL}/${endpoint}?inicio=${inicio}&ordenacao=${ordenacao}&quantidade=${PAGINA}`;
+    const r = await fetch(url, { method:'POST', headers:auth(true), body:JSON.stringify(body) });
+    if(!r.ok){
+      throw new Error(`erro ao buscar ${endpoint} (${await mensagemDeErro(r)})`);
+    }
+    const j = await r.json();
+    const pagina = j.itens || [];
+    itens.push(...pagina);
+    const total = j.quantidadeTotal ?? itens.length;
+    if(pagina.length === 0 || itens.length >= total){
+      break;
+    }
+    inicio += PAGINA;
+  }
+  return itens;
+}
+
+/* ========== Conclusões (conjunto de valores) ========== */
+async function buscarResultados(){
+  const itens = [];
+  let inicio = 0;
+  while(true){
+    const url = `${APP_URL}/conjuntosdevalores/${CONJUNTO_RESULTADO}/identificadordecadastro/itens?descricao=&inicio=${inicio}&quantidade=${PAGINA_ITENS}`;
+    const r = await fetch(url, { headers:auth(false) });
+    if(!r.ok){
+      throw new Error(await mensagemDeErro(r));
+    }
+    const j = await r.json();
+    const pagina = Array.isArray(j) ? j : (j.itens || []);
+    itens.push(...pagina);
+    const total = Array.isArray(j) ? itens.length : (j.quantidadeTotal ?? itens.length);
+    if(pagina.length === 0 || itens.length >= total){
+      break;
+    }
+    inicio += PAGINA_ITENS;
+  }
+  return itens
+    .filter(i => !i.removido && i.descricao)
+    .sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
+}
+
+async function carregarResultados(){
+  progresso(30, 'Carregando resultados da conclusão...');
+  ERRO_CARGA = '';
+  limparErro();
+  try{
+    RESULTADOS = await buscarResultados();
+  }catch(err){
+    console.error(err);
+    ERRO_CARGA = `Não foi possível carregar os resultados da conclusão (${textoErro(err)}). Recarregue a página para tentar novamente.`;
+    limparErro();
+  }
+  ocultarProgresso();
+  el('conclusao').innerHTML = '<option value="">Selecione…</option>' +
+    RESULTADOS.map(r => `<option value="${esc(r.id)}">${esc(r.descricao)}</option>`).join('');
+  atualizaBotoes();
+}
+
+function resultadoEscolhido(){
+  const id = el('conclusao').value;
+  return RESULTADOS.find(r => String(r.id) === id) || null;
+}
+
+el('conclusao').addEventListener('change', () => {
+  if(el('conclusao').value){
+    el('conclusaoErro').style.display = 'none';
+  }
+  atualizaBotoes();
+});
+
+el('conclusao').addEventListener('blur', () => {
+  if(!el('conclusao').value){
+    el('conclusaoErro').style.display = 'block';
+  }
+});
+
+el('anotacoes').addEventListener('input', () => {
+  el('contAnotacoes').textContent = `${el('anotacoes').value.length}/1000`;
+});
+
+/* ========== Leitura dos IDs colados ========== */
+// Cabeçalho copiado junto com a coluna: "ID" (consulta de pastas) ou "Pasta - ID" (consulta de processos)
+const CABECALHO = /^(pasta\s*-?\s*)?id$/;
+
+// Retorna { ids: number[] sem repetição, na ordem colada; invalidos: [{ valor, motivo }]; repetidos }
+function lerIds(texto){
+  const ids = [];
+  const vistos = new Set();
+  const lidosInvalidos = [];
+  let repetidos = 0;
+  for(const linha of texto.split(/\r?\n/)){
+    if(CABECALHO.test(norm(linha))){
+      continue;
+    }
+    for(const valor of linha.split(/[\s,;]+/)){
+      if(!valor){
+        continue;
+      }
+      const id = Number(valor);
+      if(!/^\d+$/.test(valor) || !Number.isSafeInteger(id) || id <= 0){
+        lidosInvalidos.push({ valor, motivo:'não é um ID válido' });
+        continue;
+      }
+      if(vistos.has(id)){
+        repetidos++;
+        continue;
+      }
+      vistos.add(id);
+      ids.push(id);
+    }
+  }
+  return { ids, invalidos:lidosInvalidos, repetidos };
+}
+
+/* ========== Validar ========== */
+// Identificador exibido no Eleven: "Prefixo/Número - Assunto"
+function textoIdentificador(p){
+  const base = [p.prefixo?.descricao, p.numero].filter(v => v !== '' && v !== null && v !== undefined).join('/');
+  return (p.assunto ? `${base} - ${p.assunto}` : base) || `Pasta ${p.id}`;
+}
+
+// item da busca avançada → linha da listagem
+function paraLinha(p){
+  return {
+    id: p.id,
+    identificador: textoIdentificador(p),
+    cliente: p.clientePrincipal?.descricao || '',
+    parteContraria: p.parteContrariaPrincipal?.descricao || '',
+    encarregado: p.encarregado?.descricao || '',
+    arquivada: p.arquivada === true
+  };
+}
+
+function limparValidacao(){
+  aArquivar = [];
+  jaArquivadas = [];
+  invalidos = [];
+  selecionadas = new Set();
+  el('validacao').innerHTML = '';
+  el('lista').style.display = 'none';
+  el('tabela').innerHTML = '';
+  el('arquivadas').style.display = 'none';
+  el('tabelaArquivadas').innerHTML = '';
+  el('invalidos').style.display = 'none';
+  el('tabelaInvalidos').innerHTML = '';
+  el('resultado').innerHTML = '';
+  atualizaBotoes();
+}
+
+// a validação só vale para os IDs com que foi feita
+el('ids').addEventListener('input', () => {
+  if(aArquivar.length || jaArquivadas.length || invalidos.length || el('validacao').innerHTML){
+    limparValidacao();
+  }
+  atualizaBotoes();
+});
+
+el('btnLimpar').addEventListener('click', () => {
+  el('ids').value = '';
+  limparValidacao();
+  el('ids').focus();
+});
+
+el('btnValidar').addEventListener('click', async () => {
+  if(ocupado){
+    return;
+  }
+  limparValidacao();
+  limparErro();
+  const lidos = lerIds(el('ids').value);
+  invalidos = lidos.invalidos;
+  if(!lidos.ids.length){
+    renderValidacao(lidos);
+    return;
+  }
+  travarTela(true);
+  try{
+    const encontradas = new Map();
+    progresso(0, `Validando pastas 0/${lidos.ids.length}`);
+    for(let i = 0; i < lidos.ids.length; i += BLOCO_IDS){
+      const bloco = lidos.ids.slice(i, i + BLOCO_IDS);
+      const itens = await buscarPaginado('pastas', 'IDENTIFICADOR_ASC', { arquivada:'TODAS', ids:bloco, filtrosCamposExtras:[] });
+      // a paginação pode repetir pasta se houver alteração durante a busca
+      itens.forEach(p => encontradas.set(p.id, p));
+      const feitos = Math.min(i + BLOCO_IDS, lidos.ids.length);
+      progresso(100 * feitos / lidos.ids.length, `Validando pastas ${feitos}/${lidos.ids.length}`);
+    }
+    // mantém a ordem colada, para o usuário conferir com a planilha
+    for(const id of lidos.ids){
+      const p = encontradas.get(id);
+      if(!p){
+        invalidos.push({ valor:String(id), motivo:'pasta não encontrada ou sem acesso' });
+      } else if(p.arquivada === true){
+        jaArquivadas.push(paraLinha(p));
+      } else {
+        aArquivar.push(paraLinha(p));
+      }
+    }
+    // todas vêm marcadas; o usuário desmarca as que não devem ser arquivadas
+    selecionadas = new Set(aArquivar.map(p => p.id));
+    ocultarProgresso();
+    renderValidacao(lidos);
+  }catch(err){
+    console.error(err);
+    ocultarProgresso();
+    limparValidacao();
+    mostrarErro('Erro ao validar as pastas: ' + textoErro(err));
+  }finally{
+    travarTela(false);
+  }
+});
+
+function renderValidacao(lidos){
+  const partes = [`<strong>${aArquivar.length}</strong> a arquivar`, `<strong>${jaArquivadas.length}</strong> já arquivada(s)`];
+  if(invalidos.length){
+    partes.push(`<strong>${invalidos.length}</strong> não encontrado(s) ou inválido(s)`);
+  }
+  let html = aArquivar.length
+    ? `<p class="msg-ok">Validação concluída: ${partes.join(', ')}.</p>`
+    : `<p class="msg-erro">Nenhuma pasta a arquivar: ${partes.join(', ')}.</p>`;
+  if(lidos.repetidos){
+    html += `<p class="small-muted">${lidos.repetidos} ID(s) repetido(s) foram considerados uma vez só.</p>`;
+  }
+  el('validacao').innerHTML = html;
+  renderLista();
+  renderArquivadas();
+  renderInvalidos();
+}
+
+/* ========== Listagens ========== */
+function linkPasta(p){
+  return `<a href="${URL_PASTA}${encodeURIComponent(p.id)}/detalhamento" target="_blank" rel="noopener">${esc(p.identificador)}</a>`;
+}
+
+function renderLista(){
+  el('lista').style.display = 'block';
+  if(!aArquivar.length){
+    el('tabela').innerHTML = '<div class="empty">Nenhuma pasta a arquivar.</div>';
+    atualizaBotoes();
+    return;
+  }
+  el('tabela').innerHTML =
+    `<div class="table-scroll"><table class="table"><thead><tr>
+      <th><input type="checkbox" id="todas" aria-label="Selecionar todas"></th>
+      <th>Identificador</th><th>Cliente</th><th>Parte contrária</th><th>Encarregado</th>
+    </tr></thead><tbody>` +
+    aArquivar.map(p => `<tr${p.arquivada ? ' class="arquivada"' : ''}>
+      <td><input type="checkbox" class="sel" data-id="${p.id}" ${selecionadas.has(p.id) ? 'checked' : ''} ${p.arquivada ? 'disabled title="Pasta já arquivada neste lote"' : ''} aria-label="Selecionar pasta"></td>
+      <td class="t">${linkPasta(p)}${p.arquivada ? '<span class="badge green">✓ arquivada</span>' : ''}</td>
+      <td>${esc(p.cliente)}</td>
+      <td>${esc(p.parteContraria)}</td>
+      <td>${esc(p.encarregado)}</td>
+    </tr>`).join('') +
+    '</tbody></table></div>';
+
+  el('todas').addEventListener('change', (e) => {
+    selecionadas = new Set(e.target.checked ? pendentes().map(p => p.id) : []);
+    el('tabela').querySelectorAll('.sel:not(:disabled)').forEach(i => { i.checked = e.target.checked; });
+    atualizaBotoes();
+  });
+  el('tabela').querySelectorAll('.sel').forEach(i => {
+    i.addEventListener('change', () => {
+      const id = Number(i.dataset.id);
+      if(i.checked){
+        selecionadas.add(id);
+      } else {
+        selecionadas.delete(id);
+      }
+      atualizaBotoes();
+    });
+  });
+  atualizaBotoes();
+}
+
+function renderArquivadas(){
+  el('arquivadas').style.display = 'block';
+  el('cntArquivadas').textContent = jaArquivadas.length ? `${jaArquivadas.length} pasta(s)` : '';
+  if(!jaArquivadas.length){
+    el('tabelaArquivadas').innerHTML = '<div class="empty">Nenhuma pasta informada está arquivada.</div>';
+    return;
+  }
+  el('tabelaArquivadas').innerHTML =
+    '<div class="table-scroll"><table class="table"><thead><tr><th>Identificador</th><th>Cliente</th><th>Parte contrária</th><th>Encarregado</th></tr></thead><tbody>' +
+    jaArquivadas.map(p => `<tr>
+      <td class="t">${linkPasta(p)}</td>
+      <td>${esc(p.cliente)}</td>
+      <td>${esc(p.parteContraria)}</td>
+      <td>${esc(p.encarregado)}</td>
+    </tr>`).join('') +
+    '</tbody></table></div>';
+}
+
+function renderInvalidos(){
+  el('invalidos').style.display = invalidos.length ? 'block' : 'none';
+  el('cntInvalidos').textContent = invalidos.length ? `${invalidos.length} valor(es)` : '';
+  el('tabelaInvalidos').innerHTML = invalidos.length
+    ? '<div class="table-scroll"><table class="table"><thead><tr><th>Valor</th><th>Motivo</th></tr></thead><tbody>' +
+      invalidos.map(i => `<tr><td>${esc(i.valor)}</td><td>${esc(i.motivo)}</td></tr>`).join('') +
+      '</tbody></table></div>'
+    : '';
+}
+
+// pastas da lista ainda não arquivadas neste lote (as arquivadas ficam bloqueadas)
+function pendentes(){
+  return aArquivar.filter(p => !p.arquivada);
+}
+
+// Durante a validação e o arquivamento nada pode mudar: IDs ou lista alterados
+// no meio deixariam o lote diferente do que foi validado e conferido.
+function travarTela(travar){
+  ocupado = travar;
+  ['ids', 'conclusao', 'dataConclusao', 'anotacoes', 'btnSair'].forEach(id => { el(id).disabled = travar; });
+  // pastas já arquivadas continuam bloqueadas
+  el('tabela').querySelectorAll('.sel').forEach(i => { i.disabled = travar || i.closest('tr').classList.contains('arquivada'); });
+  atualizaBotoes();
+}
+
+function atualizaBotoes(){
+  const temTexto = !!el('ids').value.trim();
+  el('btnValidar').disabled = ocupado || !temTexto;
+  el('btnLimpar').disabled = ocupado || !temTexto;
+  el('btnConfirmar').disabled = ocupado || !selecionadas.size || !resultadoEscolhido();
+
+  const total = pendentes().length;
+  const arquivadasNoLote = aArquivar.length - total;
+  const partes = [];
+  if(total){
+    partes.push(`${selecionadas.size} de ${total} selecionada(s)`);
+  }
+  if(arquivadasNoLote){
+    partes.push(`${arquivadasNoLote} arquivada(s)`);
+  }
+  const texto = partes.join(' · ');
+  el('cnt').textContent = texto;
+  const todas = el('todas');
+  if(todas){
+    todas.disabled = ocupado || total === 0;
+    todas.checked = total > 0 && selecionadas.size === total;
+    todas.indeterminate = selecionadas.size > 0 && selecionadas.size < total;
+  }
+}
+
+/* ========== Confirmar o arquivamento em lote ========== */
+// o token só existe em memória: recarregar volta para o login
+el('btnSair').addEventListener('click', () => location.reload());
+
+function dataBr(iso){
+  const [a, m, d] = iso.split('-');
+  return `${d}/${m}/${a}`;
+}
+
+el('btnConfirmar').addEventListener('click', () => {
+  if(ocupado){
+    return;
+  }
+  el('resultado').innerHTML = '';
+  const resultado = resultadoEscolhido();
+  if(!resultado){
+    el('conclusaoErro').style.display = 'block';
+    el('conclusao').focus();
+    return;
+  }
+  const data = el('dataConclusao').value;
+  const anotacoes = el('anotacoes').value.trim();
+  el('resumo').innerHTML =
+    `<p><strong>${selecionadas.size}</strong> pasta(s) serão arquivadas com:</p><ul>` +
+    `<li>Resultado: ${esc(resultado.descricao)}</li>` +
+    `<li>Data de conclusão: ${data ? esc(dataBr(data)) : 'não informada'}</li>` +
+    `<li>Anotações: ${anotacoes ? esc(anotacoes.length > 120 ? anotacoes.slice(0, 120) + '…' : anotacoes) : 'não informadas'}</li>` +
+    '</ul>';
+  el('dlg').showModal();
+});
+
+el('btnCancelar').addEventListener('click', () => el('dlg').close());
+
+el('btnOk').addEventListener('click', async () => {
+  if(ocupado){
+    return;
+  }
+  el('dlg').close();
+  await arquivarLote();
+});
+
+async function arquivarLote(){
+  const ids = pendentes().filter(p => selecionadas.has(p.id)).map(p => p.id);
+  const resultado = resultadoEscolhido();
+  // mesmos campos do formulário de conclusão do Eleven; o valor final da causa
+  // de uma conclusão anterior é apagado (decisão: sem GET da pasta antes do PUT)
+  const conclusao = {
+    resultadoConclusao: resultado,
+    dataConclusao: el('dataConclusao').value || null,
+    anotacoesConclusao: el('anotacoes').value.trim() || null,
+    valorFinalCausa: null,
+    anotacoesDesarquivamento: null,
+    arquivada: true
+  };
+  const falhas = [];
+  let concluidas = 0;
+  let sucesso = 0;
+
+  travarTela(true);
+  progresso(0, `Arquivando pastas 0/${ids.length}`);
+
+  for(const id of ids){
+    try{
+      await requisitar(`${APP_URL}/pastasprocessuais/${id}/conclusao`, 'PUT', conclusao);
+      const linha = aArquivar.find(p => p.id === id);
+      linha.arquivada = true;
+      selecionadas.delete(id);
+      sucesso++;
+    }catch(err){
+      console.error('Falha na pasta', id, err);
+      falhas.push({ id, mensagem:textoErro(err) });
+    }
+    concluidas++;
+    progresso(100 * concluidas / ids.length, `Arquivando pastas ${concluidas}/${ids.length}`);
+  }
+
+  ocultarProgresso();
+  renderLista();
+  travarTela(false);
+  renderResultado(sucesso, falhas);
+}
+
+function renderResultado(sucesso, falhas){
+  let html = '';
+  if(sucesso){
+    html += `<p class="msg-ok">✅ ${sucesso} pasta(s) arquivada(s).</p>`;
+  }
+  if(falhas.length){
+    html += `<p class="msg-erro">${falhas.length} pasta(s) não foram arquivadas e continuam marcadas na lista, clique em "Confirmar o arquivamento em lote" acima para tentar novamente.</p>` +
+      '<div class="table-scroll"><table class="table"><thead><tr><th>Pasta</th><th>Erro</th></tr></thead><tbody>' +
+      falhas.map(f => {
+        const p = aArquivar.find(x => x.id === f.id);
+        return `<tr><td class="t">${p ? linkPasta(p) : esc(f.id)}</td><td>${esc(f.mensagem)}</td></tr>`;
+      }).join('') +
+      '</tbody></table></div>';
+  }
+  el('resultado').innerHTML = html;
+}
+</script>
+
+</body>
+</html>
